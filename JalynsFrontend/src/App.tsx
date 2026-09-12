@@ -1,11 +1,11 @@
+import { Hero } from "./components/Hero";
+
 function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <h1 className="text-5xl font-bold text-blue-600">
-        Jalyn's Resort
-      </h1>
-    </div>
-  )
+    <main>
+      <Hero />
+    </main>
+  );
 }
 
-export default App
+export default App;
