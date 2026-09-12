@@ -11,6 +11,10 @@
   --color-foam: #fafbfa;
   --color-mist: #eef2f0;
   --color-stone: #6b756f;
+
+  /* Auth pages: sky blue / black / white */
+  --color-sky: #0ea5e9;
+  --color-sky-bright: #38bdf8;
 }
 
 @layer base {

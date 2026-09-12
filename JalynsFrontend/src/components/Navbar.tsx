@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const links = [
   { label: "Home", href: "#home" },
@@ -12,6 +14,8 @@ const links = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const { role, approvalStatus, can } = useAuth();
+  const showMember = can.canManageMembers(role, approvalStatus);
 
   return (
     <header className="absolute inset-x-0 top-0 z-40 animate-fade-in">
@@ -38,6 +42,15 @@ export function Navbar() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Single Admin Member CTA — only one instance in the navbar */}
+          {showMember ? (
+            <Link
+              to="/members"
+              className="inline-flex rounded-full bg-sky px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-bright sm:px-5"
+            >
+              Member
+            </Link>
+          ) : null}
           <a
             href="#book"
             className="animate-pulse-glow hidden rounded-full bg-white px-6 py-2.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90 sm:inline-flex xl:px-7 xl:py-3 xl:text-base"
