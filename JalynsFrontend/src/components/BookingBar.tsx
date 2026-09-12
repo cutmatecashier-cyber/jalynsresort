@@ -1,51 +1,148 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { ArrowRightIcon } from "./Icons";
 
-function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3 9.5h18" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M8 3v3.5M16 3v3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
+const guestOptions = ["1 Adult", "2 Adults", "3 Adults", "4 Adults"] as const;
 
-function GuestsIcon({ className = "h-4 w-4" }: { className?: string }) {
+function CalendarIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.5" />
       <path
-        d="M3.5 19c.6-3 2.8-4.5 5.5-4.5S14 16 14.5 19"
+        d="M3.5 9.5h17M8 3.5v3M16 3.5v3"
         stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="17" cy="9" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M15.2 14.8c1.7.3 3.1 1.4 3.7 3.4"
-        stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function ChevronIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+function GuestsIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M5.5 19c.8-3.2 3-5 6.5-5s5.7 1.8 6.5 5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M5 7.5 10 12.5 15 7.5"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-const guestOptions = ["1 Adult", "2 Adults", "3 Adults", "4 Adults"] as const;
+function formatLabel(value: string, short = false) {
+  const date = new Date(`${value}T12:00:00`);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: short ? undefined : "numeric",
+  });
+}
+
+function DateField({
+  label,
+  value,
+  onChange,
+  short = false,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  short?: boolean;
+  compact?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openPicker() {
+    const input = inputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    input.click();
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={openPicker}
+      className={`group relative flex w-full min-w-0 items-center text-left transition ${
+        compact ? "gap-2.5 rounded-xl px-3 py-2.5 hover:bg-mist/70" : "gap-2.5 py-1"
+      }`}
+    >
+      <span
+        className={`inline-flex shrink-0 items-center justify-center rounded-lg bg-mist text-sea ${
+          compact ? "h-8 w-8" : "h-9 w-9"
+        }`}
+      >
+        <CalendarIcon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      </span>
+      <span className="min-w-0 flex-1 overflow-hidden">
+        <span className="block text-[0.65rem] leading-none font-medium tracking-wide text-stone uppercase">
+          {label}
+        </span>
+        <span
+          className={`mt-1 block truncate leading-none font-semibold whitespace-nowrap text-ink ${
+            compact ? "text-[0.875rem]" : "text-[0.95rem]"
+          }`}
+        >
+          {formatLabel(value, short)}
+        </span>
+      </span>
+      <ChevronIcon className="h-3 w-3 shrink-0 text-ink/25 transition group-hover:text-ink/45" />
+      <input
+        ref={inputRef}
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="sr-only"
+      />
+    </button>
+  );
+}
 
 export function BookingBar() {
   const [checkIn, setCheckIn] = useState("2026-08-30");
@@ -60,62 +157,29 @@ export function BookingBar() {
     <form
       id="book"
       onSubmit={onSubmit}
-      className="animate-fade-up flex w-full max-w-3xl flex-col gap-3 rounded-[1.6rem] bg-white/92 p-3 shadow-[0_18px_50px_rgba(8,16,12,0.22)] backdrop-blur-md sm:flex-row sm:items-center sm:rounded-full sm:p-2 sm:pl-5"
-      style={{ animationDelay: "0.35s" }}
+      className="w-full overflow-hidden rounded-2xl border border-white/50 bg-white/92 shadow-[0_16px_40px_rgba(12,18,16,0.16)] backdrop-blur-xl sm:rounded-[1.35rem] sm:bg-white/97"
     >
-      <label className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2 sm:rounded-none sm:py-1">
-        <span className="text-ink/55">
-          <CalendarIcon />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-ink/45">
-            Check In
+      {/* Mobile */}
+      <div className="flex flex-col gap-2 p-2.5 sm:hidden">
+        <div className="grid grid-cols-2 gap-1.5">
+          <DateField compact short label="Check In" value={checkIn} onChange={setCheckIn} />
+          <DateField compact short label="Check Out" value={checkOut} onChange={setCheckOut} />
+        </div>
+
+        <label className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition hover:bg-mist/70">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-mist text-sea">
+            <GuestsIcon className="h-3.5 w-3.5" />
           </span>
-          <input
-            type="date"
-            value={checkIn}
-            onChange={(event) => setCheckIn(event.target.value)}
-            className="w-full bg-transparent text-sm font-medium text-ink outline-none [color-scheme:light]"
-          />
-        </span>
-      </label>
-
-      <div className="hidden h-8 w-px bg-ink/10 sm:block" aria-hidden="true" />
-
-      <label className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2 sm:rounded-none sm:py-1">
-        <span className="text-ink/55">
-          <CalendarIcon />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-ink/45">
-            Check Out
-          </span>
-          <input
-            type="date"
-            value={checkOut}
-            onChange={(event) => setCheckOut(event.target.value)}
-            className="w-full bg-transparent text-sm font-medium text-ink outline-none [color-scheme:light]"
-          />
-        </span>
-      </label>
-
-      <div className="hidden h-8 w-px bg-ink/10 sm:block" aria-hidden="true" />
-
-      <label className="relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2 sm:rounded-none sm:py-1">
-        <span className="text-ink/55">
-          <GuestsIcon />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-ink/45">
-            Guests
-          </span>
-          <span className="relative block">
+          <span className="min-w-0 flex-1 overflow-hidden">
+            <span className="block text-[0.65rem] leading-none font-medium tracking-wide text-stone uppercase">
+              Guests
+            </span>
             <select
               value={guests}
               onChange={(event) =>
                 setGuests(event.target.value as (typeof guestOptions)[number])
               }
-              className="w-full appearance-none bg-transparent pr-5 text-sm font-medium text-ink outline-none"
+              className="mt-1 w-full appearance-none bg-transparent text-[0.875rem] leading-none font-semibold text-ink outline-none"
             >
               {guestOptions.map((option) => (
                 <option key={option} value={option}>
@@ -123,20 +187,61 @@ export function BookingBar() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-ink/45">
-              <ChevronIcon />
-            </span>
           </span>
-        </span>
-      </label>
+          <ChevronIcon className="pointer-events-none h-3 w-3 shrink-0 text-ink/25" />
+        </label>
 
-      <button
-        type="submit"
-        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-ink-soft sm:py-3"
-      >
-        <CalendarIcon className="h-3.5 w-3.5" />
-        Check Availability
-      </button>
+        <button
+          type="submit"
+          className="relative mt-0.5 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-sea px-4 py-3 text-[0.8125rem] font-semibold tracking-wide text-white transition active:scale-[0.99]"
+        >
+          <span className="animate-shimmer absolute inset-0 opacity-35" />
+          <span className="relative">Check Availability</span>
+          <ArrowRightIcon className="relative h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Desktop */}
+      <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-stretch">
+        <div className="border-r border-ink/6 px-4 py-3.5 md:px-5">
+          <DateField label="Check In" value={checkIn} onChange={setCheckIn} />
+        </div>
+        <div className="border-r border-ink/6 px-4 py-3.5 md:px-5">
+          <DateField label="Check Out" value={checkOut} onChange={setCheckOut} />
+        </div>
+        <label className="flex min-w-0 items-center gap-2.5 border-r border-ink/6 px-4 py-3.5 md:px-5">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-mist text-sea">
+            <GuestsIcon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.65rem] font-medium tracking-wide text-stone uppercase">
+              Guests
+            </span>
+            <select
+              value={guests}
+              onChange={(event) => setGuests(event.target.value as (typeof guestOptions)[number])}
+              className="mt-1 w-full appearance-none bg-transparent text-[0.95rem] font-semibold text-ink outline-none"
+            >
+              {guestOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </span>
+          <ChevronIcon className="h-3 w-3 shrink-0 text-ink/25" />
+        </label>
+        <div className="flex items-center p-2.5">
+          <button
+            type="submit"
+            className="relative inline-flex h-full min-w-[11rem] items-center justify-center gap-2 overflow-hidden rounded-xl bg-sea px-5 text-sm font-semibold tracking-wide text-white transition hover:bg-ink active:scale-[0.99]"
+          >
+            <span className="animate-shimmer absolute inset-0 opacity-30" />
+            <span className="relative">Check Availability</span>
+            <ArrowRightIcon className="relative h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
     </form>
   );
 }
