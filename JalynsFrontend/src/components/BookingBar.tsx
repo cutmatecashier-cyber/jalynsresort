@@ -107,7 +107,7 @@ function DateField({
     <button
       type="button"
       onClick={openPicker}
-      className={`group relative flex w-full min-w-0 items-center text-left transition ${
+      className={`group btn-press relative flex w-full min-w-0 items-center text-left ${
         compact ? "gap-2.5 rounded-xl px-3 py-2.5 hover:bg-mist/70" : "gap-2.5 py-1"
       }`}
     >
@@ -159,14 +159,13 @@ export function BookingBar() {
       onSubmit={onSubmit}
       className="w-full overflow-hidden rounded-2xl border border-white/50 bg-white/92 shadow-[0_16px_40px_rgba(12,18,16,0.16)] backdrop-blur-xl sm:rounded-[1.35rem] sm:bg-white/97"
     >
-      {/* Mobile */}
-      <div className="flex flex-col gap-2 p-2.5 sm:hidden">
-        <div className="grid grid-cols-2 gap-1.5">
+      <div className="flex flex-col gap-1.5 p-2 sm:hidden">
+        <div className="grid grid-cols-2 gap-1">
           <DateField compact short label="Check In" value={checkIn} onChange={setCheckIn} />
           <DateField compact short label="Check Out" value={checkOut} onChange={setCheckOut} />
         </div>
 
-        <label className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition hover:bg-mist/70">
+        <label className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 transition hover:bg-mist/70">
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-mist text-sea">
             <GuestsIcon className="h-3.5 w-3.5" />
           </span>
@@ -193,7 +192,7 @@ export function BookingBar() {
 
         <button
           type="submit"
-          className="relative mt-0.5 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-sea px-4 py-3 text-[0.8125rem] font-semibold tracking-wide text-white transition active:scale-[0.99]"
+          className="btn-press animate-live-gradient relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2.5 text-[0.8125rem] font-semibold tracking-wide text-white"
         >
           <span className="animate-shimmer absolute inset-0 opacity-35" />
           <span className="relative">Check Availability</span>
@@ -201,7 +200,6 @@ export function BookingBar() {
         </button>
       </div>
 
-      {/* Desktop */}
       <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-stretch">
         <div className="border-r border-ink/6 px-4 py-3.5 md:px-5">
           <DateField label="Check In" value={checkIn} onChange={setCheckIn} />
@@ -234,7 +232,7 @@ export function BookingBar() {
         <div className="flex items-center p-2.5">
           <button
             type="submit"
-            className="relative inline-flex h-full min-w-[11rem] items-center justify-center gap-2 overflow-hidden rounded-xl bg-sea px-5 text-sm font-semibold tracking-wide text-white transition hover:bg-ink active:scale-[0.99]"
+            className="btn-press animate-live-gradient relative inline-flex h-full min-w-[11rem] items-center justify-center gap-2 overflow-hidden rounded-xl px-5 text-sm font-semibold tracking-wide text-white"
           >
             <span className="animate-shimmer absolute inset-0 opacity-30" />
             <span className="relative">Check Availability</span>

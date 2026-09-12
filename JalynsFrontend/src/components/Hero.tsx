@@ -32,6 +32,46 @@ const slides = [
 
 const SLIDE_MS = 7000;
 
+const bubbles = [
+  /* Edge accents — keep clear of headline (left) and booking (lower center) */
+  {
+    className:
+      "glass-bubble top-[14%] right-[4%] h-16 w-16 opacity-[0.22] glass-bubble-delay-1",
+  },
+  {
+    className:
+      "glass-bubble-soft top-[22%] right-[18%] h-8 w-8 opacity-[0.18] glass-bubble-delay-3 hidden sm:block",
+  },
+  {
+    className:
+      "glass-bubble top-[38%] right-[6%] h-28 w-28 opacity-[0.16] glass-bubble-delay-2 hidden md:block",
+  },
+  {
+    className:
+      "glass-bubble-soft top-[48%] right-[22%] h-11 w-11 opacity-[0.2] glass-bubble-delay-4 hidden lg:block",
+  },
+  {
+    className:
+      "glass-bubble bottom-[34%] right-[3%] h-20 w-20 opacity-[0.18] glass-bubble-delay-1 hidden sm:block",
+  },
+  {
+    className:
+      "glass-bubble-soft top-[58%] left-[3%] h-12 w-12 opacity-[0.16] glass-bubble-delay-3 hidden md:block",
+  },
+  {
+    className:
+      "glass-bubble top-[70%] left-[6%] h-9 w-9 opacity-[0.14] glass-bubble-delay-2 hidden lg:block",
+  },
+  {
+    className:
+      "glass-bubble-soft top-[18%] left-[42%] h-7 w-7 opacity-[0.12] glass-bubble-delay-4 hidden xl:block",
+  },
+  {
+    className:
+      "glass-bubble bottom-[18%] right-[28%] h-14 w-14 opacity-[0.15] glass-bubble-delay-3 hidden md:block",
+  },
+] as const;
+
 export function Hero() {
   const [active, setActive] = useState(0);
   const [tick, setTick] = useState(0);
@@ -60,13 +100,16 @@ export function Hero() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/70" />
         <div className="live-orb top-[18%] left-[12%] hidden h-40 w-40 bg-white/25 sm:block" />
         <div className="live-orb live-orb-delayed right-[8%] bottom-[22%] hidden h-52 w-52 bg-sea/40 sm:block" />
+        {bubbles.map((bubble, index) => (
+          <span key={index} className={bubble.className} aria-hidden="true" />
+        ))}
       </div>
 
       <Navbar />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:justify-end sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:px-10">
-        {/* Copy — top on mobile */}
-        <div className="order-1 mt-5 max-w-2xl sm:mt-0">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:justify-end lg:px-10">
+        {/* Copy — pinned to top on mobile */}
+        <div className="order-1 mt-16 max-w-2xl shrink-0 sm:mt-0">
           <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.18em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.28em]">
             Welcome to Jalyn&apos;s Resort &amp; Restaurant
           </p>
@@ -90,7 +133,14 @@ export function Hero() {
           </p>
         </div>
 
-        {/* Location under copy on mobile; after booking on desktop */}
+        {/* Booking — bottom on mobile, between copy and location on desktop */}
+        <div
+          className="animate-fade-up order-3 mt-auto w-full -translate-y-24 pb-1 sm:order-2 sm:mt-8 sm:translate-y-0 sm:max-w-xl sm:pb-0 md:mt-10 md:max-w-3xl"
+          style={{ animationDelay: "0.1s" }}
+        >
+          <BookingBar />
+        </div>
+
         <div
           className="animate-fade-up order-2 mt-3 flex flex-col items-start gap-2.5 sm:order-3 sm:mt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           style={{ animationDelay: "0.28s" }}
@@ -120,7 +170,7 @@ export function Hero() {
                   setActive(index);
                   setTick((value) => value + 1);
                 }}
-                className={`relative h-1.5 overflow-hidden rounded-full transition-all duration-300 ${
+                className={`btn-press relative h-1.5 overflow-hidden rounded-full ${
                   index === active ? "w-7 bg-white/30 sm:w-8" : "w-1.5 bg-white/45 hover:bg-white/70"
                 }`}
               >
@@ -133,14 +183,6 @@ export function Hero() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Booking — lower on mobile, between copy and location on desktop */}
-        <div
-          className="animate-fade-up order-3 mt-auto w-full pb-1 sm:order-2 sm:mt-8 sm:max-w-xl sm:pb-0 md:mt-10 md:max-w-3xl"
-          style={{ animationDelay: "0.1s" }}
-        >
-          <BookingBar />
         </div>
 
         <div className="order-4 mt-4 hidden justify-center sm:mt-8 sm:flex">

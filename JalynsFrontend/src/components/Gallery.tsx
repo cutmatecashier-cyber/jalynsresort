@@ -29,7 +29,7 @@ const photos = [
     id: "pool",
     alt: "Resort pool at golden hour",
     src: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=900&q=80",
-    className: "",
+    className: "hidden md:block",
   },
 ] as const;
 
@@ -63,7 +63,9 @@ export function Gallery() {
               className={`${photo.className || "aspect-square"} ${
                 photo.className.includes("row-span")
                   ? "aspect-auto min-h-[16rem] md:min-h-0"
-                  : ""
+                  : photo.className.includes("hidden")
+                    ? "aspect-square"
+                    : ""
               }`}
             >
               <figure className="group h-full overflow-hidden rounded-xl">

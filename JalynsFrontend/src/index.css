@@ -3,7 +3,7 @@
 @theme {
   --font-display: "Instrument Serif", Georgia, serif;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-script: "Pinyon Script", cursive;
+  --font-script: "Great Vibes", cursive;
 
   --color-ink: #0c1210;
   --color-ink-soft: #1a2420;
@@ -89,15 +89,47 @@
   }
 }
 
+@keyframes float-bubble {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6px, -10px, 0) scale(1.02);
+  }
+  66% {
+    transform: translate3d(-7px, 6px, 0) scale(0.99);
+  }
+}
+
 @keyframes pulse-glow {
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
-    transform: scale(1);
   }
   50% {
     box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
-    transform: scale(1.02);
+  }
+}
+
+@keyframes btn-press-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.93);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes btn-flash {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
@@ -119,6 +151,18 @@
   }
   100% {
     background-position: 220% 0;
+  }
+}
+
+@keyframes live-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 
@@ -153,16 +197,6 @@
   }
   to {
     transform: scaleX(1);
-  }
-}
-
-@keyframes wave {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(-3%);
   }
 }
 
@@ -209,9 +243,61 @@
   animation: shimmer 2.8s linear infinite;
 }
 
+.animate-live-gradient {
+  background-image: linear-gradient(
+    120deg,
+    #0e4a52,
+    #1a6b74,
+    #0c1210,
+    #156068,
+    #0e4a52
+  );
+  background-size: 280% 280%;
+  animation: live-gradient 6s ease-in-out infinite;
+}
+
 .animate-progress {
   transform-origin: left center;
   animation: progress-line 7s linear infinite;
+}
+
+.btn-press {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.22s ease,
+    box-shadow 0.22s ease,
+    gap 0.22s ease,
+    color 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.btn-press:hover {
+  transform: translateY(-1px);
+}
+
+.btn-press:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
+}
+
+.btn-press.is-pressed {
+  animation: btn-press-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-press::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.35), transparent 65%);
+  opacity: 0;
+}
+
+.btn-press:active::after {
+  animation: btn-flash 0.45s ease-out;
 }
 
 .live-orb {
@@ -228,7 +314,61 @@
   animation-duration: 20s;
 }
 
-/* Scroll reveal */
+/* Floating glassmorphism bubbles */
+.glass-bubble {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.03) 55%,
+    rgba(255, 255, 255, 0.08)
+  );
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 6px 24px rgba(0, 0, 0, 0.06);
+  animation: float-bubble 16s ease-in-out infinite;
+  will-change: transform;
+}
+
+.glass-bubble-soft {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.02) 70%
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: none;
+  animation: float-bubble 18s ease-in-out infinite;
+}
+
+.glass-bubble-delay-1 {
+  animation-delay: -2.5s;
+  animation-duration: 17s;
+}
+
+.glass-bubble-delay-2 {
+  animation-delay: -6s;
+  animation-duration: 20s;
+}
+
+.glass-bubble-delay-3 {
+  animation-delay: -9s;
+  animation-duration: 15s;
+}
+
+.glass-bubble-delay-4 {
+  animation-delay: -4s;
+  animation-duration: 22s;
+}
+
 .reveal {
   opacity: 0;
   transition:
@@ -264,6 +404,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .glass-bubble,
+  .glass-bubble-soft {
+    animation: none !important;
+    transform: none !important;
+  }
+
   .reveal,
   .animate-fade-up,
   .animate-fade-in,
@@ -274,8 +420,12 @@
   .animate-drift,
   .animate-scroll-hint,
   .animate-shimmer,
+  .animate-live-gradient,
   .animate-progress,
-  .live-orb {
+  .live-orb,
+  .btn-press,
+  .btn-press.is-pressed,
+  .btn-press::after {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
