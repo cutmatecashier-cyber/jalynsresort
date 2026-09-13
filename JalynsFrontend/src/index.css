@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @theme {
   --font-display: "Instrument Serif", Georgia, serif;
@@ -15,6 +15,7 @@
   /* Auth pages: deeper blue for readability on light/glass panels */
   --color-sky: #0369a1;
   --color-sky-bright: #0284c7;
+  --color-sky-deep: #0369a1;
 }
 
 @layer base {
@@ -373,7 +374,7 @@
   animation-duration: 28s;
 }
 
-/* Floating glassmorphism orbs — luxury resort accent */
+/* Floating glassmorphism orbs ΓÇö luxury resort accent */
 .glass-bubble {
   pointer-events: none;
   position: absolute;
@@ -532,7 +533,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* Hide browser native password reveal (Edge/IE) — custom eye toggle only */
+/* Hide browser native password reveal (Edge/IE) ΓÇö custom eye toggle only */
 .password-field-input::-ms-reveal,
 .password-field-input::-ms-clear {
   display: none;

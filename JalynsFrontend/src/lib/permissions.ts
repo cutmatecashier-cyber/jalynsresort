@@ -21,6 +21,10 @@ export const permissions = {
 
   canManageContent: (role: UserRole | null, status: ApprovalStatus | null) =>
     Boolean(role && status === "approved"),
+
+  /** Admin-only: edit public resort contact details */
+  canEditContactInfo: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
 } as const;
 
 export function roleLabel(role: UserRole | null): string {

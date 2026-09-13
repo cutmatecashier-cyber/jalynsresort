@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
+import { ContactPage } from "./pages/ContactPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -18,6 +19,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-code" element={<VerifyCodePage />} />

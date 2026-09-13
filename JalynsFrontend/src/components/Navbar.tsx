@@ -1,17 +1,49 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
 
-const links = [
-  { label: "Home", shortLabel: "Home", href: "#home" },
-  { label: "Rooms and Apartments", shortLabel: "Rooms", href: "#rooms" },
-  { label: "Restaurant", shortLabel: "Restaurant", href: "#restaurant" },
-  { label: "Scuba Diving", shortLabel: "Scuba Diving", href: "#diving" },
-  { label: "SPA", shortLabel: "SPA", href: "#spa" },
-  { label: "News, Offers and Events", shortLabel: "News", href: "#news" },
-  { label: "Contact Us", shortLabel: "Contact Us", href: "#contact" },
-] as const;
+type NavItem =
+  | { label: string; shortLabel: string; kind: "hash"; hash: string }
+  | { label: string; shortLabel: string; kind: "route"; to: string };
+
+const links: NavItem[] = [
+  { label: "Home", shortLabel: "Home", kind: "hash", hash: "#home" },
+  { label: "Rooms and Apartments", shortLabel: "Rooms", kind: "hash", hash: "#rooms" },
+  { label: "Restaurant", shortLabel: "Restaurant", kind: "hash", hash: "#restaurant" },
+  { label: "Scuba Diving", shortLabel: "Scuba Diving", kind: "hash", hash: "#diving" },
+  { label: "SPA", shortLabel: "SPA", kind: "hash", hash: "#spa" },
+  { label: "News, Offers and Events", shortLabel: "News", kind: "hash", hash: "#news" },
+  { label: "Contact Us", shortLabel: "Contact Us", kind: "route", to: "/contact" },
+];
+
+function NavAnchor({
+  item,
+  className,
+  onClick,
+  style,
+  useShortLabel = false,
+}: {
+  item: NavItem;
+  className: string;
+  onClick?: () => void;
+  style?: CSSProperties;
+  useShortLabel?: boolean;
+}) {
+  const text = useShortLabel ? item.shortLabel : item.label;
+  if (item.kind === "route") {
+    return (
+      <Link to={item.to} className={className} onClick={onClick} style={style}>
+        {text}
+      </Link>
+    );
+  }
+  return (
+    <a href={`/${item.hash}`} className={className} onClick={onClick} style={style}>
+      {text}
+    </a>
+  );
+}
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -51,8 +83,8 @@ export function Navbar() {
   return (
     <header className="absolute inset-x-0 top-0 z-40 animate-fade-in">
       <div className="relative z-50 flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 sm:py-4 md:px-8 lg:px-10 xl:px-12">
-        <a
-          href="#home"
+        <Link
+          to="/"
           className="relative z-10 min-w-0 shrink-0 text-white lg:w-[11rem] xl:w-[13rem]"
           onClick={() => setOpen(false)}
         >
@@ -62,20 +94,19 @@ export function Navbar() {
           <span className="mt-1 block text-[0.62rem] font-medium tracking-[0.2em] text-white/75 uppercase sm:mt-1.5 sm:text-[0.78rem] sm:tracking-[0.26em] md:text-[0.88rem] lg:text-[0.9rem] lg:tracking-[0.26em]">
             Resort &amp; Restaurant
           </span>
-        </a>
+        </Link>
 
         <nav
           className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-4 lg:flex xl:gap-5"
           aria-label="Primary"
         >
           {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
+            <NavAnchor
+              key={link.label}
+              item={link}
+              useShortLabel
               className="nav-link shrink-0 whitespace-nowrap text-[1.05rem] font-medium tracking-wide text-white/85 hover:text-white xl:text-[1.15rem]"
-            >
-              {link.shortLabel}
-            </a>
+            />
           ))}
         </nav>
 
@@ -111,7 +142,7 @@ export function Navbar() {
             </>
           ) : (
             <a
-              href="#book"
+              href="/#book"
               className="btn-press animate-pulse-glow hidden h-10 items-center justify-center rounded-full bg-white px-5 text-[0.9rem] font-semibold text-ink transition hover:bg-white/90 sm:inline-flex xl:px-6 xl:text-[0.95rem]"
             >
               Book Now
@@ -164,15 +195,13 @@ export function Navbar() {
 
             <ul className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {links.map((link, index) => (
-                <li key={link.href} className="border-b border-white/8 last:border-b-0">
-                  <a
-                    href={link.href}
+                <li key={link.label} className="border-b border-white/8 last:border-b-0">
+                  <NavAnchor
+                    item={link}
                     className="btn-press flex items-center py-4 text-[1.45rem] font-medium tracking-wide text-white/90 transition hover:text-white"
                     style={{ transitionDelay: open ? `${index * 30}ms` : "0ms" }}
                     onClick={() => setOpen(false)}
-                  >
-                    <span className="whitespace-nowrap">{link.label}</span>
-                  </a>
+                  />
                 </li>
               ))}
             </ul>
@@ -206,7 +235,7 @@ export function Navbar() {
                 </button>
               ) : (
                 <a
-                  href="#book"
+                  href="/#book"
                   onClick={() => setOpen(false)}
                   className="btn-press inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90"
                 >
