@@ -165,17 +165,17 @@ export function MembersPage() {
 
   return (
     <div className="min-h-screen bg-foam text-ink">
-      <header className="border-b border-white/10 bg-black text-white">
+      <header className="border-b border-sky-bright/30 bg-sky text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
           <div>
-            <p className="text-[0.55rem] font-medium tracking-[0.22em] text-sky uppercase">
+            <p className="text-[0.55rem] font-medium tracking-[0.22em] text-white/75 uppercase">
               Admin only
             </p>
             <h1 className="font-display text-2xl sm:text-3xl">Member Management</h1>
           </div>
           <Link
             to="/"
-            className="rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            className="btn-press rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
           >
             Back to site
           </Link>
@@ -189,7 +189,7 @@ export function MembersPage() {
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={`rounded-full px-3.5 py-2 text-sm font-semibold transition sm:px-4 ${
+              className={`btn-press rounded-full px-3.5 py-2 text-sm font-semibold transition sm:px-4 ${
                 filter === f.id
                   ? "bg-sky text-white"
                   : "border border-ink/10 bg-white text-ink hover:bg-mist"
@@ -216,7 +216,7 @@ export function MembersPage() {
           <>
             <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-ink/8 bg-white shadow-sm md:block">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-ink/8 bg-black text-xs tracking-wide text-white uppercase">
+                <thead className="border-b border-sky-bright/30 bg-sky text-xs tracking-wide text-white uppercase">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Name</th>
                     <th className="px-4 py-3 font-semibold">Phone</th>
@@ -311,7 +311,7 @@ export function MembersPage() {
                   key={r}
                   type="button"
                   onClick={() => setPickedRole(r)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  className={`btn-press rounded-full px-4 py-2 text-sm font-semibold ${
                     pickedRole === r ? "bg-sky text-white" : "border border-ink/10 bg-foam text-ink"
                   }`}
                 >
@@ -323,7 +323,7 @@ export function MembersPage() {
               <button
                 type="button"
                 onClick={() => setAcceptFor(null)}
-                className="rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
+                className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -331,7 +331,7 @@ export function MembersPage() {
                 type="button"
                 disabled={busyId === acceptFor.id}
                 onClick={() => void confirmAccept()}
-                className="rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
+                className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
               >
                 Accept as {roleLabel(pickedRole)}
               </button>
@@ -357,7 +357,7 @@ export function MembersPage() {
               <button
                 type="button"
                 onClick={() => setRejectFor(null)}
-                className="rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
+                className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -365,7 +365,7 @@ export function MembersPage() {
                 type="button"
                 disabled={busyId === rejectFor.id}
                 onClick={() => void confirmReject()}
-                className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                className="btn-press rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               >
                 Reject permanently
               </button>
@@ -391,7 +391,7 @@ export function MembersPage() {
               <button
                 type="button"
                 onClick={() => setDeleteFor(null)}
-                className="rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
+                className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -399,7 +399,7 @@ export function MembersPage() {
                 type="button"
                 disabled={busyId === deleteFor.id}
                 onClick={() => void confirmDelete()}
-                className="rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                className="btn-press rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
                 Delete permanently
               </button>
@@ -440,7 +440,7 @@ function MemberActions({
           type="button"
           disabled={busy}
           onClick={onAccept}
-          className="rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60 sm:text-sm"
+          className="btn-press rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60 sm:text-sm"
         >
           {isApproved ? "Change role" : "Accept"}
         </button>
@@ -451,7 +451,7 @@ function MemberActions({
           type="button"
           disabled={busy}
           onClick={onReject}
-          className="rounded-full border border-ink/20 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:bg-mist disabled:opacity-60 sm:text-sm"
+          className="btn-press rounded-full border border-ink/20 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:bg-mist disabled:opacity-60 sm:text-sm"
         >
           Reject
         </button>
@@ -461,7 +461,7 @@ function MemberActions({
         type="button"
         disabled={busy}
         onClick={onDelete}
-        className="rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 sm:text-sm"
+        className="btn-press rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 sm:text-sm"
       >
         Delete
       </button>

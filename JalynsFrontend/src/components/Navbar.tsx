@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { roleLabel } from "../lib/permissions";
 
 const links = [
-  { label: "Home", href: "#home" },
-  { label: "Rooms and Apartments", href: "#rooms" },
-  { label: "Restaurant", href: "#restaurant" },
-  { label: "Scuba Diving", href: "#diving" },
-  { label: "SPA", href: "#spa" },
-  { label: "News, Offers and Events", href: "#news" },
-  { label: "Contact Us", href: "#contact" },
+  { label: "Home", shortLabel: "Home", href: "#home" },
+  { label: "Rooms and Apartments", shortLabel: "Rooms", href: "#rooms" },
+  { label: "Restaurant", shortLabel: "Restaurant", href: "#restaurant" },
+  { label: "Scuba Diving", shortLabel: "Scuba Diving", href: "#diving" },
+  { label: "SPA", shortLabel: "SPA", href: "#spa" },
+  { label: "News, Offers and Events", shortLabel: "News", href: "#news" },
+  { label: "Contact Us", shortLabel: "Contact Us", href: "#contact" },
 ] as const;
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
-  const { role, approvalStatus, can } = useAuth();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const { role, approvalStatus, can, signOut, profile } = useAuth();
   const showMember = can.canManageMembers(role, approvalStatus);
 
   useEffect(() => {
@@ -29,6 +32,21 @@ export function Navbar() {
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  function requestSignOut() {
+    setOpen(false);
+    setConfirmSignOut(true);
+  }
+
+  async function handleConfirmSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+      setConfirmSignOut(false);
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <header className="absolute inset-x-0 top-0 z-40 animate-fade-in">
@@ -54,28 +72,51 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="shrink-0 whitespace-nowrap text-[0.92rem] font-medium tracking-wide text-white/85 transition hover:text-white xl:text-[1.05rem]"
+              className="nav-link shrink-0 whitespace-nowrap text-[1.05rem] font-medium tracking-wide text-white/85 hover:text-white xl:text-[1.15rem]"
             >
-              {link.label}
+              {link.shortLabel}
             </a>
           ))}
         </nav>
 
-        <div className="relative z-10 flex shrink-0 items-center justify-end gap-2 lg:w-[11rem] xl:w-[13rem]">
+        <div className="relative z-10 flex shrink-0 items-center justify-end gap-2 lg:min-w-[11rem] xl:min-w-[13rem]">
           {showMember ? (
-            <Link
-              to="/members"
-              className="inline-flex rounded-full bg-sky px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-bright sm:px-5"
+            <>
+              <div className="relative hidden items-center gap-2 sm:flex">
+                <p className="absolute right-0 bottom-full mb-3 max-w-[18rem] truncate text-right text-[0.8rem] leading-tight whitespace-nowrap text-white/85 xl:text-[0.85rem]">
+                  Signed in as <span className="font-semibold text-white">{profile?.name}</span>
+                  <span className="text-white/50"> · </span>
+                  <span className="font-medium text-white">{roleLabel(role)}</span>
+                </p>
+                <Link
+                  to="/members"
+                  className="btn-press inline-flex h-10 min-w-[7.5rem] items-center justify-center rounded-full bg-sky px-4 text-sm font-semibold text-white transition hover:bg-sky-bright"
+                >
+                  Member
+                </Link>
+                <button
+                  type="button"
+                  onClick={requestSignOut}
+                  className="btn-press inline-flex h-10 min-w-[7.5rem] items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-ink transition hover:bg-white/90"
+                >
+                  Sign out
+                </button>
+              </div>
+              <Link
+                to="/members"
+                className="btn-press inline-flex h-10 items-center justify-center rounded-full bg-sky px-4 text-sm font-semibold text-white transition hover:bg-sky-bright sm:hidden"
+              >
+                Member
+              </Link>
+            </>
+          ) : (
+            <a
+              href="#book"
+              className="btn-press animate-pulse-glow hidden h-10 items-center justify-center rounded-full bg-white px-5 text-[0.9rem] font-semibold text-ink transition hover:bg-white/90 sm:inline-flex xl:px-6 xl:text-[0.95rem]"
             >
-              Member
-            </Link>
-          ) : null}
-          <a
-            href="#book"
-            className="btn-press animate-pulse-glow hidden rounded-full bg-white px-5 py-2.5 text-[0.9rem] font-semibold text-ink transition hover:bg-white/90 sm:inline-flex xl:px-6 xl:text-[0.95rem]"
-          >
-            Book Now
-          </a>
+              Book Now
+            </a>
+          )}
           <button
             type="button"
             className="btn-press inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white backdrop-blur-md transition hover:bg-white/15 lg:hidden"
@@ -138,6 +179,14 @@ export function Navbar() {
 
             <div className="mt-auto shrink-0 border-t border-white/10 pt-5">
               {showMember ? (
+                <p className="mb-3 text-center text-sm text-white/85">
+                  Signed in as <span className="font-semibold text-white">{profile?.name}</span>
+                  <span className="text-white/50"> · </span>
+                  <span className="font-medium text-white">{roleLabel(role)}</span>
+                </p>
+              ) : null}
+
+              {showMember ? (
                 <Link
                   to="/members"
                   onClick={() => setOpen(false)}
@@ -147,13 +196,23 @@ export function Navbar() {
                 </Link>
               ) : null}
 
-              <a
-                href="#book"
-                onClick={() => setOpen(false)}
-                className="btn-press inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90"
-              >
-                Book Now
-              </a>
+              {showMember ? (
+                <button
+                  type="button"
+                  onClick={requestSignOut}
+                  className="btn-press inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90"
+                >
+                  Sign out
+                </button>
+              ) : (
+                <a
+                  href="#book"
+                  onClick={() => setOpen(false)}
+                  className="btn-press inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90"
+                >
+                  Book Now
+                </a>
+              )}
 
               <p className="mt-4 text-center text-[0.72rem] tracking-wide text-white/45">
                 Mangrove Cove, Puerto Galera
@@ -162,6 +221,49 @@ export function Navbar() {
           </div>
         </nav>
       </div>
+
+      {confirmSignOut ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sign-out-title"
+            className="w-full max-w-md rounded-2xl bg-white p-5 text-ink shadow-xl sm:p-6"
+          >
+            <h2 id="sign-out-title" className="font-display text-2xl">
+              Sign out?
+            </h2>
+            <p className="mt-2 text-sm text-stone">
+              Are you sure you want to sign out
+              {profile?.name ? (
+                <>
+                  {" "}
+                  as <strong className="text-ink">{profile.name}</strong>
+                </>
+              ) : null}
+              ?
+            </p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={signingOut}
+                onClick={() => setConfirmSignOut(false)}
+                className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={signingOut}
+                onClick={() => void handleConfirmSignOut()}
+                className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60"
+              >
+                {signingOut ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

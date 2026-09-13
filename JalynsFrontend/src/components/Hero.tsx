@@ -112,9 +112,9 @@ export function Hero() {
 
       <Navbar />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:justify-end lg:px-10">
-        {/* Copy — pinned to top on mobile */}
-        <div className="order-1 mt-16 max-w-2xl shrink-0 sm:mt-0">
+      <div className="relative z-10 flex min-h-[100svh] w-full flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:justify-end lg:px-10 xl:px-12">
+        {/* Copy — left-aligned with navbar brand */}
+        <div className="order-1 mt-16 max-w-2xl shrink-0 self-start text-left sm:mt-0">
           <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.18em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.28em]">
             Welcome to Jalyn&apos;s Resort &amp; Restaurant
           </p>

@@ -109,7 +109,7 @@ export function VerifyCodePage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60"
+          className="btn-press w-full rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60"
         >
           {submitting ? "Verifying…" : "Verify email"}
         </button>
@@ -119,7 +119,7 @@ export function VerifyCodePage() {
         type="button"
         disabled={cooldown > 0 || !email.trim()}
         onClick={() => void onResend()}
-        className="mt-4 w-full rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-foam disabled:cursor-not-allowed disabled:opacity-50"
+        className="btn-press mt-4 w-full rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-foam disabled:cursor-not-allowed disabled:opacity-50"
       >
         {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
       </button>

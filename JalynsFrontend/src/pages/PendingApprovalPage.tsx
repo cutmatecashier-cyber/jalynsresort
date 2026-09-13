@@ -32,13 +32,13 @@ export function PendingApprovalPage() {
         <button
           type="button"
           onClick={() => void signOut()}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
+          className="btn-press inline-flex flex-1 items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
         >
           Sign out
         </button>
         <Link
           to="/"
-          className="inline-flex flex-1 items-center justify-center rounded-full border border-ink/15 px-5 py-3.5 text-base font-semibold text-ink transition hover:bg-foam"
+          className="btn-press inline-flex flex-1 items-center justify-center rounded-full border border-ink/15 px-5 py-3.5 text-base font-semibold text-ink transition hover:bg-foam"
         >
           Public homepage
         </Link>

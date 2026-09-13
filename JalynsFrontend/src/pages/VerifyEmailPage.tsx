@@ -15,13 +15,13 @@ export function VerifyEmailPage() {
         <Link
           to={email ? `/verify-code?email=${encodeURIComponent(email)}` : "/verify-code"}
           onClick={() => void signOut()}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
+          className="btn-press inline-flex flex-1 items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
         >
           Enter code
         </Link>
         <Link
           to="/"
-          className="inline-flex flex-1 items-center justify-center rounded-full border border-ink/15 px-5 py-3.5 text-base font-semibold text-ink transition hover:bg-foam"
+          className="btn-press inline-flex flex-1 items-center justify-center rounded-full border border-ink/15 px-5 py-3.5 text-base font-semibold text-ink transition hover:bg-foam"
         >
           Home
         </Link>

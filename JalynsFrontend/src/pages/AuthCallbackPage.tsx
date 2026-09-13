@@ -51,7 +51,7 @@ export function AuthCallbackPage() {
     <AuthShell title="Email verification" subtitle={message}>
       <Link
         to="/login"
-        className="inline-flex w-full items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
+        className="btn-press inline-flex w-full items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
       >
         {failed ? "Back to Login" : "Continue to Login"}
       </Link>

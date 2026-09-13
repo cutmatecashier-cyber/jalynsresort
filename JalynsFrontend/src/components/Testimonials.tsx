@@ -88,7 +88,7 @@ export function Testimonials() {
             <button
               type="button"
               onClick={() => setActive((v) => (v - 1 + reviews.length) % reviews.length)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 transition hover:border-ink/25"
+              className="btn-press flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 transition hover:border-ink/25"
               aria-label="Previous"
             >
               <ChevronLeftIcon className="h-4 w-4" />
@@ -96,7 +96,7 @@ export function Testimonials() {
             <button
               type="button"
               onClick={() => setActive((v) => (v + 1) % reviews.length)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 transition hover:border-ink/25"
+              className="btn-press flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 transition hover:border-ink/25"
               aria-label="Next"
             >
               <ChevronRightIcon className="h-4 w-4" />
