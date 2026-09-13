@@ -48,7 +48,7 @@ export function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-ink/10 bg-foam px-4 py-3 text-base text-ink outline-none transition focus:border-sky focus:ring-2 focus:ring-sky/25"
-            placeholder="you@gmail.com"
+            placeholder="Enter your email address"
           />
         </label>
 

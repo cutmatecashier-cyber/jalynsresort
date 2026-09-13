@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { permissions } from "../lib/permissions";
 import type { ApprovalStatus, Profile, UserRole } from "../types/database";
 
@@ -95,6 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     let resolveSeq = 0;
+
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
 
     async function applySession(nextSession: Session | null) {
       const seq = ++resolveSeq;

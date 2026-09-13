@@ -32,7 +32,14 @@ export function LoginPage() {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        const msg = signInError.message || "Sign in failed.";
+        if (/failed to fetch|networkerror|fetch/i.test(msg)) {
+          setError(
+            "Cannot reach Supabase (Failed to fetch). Restart npm run dev after editing .env, use the URL Vite prints (e.g. localhost:5173), and confirm VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY.",
+          );
+        } else {
+          setError(msg);
+        }
         return;
       }
 
@@ -84,6 +91,12 @@ export function LoginPage() {
       subtitle="Sign in only works after email verification and Admin approval."
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {error ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800" role="alert">
+            {error}
+          </p>
+        ) : null}
+
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold tracking-[0.14em] text-ink/70 uppercase">
             Email
@@ -95,7 +108,7 @@ export function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-ink/10 bg-foam px-4 py-3 text-base text-ink outline-none transition focus:border-sky focus:ring-2 focus:ring-sky/25"
-            placeholder="you@gmail.com"
+            placeholder="Enter your email address"
           />
         </label>
 
@@ -116,12 +129,6 @@ export function LoginPage() {
             Forgot Password?
           </Link>
         </div>
-
-        {error ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800" role="alert">
-            {error}
-          </p>
-        ) : null}
 
         <button
           type="submit"

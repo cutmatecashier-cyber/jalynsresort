@@ -46,7 +46,7 @@ export function Rooms() {
           <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
             <div className="text-white">
               <p className="text-[0.65rem] font-semibold tracking-[0.28em] text-white/55 uppercase">
-                Our Rooms
+                Our Rooms and Apartments
               </p>
               <h2 className="mt-2 font-display text-3xl leading-[1.08] sm:text-4xl md:text-5xl">
                 Stay in Comfort and Style

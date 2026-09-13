@@ -21,7 +21,7 @@ export function PasswordField({ label, className, id, ...props }: PasswordFieldP
           type={visible ? "text" : "password"}
           className={
             className ??
-            "w-full rounded-xl border border-ink/10 bg-foam py-3 pr-12 pl-4 text-base text-ink outline-none transition focus:border-sky focus:ring-2 focus:ring-sky/25"
+            "password-field-input w-full rounded-xl border border-ink/10 bg-foam py-3 pr-12 pl-4 text-base text-ink outline-none transition focus:border-sky focus:ring-2 focus:ring-sky/25"
           }
         />
         <button

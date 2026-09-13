@@ -144,20 +144,6 @@ function MailIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function ArrowIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 12h14M13 6l6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function shareUrl(base: string) {
   if (typeof window === "undefined") return base;
   const page = encodeURIComponent(window.location.href);
@@ -274,7 +260,7 @@ export function Footer() {
         {/* Feature / awards card */}
         <Reveal delay={140} className="mt-6 md:mt-7">
           <div className="overflow-hidden rounded-xl border border-white/10 bg-[#12151c]">
-            <div className="grid grid-cols-2">
+            <div className="grid grid-cols-2 md:grid-cols-4">
               {featureLinks.map((item, index) => (
                 <a
                   key={item.href}
@@ -283,9 +269,10 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className={`btn-press group relative flex min-h-[6.75rem] flex-col items-center justify-center gap-2 p-3 text-center transition hover:bg-white/[0.03] md:min-h-[9.5rem] md:gap-3 md:p-5 ${
                     index % 2 === 0 ? "border-r border-white/10" : ""
-                  } ${index < 2 ? "border-b border-white/10" : ""}`}
+                  } ${index < 2 ? "border-b border-white/10 md:border-b-0" : ""} ${
+                    index === 1 ? "md:border-r md:border-white/10" : ""
+                  } ${index === 2 ? "md:border-r md:border-white/10" : ""}`}
                 >
-                  <ArrowIcon className="absolute top-2.5 right-2.5 h-3 w-3 text-white/30 transition group-hover:text-white/60 md:top-3.5 md:right-3.5 md:h-3.5 md:w-3.5" />
                   {item.logo}
                   <div>
                     <p className="text-[0.55rem] font-semibold tracking-[0.14em] text-white/45 uppercase md:text-[0.65rem] md:tracking-[0.16em]">

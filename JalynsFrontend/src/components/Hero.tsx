@@ -33,42 +33,46 @@ const slides = [
 const SLIDE_MS = 7000;
 
 const bubbles = [
-  /* Edge accents — keep clear of headline (left) and booking (lower center) */
+  /* Soft glass orbs — edges only, clear of headline & booking */
   {
     className:
-      "glass-bubble top-[14%] right-[4%] h-16 w-16 opacity-[0.22] glass-bubble-delay-1",
+      "glass-bubble top-[12%] right-[5%] h-[4.5rem] w-[4.5rem] opacity-[0.07] glass-bubble-delay-1",
   },
   {
     className:
-      "glass-bubble-soft top-[22%] right-[18%] h-8 w-8 opacity-[0.18] glass-bubble-delay-3 hidden sm:block",
+      "glass-bubble glass-bubble-soft top-[20%] right-[16%] h-9 w-9 opacity-[0.1] glass-bubble-delay-3",
   },
   {
     className:
-      "glass-bubble top-[38%] right-[6%] h-28 w-28 opacity-[0.16] glass-bubble-delay-2 hidden md:block",
+      "glass-bubble top-[36%] right-[4%] h-32 w-32 opacity-[0.09] glass-bubble-delay-2 hidden sm:block",
   },
   {
     className:
-      "glass-bubble-soft top-[48%] right-[22%] h-11 w-11 opacity-[0.2] glass-bubble-delay-4 hidden lg:block",
+      "glass-bubble glass-bubble-soft top-[46%] right-[20%] h-12 w-12 opacity-[0.1] glass-bubble-delay-4 hidden md:block",
   },
   {
     className:
-      "glass-bubble bottom-[34%] right-[3%] h-20 w-20 opacity-[0.18] glass-bubble-delay-1 hidden sm:block",
+      "glass-bubble bottom-[32%] right-[5%] h-[5.5rem] w-[5.5rem] opacity-[0.1] glass-bubble-delay-1 hidden sm:block",
   },
   {
     className:
-      "glass-bubble-soft top-[58%] left-[3%] h-12 w-12 opacity-[0.16] glass-bubble-delay-3 hidden md:block",
+      "glass-bubble glass-bubble-soft top-[56%] left-[4%] h-14 w-14 opacity-[0.09] glass-bubble-delay-3 hidden md:block",
   },
   {
     className:
-      "glass-bubble top-[70%] left-[6%] h-9 w-9 opacity-[0.14] glass-bubble-delay-2 hidden lg:block",
+      "glass-bubble top-[72%] left-[8%] h-10 w-10 opacity-[0.08] glass-bubble-delay-2 hidden lg:block",
   },
   {
     className:
-      "glass-bubble-soft top-[18%] left-[42%] h-7 w-7 opacity-[0.12] glass-bubble-delay-4 hidden xl:block",
+      "glass-bubble glass-bubble-soft top-[16%] left-[38%] h-8 w-8 opacity-[0.07] glass-bubble-delay-4 hidden xl:block",
   },
   {
     className:
-      "glass-bubble bottom-[18%] right-[28%] h-14 w-14 opacity-[0.15] glass-bubble-delay-3 hidden md:block",
+      "glass-bubble bottom-[16%] right-[26%] h-16 w-16 opacity-[0.09] glass-bubble-delay-3 hidden md:block",
+  },
+  {
+    className:
+      "glass-bubble glass-bubble-soft top-[8%] left-[8%] h-11 w-11 opacity-[0.08] glass-bubble-delay-2 hidden lg:block",
   },
 ] as const;
 
@@ -97,9 +101,10 @@ export function Hero() {
             }`}
           />
         ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/70" />
-        <div className="live-orb top-[18%] left-[12%] hidden h-40 w-40 bg-white/25 sm:block" />
-        <div className="live-orb live-orb-delayed right-[8%] bottom-[22%] hidden h-52 w-52 bg-sea/40 sm:block" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/28 to-black/50" />
+        <div className="live-orb top-[16%] left-[10%] hidden h-48 w-48 bg-white/30 sm:block" />
+        <div className="live-orb live-orb-delayed right-[6%] bottom-[20%] hidden h-60 w-60 bg-sea/35 sm:block" />
+        <div className="live-orb top-[55%] left-[45%] hidden h-36 w-36 bg-white/15 lg:block" style={{ animationDelay: "-14s" }} />
         {bubbles.map((bubble, index) => (
           <span key={index} className={bubble.className} aria-hidden="true" />
         ))}
