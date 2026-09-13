@@ -12,9 +12,9 @@
   --color-mist: #eef2f0;
   --color-stone: #6b756f;
 
-  /* Auth pages: sky blue / black / white */
-  --color-sky: #0ea5e9;
-  --color-sky-bright: #38bdf8;
+  /* Auth pages: deeper blue for readability on light/glass panels */
+  --color-sky: #0369a1;
+  --color-sky-bright: #0284c7;
 }
 
 @layer base {
@@ -90,15 +90,35 @@
 }
 
 @keyframes float-bubble {
+  0% {
+    transform: translate3d(0, 40px, 0) scale(0.92);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.16;
+  }
+  50% {
+    transform: translate3d(8px, -55px, 0) scale(1.03);
+    opacity: 0.2;
+  }
+  88% {
+    opacity: 0.1;
+  }
+  100% {
+    transform: translate3d(-6px, -120px, 0) scale(1.06);
+    opacity: 0;
+  }
+}
+
+@keyframes float-orb-glow {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.28;
   }
-  33% {
-    transform: translate3d(6px, -10px, 0) scale(1.02);
-  }
-  66% {
-    transform: translate3d(-7px, 6px, 0) scale(0.99);
+  50% {
+    transform: translate3d(18px, -24px, 0) scale(1.08);
+    opacity: 0.4;
   }
 }
 
@@ -303,70 +323,103 @@
 .live-orb {
   pointer-events: none;
   position: absolute;
+  z-index: 0;
   border-radius: 9999px;
-  filter: blur(40px);
-  opacity: 0.35;
-  animation: drift 16s ease-in-out infinite;
+  filter: blur(48px);
+  opacity: 0.28;
+  animation: float-orb-glow 22s ease-in-out infinite;
 }
 
 .live-orb-delayed {
-  animation-delay: -6s;
-  animation-duration: 20s;
+  animation-delay: -8s;
+  animation-duration: 28s;
 }
 
-/* Floating glassmorphism bubbles */
+/* Floating glassmorphism orbs — luxury resort accent */
 .glass-bubble {
   pointer-events: none;
   position: absolute;
   z-index: 1;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.14),
-    rgba(255, 255, 255, 0.03) 55%,
-    rgba(255, 255, 255, 0.08)
-  );
-  backdrop-filter: blur(18px) saturate(120%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.14), transparent 42%),
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 48%,
+      rgba(180, 220, 235, 0.04) 100%
+    );
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 6px 24px rgba(0, 0, 0, 0.06);
-  animation: float-bubble 16s ease-in-out infinite;
-  will-change: transform;
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -10px 18px rgba(255, 255, 255, 0.06),
+    0 10px 28px rgba(8, 18, 28, 0.1);
+  animation: float-bubble 11s cubic-bezier(0.33, 0.1, 0.4, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.glass-bubble::after {
+  content: "";
+  position: absolute;
+  inset: 12% 18% auto;
+  height: 28%;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0)
+  );
+  opacity: 0.55;
+  filter: blur(1px);
 }
 
 .glass-bubble-soft {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: radial-gradient(
-    circle at 32% 28%,
-    rgba(255, 255, 255, 0.12),
-    rgba(255, 255, 255, 0.02) 70%
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.18), transparent 55%),
+    rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 6px 18px rgba(8, 18, 28, 0.05);
+  animation: float-bubble 13s cubic-bezier(0.33, 0.1, 0.4, 1) infinite;
+}
+
+.glass-bubble-soft::after {
+  content: "";
+  position: absolute;
+  inset: 16% 22% auto;
+  height: 22%;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0)
   );
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: none;
-  animation: float-bubble 18s ease-in-out infinite;
+  opacity: 0.4;
 }
 
 .glass-bubble-delay-1 {
-  animation-delay: -2.5s;
-  animation-duration: 17s;
+  animation-delay: -2s;
+  animation-duration: 10s;
 }
 
 .glass-bubble-delay-2 {
-  animation-delay: -6s;
-  animation-duration: 20s;
+  animation-delay: -4.5s;
+  animation-duration: 12s;
 }
 
 .glass-bubble-delay-3 {
-  animation-delay: -9s;
-  animation-duration: 15s;
+  animation-delay: -1s;
+  animation-duration: 9.5s;
 }
 
 .glass-bubble-delay-4 {
-  animation-delay: -4s;
-  animation-duration: 22s;
+  animation-delay: -6s;
+  animation-duration: 14s;
 }
 
 .reveal {
@@ -405,7 +458,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .glass-bubble,
-  .glass-bubble-soft {
+  .glass-bubble-soft,
+  .live-orb {
     animation: none !important;
     transform: none !important;
   }
@@ -436,4 +490,18 @@
 input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 0.45;
   cursor: pointer;
+}
+
+/* Hide browser native password reveal (Edge/IE) — custom eye toggle only */
+.password-field-input::-ms-reveal,
+.password-field-input::-ms-clear {
+  display: none;
+}
+
+.password-field-input::-webkit-credentials-auto-fill-button,
+.password-field-input::-webkit-strong-password-auto-fill-button {
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
 }

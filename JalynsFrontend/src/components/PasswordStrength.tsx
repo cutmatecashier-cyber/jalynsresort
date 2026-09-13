@@ -8,7 +8,7 @@ const levelStyles: Record<
   PasswordStrengthLevel,
   { label: string; bar: string; text: string }
 > = {
-  weak: { label: "Weak", bar: "bg-red-500 w-1/3", text: "text-red-700" },
+  weak: { label: "Weak", bar: "bg-rose-400/80 w-1/3", text: "text-rose-500" },
   moderate: { label: "Moderate", bar: "bg-amber-500 w-2/3", text: "text-amber-800" },
   strong: { label: "Strong", bar: "bg-emerald-500 w-full", text: "text-emerald-800" },
 };

@@ -1,6 +1,7 @@
 import { Footer } from "../components/Footer";
 import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
+import { News } from "../components/News";
 import { Rooms } from "../components/Rooms";
 import { Services } from "../components/Services";
 import { Testimonials } from "../components/Testimonials";
@@ -37,10 +38,10 @@ export function HomePage() {
       <Hero />
       <Services />
       <Rooms />
-      <WhyStay />
       <Testimonials />
       <Gallery />
-      <section id="news" className="sr-only" aria-hidden="true" />
+      <News />
+      <WhyStay />
       <Footer />
 
       <span className="sr-only">{isApproved ? "staff" : "guest"}</span>

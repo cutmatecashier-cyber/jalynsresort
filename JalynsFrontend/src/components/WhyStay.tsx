@@ -13,7 +13,7 @@ const reasons = [
     icon: LocationIcon,
   },
   {
-    title: "World-Class Diving",
+    title: "World-Class Scuba Diving",
     text: "Guided dives across vibrant reefs and dive sites.",
     icon: DiveFlagIcon,
   },

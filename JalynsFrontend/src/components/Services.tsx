@@ -10,7 +10,7 @@ import { Reveal } from "./Reveal";
 const services = [
   {
     id: "rooms",
-    title: "Rooms & Suites",
+    title: "Rooms and Apartments",
     description: "Comfortable rooms with sea or garden views for restful nights.",
     href: "#rooms",
     cta: "View Rooms",
@@ -30,19 +30,19 @@ const services = [
   },
   {
     id: "diving",
-    title: "Diving",
+    title: "Scuba Diving",
     description: "PADI guides and gear for Puerto Galera’s best reefs.",
     href: "#diving",
-    cta: "Explore Diving",
+    cta: "Explore Scuba Diving",
     image:
       "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1000&q=80",
     icon: DiveIcon,
   },
   {
-    id: "wellness",
-    title: "Spa & Wellness",
+    id: "spa",
+    title: "SPA",
     description: "Massage and quiet spaces for slow mornings by the water.",
-    href: "#about",
+    href: "#spa",
     cta: "Learn More",
     image:
       "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=80",
