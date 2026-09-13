@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { authRouter } from './routes/auth.js'
+import { contactRouter } from './routes/contact.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -35,6 +36,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/auth', authRouter)
+app.use('/api/contact', contactRouter)
 
 app.listen(PORT, () => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''

@@ -48,7 +48,7 @@ export function Testimonials() {
             What Our Guests Say
           </h2>
           <a
-            href="#contact"
+            href="/contact"
             className="hidden items-center gap-1.5 text-sm font-semibold text-ink/70 transition hover:gap-2.5 hover:text-ink sm:inline-flex"
           >
             View All Reviews

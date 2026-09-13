@@ -1,16 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const links = [
-  { label: "Home", href: "#home" },
-  { label: "Rooms", href: "#rooms" },
-  { label: "Restaurant", href: "#restaurant" },
-  { label: "Diving", href: "#diving" },
-  { label: "Gallery", href: "#gallery" },
-  { label: "About", href: "#about" },
-  { label: "Contact", href: "#contact" },
-] as const;
+type NavItem =
+  | { label: string; kind: "hash"; hash: string }
+  | { label: string; kind: "route"; to: string };
+
+const links: NavItem[] = [
+  { label: "Home", kind: "hash", hash: "#home" },
+  { label: "Rooms", kind: "hash", hash: "#rooms" },
+  { label: "Restaurant", kind: "hash", hash: "#restaurant" },
+  { label: "Diving", kind: "hash", hash: "#diving" },
+  { label: "Gallery", kind: "hash", hash: "#gallery" },
+  { label: "About", kind: "hash", hash: "#about" },
+  { label: "Contact", kind: "route", to: "/contact" },
+];
+
+function NavAnchor({
+  item,
+  className,
+  onClick,
+  style,
+}: {
+  item: NavItem;
+  className: string;
+  onClick?: () => void;
+  style?: CSSProperties;
+}) {
+  if (item.kind === "route") {
+    return (
+      <Link to={item.to} className={className} onClick={onClick} style={style}>
+        {item.label}
+      </Link>
+    );
+  }
+  return (
+    <a href={`/${item.hash}`} className={className} onClick={onClick} style={style}>
+      {item.label}
+    </a>
+  );
+}
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -33,8 +62,8 @@ export function Navbar() {
   return (
     <header className="absolute inset-x-0 top-0 z-40 animate-fade-in">
       <div className="relative z-50 flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 sm:py-4 md:px-8 lg:px-10 xl:px-12">
-        <a
-          href="#home"
+        <Link
+          to="/"
           className="min-w-0 shrink-0 text-white lg:w-[16rem] xl:w-[18rem]"
           onClick={() => setOpen(false)}
         >
@@ -44,20 +73,18 @@ export function Navbar() {
           <span className="mt-1 block text-[0.62rem] font-medium tracking-[0.2em] text-white/75 uppercase sm:mt-1.5 sm:text-[0.78rem] sm:tracking-[0.26em] md:text-[0.88rem] lg:text-[0.95rem] lg:tracking-[0.28em]">
             Resort &amp; Restaurant
           </span>
-        </a>
+        </Link>
 
         <nav
           className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 lg:flex xl:gap-10"
           aria-label="Primary"
         >
           {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
+            <NavAnchor
+              key={link.label}
+              item={link}
               className="text-[1.05rem] font-medium tracking-wide text-white/85 transition hover:text-white xl:text-[1.125rem]"
-            >
-              {link.label}
-            </a>
+            />
           ))}
         </nav>
 
@@ -71,7 +98,7 @@ export function Navbar() {
             </Link>
           ) : null}
           <a
-            href="#book"
+            href="/#book"
             className="btn-press animate-pulse-glow hidden rounded-full bg-white px-6 py-2.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90 sm:inline-flex xl:px-7 xl:py-3 xl:text-base"
           >
             Book Now
@@ -133,18 +160,13 @@ export function Navbar() {
 
             <ul className="mt-4 flex flex-col">
               {links.map((link, index) => (
-                <li key={link.href} className="border-b border-white/8 last:border-b-0">
-                  <a
-                    href={link.href}
+                <li key={link.label} className="border-b border-white/8 last:border-b-0">
+                  <NavAnchor
+                    item={link}
                     className="btn-press group flex items-center justify-between py-3.5 text-[1.35rem] font-medium tracking-wide text-white/90 transition hover:text-white"
                     style={{ transitionDelay: open ? `${index * 30}ms` : "0ms" }}
                     onClick={() => setOpen(false)}
-                  >
-                    <span>{link.label}</span>
-                    <span className="text-sm text-white/25 transition group-hover:translate-x-0.5 group-hover:text-white/55">
-                      →
-                    </span>
-                  </a>
+                  />
                 </li>
               ))}
             </ul>
@@ -160,7 +182,7 @@ export function Navbar() {
             ) : null}
 
             <a
-              href="#book"
+              href="/#book"
               onClick={() => setOpen(false)}
               className="btn-press mt-6 inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-ink transition hover:bg-white/90"
             >
