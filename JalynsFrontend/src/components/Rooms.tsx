@@ -33,8 +33,8 @@ export function Rooms() {
   const [active, setActive] = useState(0);
 
   return (
-    <section id="rooms" className="bg-white px-4 pb-10 sm:px-5 sm:pb-14 md:px-8 lg:px-10">
-      <Reveal variant="scale" className="mx-auto max-w-7xl">
+    <section id="rooms" className="bg-white px-5 pb-10 sm:px-6 sm:pb-14 md:px-8 lg:px-10 xl:px-12">
+      <Reveal variant="scale" className="w-full">
         <div className="relative overflow-hidden rounded-[1.5rem]">
           <img
             src={rooms[active].image}

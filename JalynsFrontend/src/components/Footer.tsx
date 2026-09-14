@@ -157,7 +157,7 @@ export function Footer() {
     <footer id="contact" className="relative overflow-hidden bg-[#0a0c10] text-white">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.06),transparent_70%)]" />
 
-      <div className="relative mx-auto max-w-7xl px-5 py-8 sm:px-6 md:px-8 md:py-12 lg:px-10">
+      <div className="relative w-full px-5 py-8 sm:px-6 md:px-8 md:py-12 lg:px-10 xl:px-12">
         {/* Share */}
         <Reveal className="text-center">
           <div className="flex items-center gap-2.5">

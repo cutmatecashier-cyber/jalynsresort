@@ -33,7 +33,7 @@ export function WhyStay() {
   return (
     <section
       id="about"
-      className="relative overflow-hidden px-4 py-12 sm:px-5 sm:py-16 md:px-8 md:py-20 lg:px-10"
+      className="relative overflow-hidden px-5 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-10 xl:px-12"
     >
       <img
         src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2400&q=80"
@@ -44,7 +44,7 @@ export function WhyStay() {
       <div className="live-orb top-[20%] right-[15%] h-44 w-44 bg-white/15" />
       <div className="live-orb live-orb-delayed bottom-[10%] left-[10%] h-56 w-56 bg-sea/30" />
 
-      <div className="relative z-10 mx-auto max-w-7xl text-white">
+      <div className="relative z-10 w-full text-white">
         <Reveal variant="up">
           <p className="text-[0.65rem] font-semibold tracking-[0.28em] text-white/55 uppercase">
             Experience More

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
 
@@ -46,6 +46,7 @@ function NavAnchor({
 }
 
 export function Navbar() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -75,6 +76,7 @@ export function Navbar() {
     try {
       await signOut();
       setConfirmSignOut(false);
+      navigate("/", { replace: true });
     } finally {
       setSigningOut(false);
     }
@@ -83,18 +85,23 @@ export function Navbar() {
   return (
     <header className="absolute inset-x-0 top-0 z-40 animate-fade-in">
       <div className="relative z-50 flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 sm:py-4 md:px-8 lg:px-10 xl:px-12">
-        <Link
-          to="/"
-          className="relative z-10 min-w-0 shrink-0 text-white lg:w-[11rem] xl:w-[13rem]"
-          onClick={() => setOpen(false)}
-        >
-          <span className="font-script block text-[2.15rem] leading-none sm:text-[2.85rem] md:text-[3.4rem] lg:text-[3.5rem] xl:text-[4rem]">
-            Jalyn&apos;s
-          </span>
-          <span className="mt-1 block text-[0.62rem] font-medium tracking-[0.2em] text-white/75 uppercase sm:mt-1.5 sm:text-[0.78rem] sm:tracking-[0.26em] md:text-[0.88rem] lg:text-[0.9rem] lg:tracking-[0.26em]">
-            Resort &amp; Restaurant
-          </span>
-        </Link>
+        <div className="relative z-10 min-w-0 shrink-0 lg:min-w-[13rem] xl:min-w-[15rem]">
+          <Link to="/" className="block text-white" onClick={() => setOpen(false)}>
+            <span className="font-script block text-[2.15rem] leading-none sm:text-[2.85rem] md:text-[3.4rem] lg:text-[3.5rem] xl:text-[4rem]">
+              Jalyn&apos;s
+            </span>
+            <span className="mt-1 block whitespace-nowrap text-[0.62rem] font-medium tracking-[0.2em] text-white/75 uppercase sm:mt-1.5 sm:text-[0.78rem] sm:tracking-[0.26em] md:text-[0.88rem] lg:text-[0.9rem] lg:tracking-[0.26em]">
+              Resort &amp; Restaurant
+            </span>
+          </Link>
+          {showMember ? (
+            <p className="mt-1.5 whitespace-nowrap text-[0.7rem] leading-tight text-white/85 sm:mt-2 sm:text-[0.75rem] xl:text-[0.8rem]">
+              Signed in as <span className="font-semibold text-white">{profile?.name}</span>
+              <span className="text-white/50"> · </span>
+              <span className="font-medium text-white">{roleLabel(role)}</span>
+            </p>
+          ) : null}
+        </div>
 
         <nav
           className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-4 lg:flex xl:gap-5"
@@ -105,7 +112,7 @@ export function Navbar() {
               key={link.label}
               item={link}
               useShortLabel
-              className="nav-link shrink-0 whitespace-nowrap text-[1.05rem] font-medium tracking-wide text-white/85 hover:text-white xl:text-[1.15rem]"
+              className="nav-link shrink-0 whitespace-nowrap text-[1.12rem] font-medium tracking-wide text-white/85 hover:text-white xl:text-[1.22rem]"
             />
           ))}
         </nav>
@@ -114,11 +121,6 @@ export function Navbar() {
           {showMember ? (
             <>
               <div className="relative hidden items-center gap-2 sm:flex">
-                <p className="absolute right-0 bottom-full mb-3 max-w-[18rem] truncate text-right text-[0.8rem] leading-tight whitespace-nowrap text-white/85 xl:text-[0.85rem]">
-                  Signed in as <span className="font-semibold text-white">{profile?.name}</span>
-                  <span className="text-white/50"> · </span>
-                  <span className="font-medium text-white">{roleLabel(role)}</span>
-                </p>
                 <Link
                   to="/members"
                   className="btn-press inline-flex h-10 min-w-[7.5rem] items-center justify-center rounded-full bg-sky px-4 text-sm font-semibold text-white transition hover:bg-sky-bright"
@@ -133,12 +135,6 @@ export function Navbar() {
                   Sign out
                 </button>
               </div>
-              <Link
-                to="/members"
-                className="btn-press inline-flex h-10 items-center justify-center rounded-full bg-sky px-4 text-sm font-semibold text-white transition hover:bg-sky-bright sm:hidden"
-              >
-                Member
-              </Link>
             </>
           ) : (
             <a
@@ -207,14 +203,6 @@ export function Navbar() {
             </ul>
 
             <div className="mt-auto shrink-0 border-t border-white/10 pt-5">
-              {showMember ? (
-                <p className="mb-3 text-center text-sm text-white/85">
-                  Signed in as <span className="font-semibold text-white">{profile?.name}</span>
-                  <span className="text-white/50"> · </span>
-                  <span className="font-medium text-white">{roleLabel(role)}</span>
-                </p>
-              ) : null}
-
               {showMember ? (
                 <Link
                   to="/members"

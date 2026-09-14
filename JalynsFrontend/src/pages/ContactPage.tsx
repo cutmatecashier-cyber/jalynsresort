@@ -192,7 +192,11 @@ export function ContactPage() {
 
       <section className="relative text-white">
         <Navbar />
-        <div className="relative z-10 mx-auto max-w-7xl px-5 pt-36 pb-12 sm:px-6 sm:pt-40 sm:pb-14 md:px-8 lg:px-10 lg:pt-44">
+        <div
+          className={`relative z-10 w-full px-5 pb-12 sm:px-6 sm:pb-14 md:px-8 lg:px-10 xl:px-12 ${
+            canEdit ? "pt-40 sm:pt-44 lg:pt-48" : "pt-36 sm:pt-40 lg:pt-44"
+          }`}
+        >
           <p className="text-[0.65rem] font-medium tracking-[0.28em] text-sky-bright uppercase">
             Get in touch
           </p>
@@ -206,7 +210,7 @@ export function ContactPage() {
         </div>
       </section>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-5 pb-14 sm:px-6 sm:pb-16 md:px-8 lg:px-10 lg:pb-20">
+      <div className="relative z-10 w-full px-5 pb-14 sm:px-6 sm:pb-16 md:px-8 lg:px-10 lg:pb-20 xl:px-12">
         <div className="grid items-start gap-6 lg:grid-cols-2 lg:gap-8">
           {/* Contact form */}
           <section className={cardClass}>

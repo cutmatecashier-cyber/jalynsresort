@@ -56,8 +56,8 @@ const offers = [
 
 export function News() {
   return (
-    <section id="news" className="bg-white px-5 py-16 md:px-8 md:py-20 lg:px-10">
-      <div className="mx-auto max-w-7xl">
+    <section id="news" className="bg-white px-5 py-16 sm:px-6 md:px-8 md:py-20 lg:px-10 xl:px-12">
+      <div className="w-full">
         <Reveal className="mb-10 max-w-2xl">
           <p className="text-[0.68rem] font-semibold tracking-[0.28em] text-stone uppercase">
             News, Offers and Events

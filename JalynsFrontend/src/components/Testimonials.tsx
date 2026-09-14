@@ -41,8 +41,8 @@ export function Testimonials() {
   const [active, setActive] = useState(0);
 
   return (
-    <section className="bg-white px-4 py-12 sm:px-5 sm:py-16 md:px-8 md:py-20 lg:px-10">
-      <div className="mx-auto max-w-7xl">
+    <section className="bg-white px-5 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-10 xl:px-12">
+      <div className="w-full">
         <Reveal className="flex items-end justify-between gap-3">
           <h2 className="font-display text-3xl text-ink sm:text-4xl md:text-5xl">
             What Our Guests Say
