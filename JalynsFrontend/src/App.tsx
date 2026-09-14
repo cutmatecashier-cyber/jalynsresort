@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { AuthProvider } from "./context/AuthContext";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { ContactPage } from "./pages/ContactPage";
@@ -7,6 +8,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MembersPage } from "./pages/MembersPage";
+import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -17,8 +19,10 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/scuba-diving" element={<ScubaDivingPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -36,6 +40,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/admin/scuba" element={<Navigate to="/scuba-diving" replace />} />
           <Route path="/admin/users" element={<Navigate to="/members" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

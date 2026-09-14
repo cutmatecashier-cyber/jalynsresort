@@ -3,21 +3,32 @@ import express from 'express'
 import cors from 'cors'
 import { authRouter } from './routes/auth.js'
 import { contactRouter } from './routes/contact.js'
+import { scubaRouter } from './routes/scuba.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:5174',
-      'http://127.0.0.1:5174',
-      'http://192.168.1.12:5174',
-      'http://192.168.1.12:5173',
-      process.env.FRONTEND_ORIGIN || '',
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      // Allow non-browser clients and local/LAN Vite origins during development.
+      if (!origin) return callback(null, true)
+      const allowed = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5174',
+        'http://192.168.1.12:5174',
+        'http://192.168.1.12:5173',
+        'http://192.168.242.1:5174',
+        'http://192.168.242.1:5173',
+        process.env.FRONTEND_ORIGIN || '',
+      ].filter(Boolean)
+      if (allowed.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$/.test(origin)) {
+        return callback(null, true)
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`))
+    },
   }),
 )
 app.use(express.json())
@@ -41,6 +52,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/contact', contactRouter)
+app.use('/api/scuba', scubaRouter)
 
 app.listen(PORT, () => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''

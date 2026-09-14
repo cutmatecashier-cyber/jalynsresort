@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
@@ -11,6 +13,13 @@ import { useAuth } from "../context/AuthContext";
 /** Existing homepage — signed-in identity lives in the hero side for staff. */
 export function HomePage() {
   const { isApproved } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (window.location.hash === "#diving") {
+      navigate("/scuba-diving", { replace: true });
+    }
+  }, [navigate]);
 
   return (
     <main className="bg-foam">

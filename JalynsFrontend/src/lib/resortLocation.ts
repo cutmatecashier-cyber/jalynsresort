@@ -16,6 +16,37 @@ export type ResortContactSettings = {
   updated_at?: string;
 };
 
+/** Extract up to 10 local PH mobile digits from any stored phone format. */
+export function toLocalPhMobileDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("63") && digits.length >= 12) return digits.slice(2, 12);
+  if (digits.startsWith("0") && digits.length >= 11) return digits.slice(1, 11);
+  return digits.slice(0, 10);
+}
+
+/** Keep only digits and cap at 10 (for typing/paste). */
+export function sanitizeLocalPhMobileInput(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 10);
+}
+
+/** Persist as +639476197535 */
+export function formatPhMobileForStorage(local10: string): string {
+  const digits = sanitizeLocalPhMobileInput(local10);
+  return `+63${digits}`;
+}
+
+/** Display as +63 9476197535 */
+export function formatPhMobileForDisplay(phone: string): string {
+  const local = toLocalPhMobileDigits(phone);
+  if (local.length === 10) return `+63 ${local}`;
+  if (local.length > 0) return `+63 ${local}`;
+  return phone.trim() || "+63";
+}
+
+export function isValidPhMobileLocal(local10: string): boolean {
+  return /^\d{10}$/.test(local10);
+}
+
 export function haversineKm(
   lat1: number,
   lng1: number,

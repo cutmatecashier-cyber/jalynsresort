@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { AdminHeader } from "../components/AdminHeader";
 import { useAuth } from "../context/AuthContext";
 import { API_URL } from "../lib/api";
 import { roleLabel, statusLabel } from "../lib/permissions";
@@ -165,22 +165,7 @@ export function MembersPage() {
 
   return (
     <div className="min-h-screen bg-foam text-ink">
-      <header className="border-b border-sky-bright/30 bg-sky text-white">
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
-          <div>
-            <p className="text-[0.55rem] font-medium tracking-[0.22em] text-white/75 uppercase">
-              Admin only
-            </p>
-            <h1 className="font-display text-2xl sm:text-3xl">Member Management</h1>
-          </div>
-          <Link
-            to="/"
-            className="btn-press rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Back to site
-          </Link>
-        </div>
-      </header>
+      <AdminHeader title="Member Management" />
 
       <main className="w-full px-5 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12">
         <div className="flex flex-wrap gap-2">

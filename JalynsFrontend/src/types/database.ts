@@ -19,3 +19,16 @@ export type MemberRow = Profile & {
   email_verified: boolean;
   email_confirmed_at: string | null;
 };
+
+export type DivingRate = {
+  id: number;
+  service: string;
+  price: string;
+};
+
+export type PadiScubaCourse = {
+  id: number;
+  course: string;
+  details: string;
+  price: string;
+};

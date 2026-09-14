@@ -12,7 +12,7 @@ export type ContactSettings = {
 
 const DEFAULT_SETTINGS: ContactSettings = {
   contact_email: 'jalynsresort@gmail.com',
-  phone: '+63 947 619 7535',
+  phone: '+639476197535',
   facebook_url: 'https://www.facebook.com/jalynsresortpuertogalera',
 }
 

@@ -1,20 +1,26 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
+import { scrollToTopInstant } from "../components/ScrollToTop";
 import { useAuth } from "../context/AuthContext";
 import { API_URL } from "../lib/api";
 import {
+  formatPhMobileForDisplay,
+  formatPhMobileForStorage,
   haversineKm,
+  isValidPhMobileLocal,
   mapsEmbedUrl,
   mapsOpenUrl,
   RESORT_LOCATION,
+  sanitizeLocalPhMobileInput,
+  toLocalPhMobileDigits,
   type ResortContactSettings,
 } from "../lib/resortLocation";
 import { supabase } from "../lib/supabase";
 
 const DEFAULT_SETTINGS: ResortContactSettings = {
   contact_email: "jalynsresort@gmail.com",
-  phone: "+63 947 619 7535",
+  phone: "+639476197535",
   facebook_url: "https://www.facebook.com/jalynsresortpuertogalera",
 };
 
@@ -48,6 +54,10 @@ export function ContactPage() {
 
   /** Only set when geolocation succeeds — never a hard-coded value. */
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    scrollToTopInstant();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -122,7 +132,7 @@ export function ContactPage() {
 
   function openEdit() {
     setEditEmail(settings.contact_email);
-    setEditPhone(settings.phone);
+    setEditPhone(toLocalPhMobileDigits(settings.phone));
     setEditFacebook(settings.facebook_url);
     setEditError(null);
     setEditOpen(true);
@@ -131,6 +141,11 @@ export function ContactPage() {
   async function saveEdit(e: FormEvent) {
     e.preventDefault();
     setEditError(null);
+    const localPhone = sanitizeLocalPhMobileInput(editPhone);
+    if (!isValidPhMobileLocal(localPhone)) {
+      setEditError("Enter a valid 10-digit phone number after +63.");
+      return;
+    }
     setEditSaving(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -147,7 +162,7 @@ export function ContactPage() {
         },
         body: JSON.stringify({
           contact_email: editEmail.trim(),
-          phone: editPhone.trim(),
+          phone: formatPhMobileForStorage(localPhone),
           facebook_url: editFacebook.trim(),
         }),
       });
@@ -317,7 +332,7 @@ export function ContactPage() {
                   Telephone Number
                 </p>
                 <a href={telHref(settings.phone)} className={`mt-1 inline-block ${linkClass}`}>
-                  {settings.phone}
+                  {formatPhMobileForDisplay(settings.phone)}
                 </a>
               </li>
               <li>
@@ -486,13 +501,56 @@ export function ContactPage() {
                 <span className="mb-1.5 block text-xs font-semibold tracking-[0.14em] text-ink/70 uppercase">
                   Telephone Number
                 </span>
-                <input
-                  type="text"
-                  required
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  className={fieldClass}
-                />
+                <div className="flex overflow-hidden rounded-xl border border-ink/10 bg-white/90 focus-within:border-sky-deep focus-within:ring-2 focus-within:ring-sky-deep/25">
+                  <span
+                    className="inline-flex shrink-0 items-center border-r border-ink/10 bg-mist/80 px-3 text-base font-semibold text-ink/80"
+                    aria-hidden
+                  >
+                    +63
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    required
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(sanitizeLocalPhMobileInput(e.target.value))}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text");
+                      setEditPhone(sanitizeLocalPhMobileInput(pasted));
+                    }}
+                    onKeyDown={(e) => {
+                      const allowedKeys = [
+                        "Backspace",
+                        "Delete",
+                        "Tab",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Home",
+                        "End",
+                      ];
+                      if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                      if (!/^\d$/.test(e.key)) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (editPhone.length >= 10 && !window.getSelection()?.toString()) {
+                        e.preventDefault();
+                      }
+                    }}
+                    maxLength={10}
+                    placeholder="9476197535"
+                    className="w-full border-0 bg-transparent px-4 py-3 text-base text-ink outline-none"
+                    aria-label="10-digit mobile number after +63"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-stone">
+                  Digits only · max 10 after +63
+                  {editPhone.length === 10
+                    ? ` · Saves as ${formatPhMobileForStorage(editPhone)}`
+                    : null}
+                </p>
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold tracking-[0.14em] text-ink/70 uppercase">

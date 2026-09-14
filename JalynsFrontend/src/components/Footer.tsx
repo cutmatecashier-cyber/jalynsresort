@@ -39,12 +39,12 @@ const featureLinks = [
   {
     eyebrow: "Marine Conservation",
     title: "Blue Alliance",
-    href: "https://www.facebook.com/BlueAlliancePhilippines",
+    href: "https://divemindoro.org/",
     logo: (
       <img
         src="/images/blue-alliance-logo.png"
         alt=""
-        className="h-9 w-auto max-w-[3rem] object-contain md:h-14 md:max-w-[5rem]"
+        className="h-9 w-auto max-w-[3.5rem] object-contain md:h-14 md:max-w-[5.5rem]"
       />
     ),
   },

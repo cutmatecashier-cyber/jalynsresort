@@ -25,6 +25,10 @@ export const permissions = {
   /** Admin-only: edit public resort contact details */
   canEditContactInfo: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
+
+  /** Admin-only: scuba diving rates, PADI courses, and page images */
+  canManageScubaDiving: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
 } as const;
 
 export function roleLabel(role: UserRole | null): string {

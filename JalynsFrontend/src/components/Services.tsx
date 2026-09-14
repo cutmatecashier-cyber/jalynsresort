@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import {
   ArrowRightIcon,
   BedIcon,
@@ -32,7 +33,7 @@ const services = [
     id: "diving",
     title: "Scuba Diving",
     description: "PADI guides and gear for Puerto Galera’s best reefs.",
-    href: "#diving",
+    href: "/scuba-diving",
     cta: "Explore Scuba Diving",
     image:
       "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1000&q=80",
@@ -82,13 +83,23 @@ export function Services() {
                   <p className="mt-1.5 min-h-[2.6em] line-clamp-2 text-[0.72rem] leading-relaxed text-stone sm:text-[0.8rem] lg:mt-2 lg:min-h-[2.8em] lg:text-[0.9rem]">
                     {service.description}
                   </p>
-                  <a
-                    href={service.href}
-                    className="mt-auto inline-flex items-center gap-1 pt-2.5 text-[0.72rem] font-semibold text-ink transition group-hover:gap-2 sm:pt-3 sm:text-[0.8rem] lg:pt-4 lg:text-[0.9rem]"
-                  >
-                    {service.cta}
-                    <ArrowRightIcon className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-                  </a>
+                  {service.href.startsWith("/") ? (
+                    <Link
+                      to={service.href}
+                      className="mt-auto inline-flex items-center gap-1 pt-2.5 text-[0.72rem] font-semibold text-ink transition group-hover:gap-2 sm:pt-3 sm:text-[0.8rem] lg:pt-4 lg:text-[0.9rem]"
+                    >
+                      {service.cta}
+                      <ArrowRightIcon className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+                    </Link>
+                  ) : (
+                    <a
+                      href={service.href}
+                      className="mt-auto inline-flex items-center gap-1 pt-2.5 text-[0.72rem] font-semibold text-ink transition group-hover:gap-2 sm:pt-3 sm:text-[0.8rem] lg:pt-4 lg:text-[0.9rem]"
+                    >
+                      {service.cta}
+                      <ArrowRightIcon className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+                    </a>
+                  )}
                 </div>
               </article>
             </Reveal>

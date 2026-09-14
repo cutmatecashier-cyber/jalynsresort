@@ -68,15 +68,32 @@ contactRouter.put('/settings', async (req, res) => {
     }
 
     const contact_email = String(req.body.contact_email ?? '').trim()
-    const phone = String(req.body.phone ?? '').trim()
+    const rawPhone = String(req.body.phone ?? '').trim()
     const facebook_url = normalizeFacebookUrl(String(req.body.facebook_url ?? ''))
 
-    if (!contact_email || !phone || !facebook_url) {
+    if (!contact_email || !rawPhone || !facebook_url) {
       return res.status(400).json({ success: false, message: 'Email, phone, and Facebook URL are required.' })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email)) {
       return res.status(400).json({ success: false, message: 'Enter a valid contact email.' })
     }
+
+    const phoneDigits = rawPhone.replace(/\D/g, '')
+    let normalizedPhone = ''
+    if (/^63\d{10}$/.test(phoneDigits)) {
+      normalizedPhone = `+${phoneDigits}`
+    } else if (/^\d{10}$/.test(phoneDigits)) {
+      normalizedPhone = `+63${phoneDigits}`
+    } else if (/^0\d{10}$/.test(phoneDigits)) {
+      normalizedPhone = `+63${phoneDigits.slice(1)}`
+    }
+    if (!/^\+63\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone must be a Philippine mobile number: +63 followed by exactly 10 digits.',
+      })
+    }
+
     try {
       new URL(facebook_url)
     } catch {
@@ -84,7 +101,7 @@ contactRouter.put('/settings', async (req, res) => {
     }
 
     const settings = await saveContactSettings(
-      { contact_email, phone, facebook_url },
+      { contact_email, phone: normalizedPhone, facebook_url },
       authData.user.id,
     )
 
