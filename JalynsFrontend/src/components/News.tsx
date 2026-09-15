@@ -219,6 +219,14 @@ export function News() {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-white via-white/90 to-transparent" />
         </div>
 
+        <div className="absolute top-4 left-5 z-20 sm:top-5 sm:left-6 md:left-8 lg:left-10 xl:left-12">
+          <HomeSectionBgEditButton
+            section={SECTION}
+            title="News background"
+            defaultUrl={DEFAULT_HOME_SECTIONS.news}
+          />
+        </div>
+
         <div className="relative z-10 flex min-h-[100svh] flex-col px-5 pt-24 sm:px-6 sm:pt-28 md:px-8 lg:px-10 xl:px-12">
           <div className="mx-auto flex w-full max-w-5xl flex-1 items-center gap-3 py-8 sm:gap-5 md:gap-8 md:py-10">
             <button
@@ -259,14 +267,6 @@ export function News() {
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>
-          </div>
-
-          <div className="mx-auto mb-2 flex w-full max-w-[90rem] justify-start">
-            <HomeSectionBgEditButton
-              section={SECTION}
-              title="News background"
-              defaultUrl={DEFAULT_HOME_SECTIONS.news}
-            />
           </div>
 
           <div

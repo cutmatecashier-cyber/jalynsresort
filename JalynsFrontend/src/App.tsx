@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ContentSync } from "./components/ContentSync";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SmoothScroll } from "./components/SmoothScroll";
@@ -13,6 +14,7 @@ import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RestaurantPage } from "./pages/RestaurantPage";
+import { SpaPage } from "./pages/SpaPage";
 import { SignupPage } from "./pages/SignupPage";
 import { VerifyCodePage } from "./pages/VerifyCodePage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
@@ -23,8 +25,11 @@ function App() {
       <BrowserRouter>
         <SmoothScroll />
         <ScrollToTop />
+        <ContentSync />
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/rooms" element={<Navigate to="/#rooms" replace />} />
+          <Route path="/spa" element={<SpaPage />} />
           <Route path="/scuba-diving" element={<ScubaDivingPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/restaurant" element={<RestaurantPage />} />

@@ -10,6 +10,8 @@ import {
   type HomeSectionKey,
 } from "../lib/homeHero";
 import { supabase } from "../lib/supabase";
+import { AdminEditButton } from "./AdminEditButton";
+import { broadcastContentChanged } from "./ContentSync";
 
 type Props = {
   section: HomeSectionKey;
@@ -80,6 +82,7 @@ export function HomeSectionBgEditButton({
       const next = data.url || data.sections?.[section] || defaultUrl;
       setPreview(next);
       notifyHomeSectionUpdated(section, next);
+      broadcastContentChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload background.");
     } finally {
@@ -97,6 +100,7 @@ export function HomeSectionBgEditButton({
       const next = data.url || data.sections?.[section] || defaultUrl;
       setPreview(next);
       notifyHomeSectionUpdated(section, next);
+      broadcastContentChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reset background.");
     } finally {
@@ -106,13 +110,9 @@ export function HomeSectionBgEditButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => void openEditor()}
-        className={`btn-press inline-flex items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold whitespace-nowrap text-white backdrop-blur-md transition hover:bg-white/16 ${className}`}
-      >
+      <AdminEditButton className={className} onClick={() => void openEditor()}>
         Edit background
-      </button>
+      </AdminEditButton>
 
       {open
         ? createPortal(

@@ -1,39 +1,194 @@
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  DEFAULT_GALLERY,
+  deleteGalleryPhoto,
+  fetchGallery,
+  galleryMediaUrl,
+  GALLERY_UPDATED_EVENT,
+  notifyGalleryUpdated,
+  resetGalleryPhotos,
+  uploadGalleryPhoto,
+  type GalleryPhoto,
+} from "../lib/gallery";
+import { supabase } from "../lib/supabase";
+import { AdminEditButton } from "./AdminEditButton";
+import { broadcastContentChanged } from "./ContentSync";
 import { Reveal } from "./Reveal";
 
-const photos = [
-  {
-    id: "aerial",
-    alt: "Aerial view of the resort cove",
-    src: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=900&q=80",
-    className: "md:col-span-2 md:row-span-2",
-  },
-  {
-    id: "diver",
-    alt: "Scuba diver exploring coral reef",
-    src: "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=900&q=80",
-    className: "",
-  },
-  {
-    id: "food",
-    alt: "Fresh seafood platter at the restaurant",
-    src: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=80",
-    className: "",
-  },
-  {
-    id: "room",
-    alt: "Bright guest room with ocean light",
-    src: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=80",
-    className: "",
-  },
-  {
-    id: "pool",
-    alt: "Resort pool at golden hour",
-    src: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=900&q=80",
-    className: "hidden md:block",
-  },
-] as const;
+function photoLayoutClass(index: number, total: number) {
+  if (index === 0 && total > 1) {
+    return "md:col-span-2 md:row-span-2 aspect-auto min-h-[16rem] md:min-h-0";
+  }
+  return "aspect-square";
+}
 
 export function Gallery() {
+  const { role, approvalStatus, can } = useAuth();
+  const canEdit = can.canEditGallery(role, approvalStatus);
+
+  const [photos, setPhotos] = useState<GalleryPhoto[]>(() =>
+    DEFAULT_GALLERY.map((p) => ({ ...p })),
+  );
+
+  const [open, setOpen] = useState(false);
+  const [editorPhotos, setEditorPhotos] = useState<GalleryPhoto[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newAlt, setNewAlt] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const addFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchGallery().then((list) => {
+      if (!cancelled) setPhotos(list);
+    });
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ photos?: GalleryPhoto[] }>).detail;
+      if (detail?.photos?.length) {
+        setPhotos(detail.photos);
+        return;
+      }
+      void fetchGallery().then((list) => {
+        if (!cancelled) setPhotos(list);
+      });
+    };
+    window.addEventListener(GALLERY_UPDATED_EVENT, onUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(GALLERY_UPDATED_EVENT, onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    const lenis = (window as Window & { __lenis?: { stop: () => void; start: () => void } })
+      .__lenis;
+    lenis?.stop();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      lenis?.start();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, busy]);
+
+  async function authToken() {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("Admin session expired. Please log in again.");
+    return token;
+  }
+
+  async function openEditor() {
+    setError(null);
+    setNewAlt("");
+    setOpen(true);
+    try {
+      const list = await fetchGallery();
+      setEditorPhotos(list);
+      setSelectedId(list[0]?.id ?? null);
+    } catch {
+      setEditorPhotos(photos);
+      setSelectedId(photos[0]?.id ?? null);
+    }
+  }
+
+  function applyPhotos(next: GalleryPhoto[] | undefined) {
+    if (!next?.length) {
+      notifyGalleryUpdated();
+      broadcastContentChanged();
+      return;
+    }
+    setEditorPhotos(next);
+    setPhotos(next);
+    notifyGalleryUpdated(next);
+    broadcastContentChanged();
+    if (!next.some((p) => p.id === selectedId)) {
+      setSelectedId(next[0]?.id ?? null);
+    }
+  }
+
+  async function onAddFile(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await authToken();
+      const data = await uploadGalleryPhoto(file, token, {
+        alt: newAlt.trim() || undefined,
+      });
+      applyPhotos(data.photos);
+      setNewAlt("");
+      if (data.photos?.length) {
+        setSelectedId(data.photos[data.photos.length - 1]?.id ?? null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add gallery photo.");
+    } finally {
+      setBusy(false);
+      if (addFileRef.current) addFileRef.current.value = "";
+    }
+  }
+
+  async function onReplaceFile(file: File | null) {
+    if (!file || !selectedId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await authToken();
+      const data = await uploadGalleryPhoto(file, token, { replaceId: selectedId });
+      applyPhotos(data.photos);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not replace photo.");
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function onDelete() {
+    if (!selectedId) return;
+    if (editorPhotos.length <= 1) {
+      setError("Keep at least one gallery photo.");
+      return;
+    }
+    if (!window.confirm("Delete this gallery photo?")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await authToken();
+      const data = await deleteGalleryPhoto(selectedId, token);
+      applyPhotos(data.photos);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete photo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResetAll() {
+    if (!window.confirm("Reset gallery photos to the defaults?")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await authToken();
+      const data = await resetGalleryPhotos(token);
+      applyPhotos(data.photos);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reset photos.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section id="gallery" className="bg-foam px-5 py-16 sm:px-6 md:px-8 md:py-20 lg:px-10 xl:px-12">
       <div className="w-full">
@@ -46,12 +201,19 @@ export function Gallery() {
               Moments by the water
             </h2>
           </div>
-          <a
-            href="#gallery"
-            className="text-sm font-semibold text-ink/70 underline-offset-4 transition hover:text-ink hover:underline"
-          >
-            View all photos
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            {canEdit ? (
+              <AdminEditButton surface="light" onClick={() => void openEditor()}>
+                Edit photos
+              </AdminEditButton>
+            ) : null}
+            <a
+              href="#gallery"
+              className="text-sm font-semibold text-ink/70 underline-offset-4 transition hover:text-ink hover:underline"
+            >
+              View all photos
+            </a>
+          </div>
         </Reveal>
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:grid-rows-2 md:gap-3">
@@ -60,17 +222,11 @@ export function Gallery() {
               key={photo.id}
               delay={index * 70}
               variant="up"
-              className={`${photo.className || "aspect-square"} ${
-                photo.className.includes("row-span")
-                  ? "aspect-auto min-h-[16rem] md:min-h-0"
-                  : photo.className.includes("hidden")
-                    ? "aspect-square"
-                    : ""
-              }`}
+              className={photoLayoutClass(index, photos.length)}
             >
               <figure className="group h-full overflow-hidden rounded-xl">
                 <img
-                  src={photo.src}
+                  src={galleryMediaUrl(photo.image)}
                   alt={photo.alt}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                 />
@@ -79,6 +235,139 @@ export function Gallery() {
           ))}
         </div>
       </div>
+
+      {open
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Edit gallery photos"
+              onClick={() => !busy && setOpen(false)}
+            >
+              <div
+                className="flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-ink shadow-xl sm:rounded-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
+                  <h2 className="font-display text-2xl">Gallery photos</h2>
+                  <p className="mt-1.5 text-sm text-stone">
+                    Add new pictures or delete ones from Moments by the water.
+                  </p>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    {editorPhotos.map((photo) => {
+                      const isActive = photo.id === selectedId;
+                      return (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => setSelectedId(photo.id)}
+                          className={`overflow-hidden rounded-xl border text-left transition ${
+                            isActive
+                              ? "border-sky-deep ring-2 ring-sky-deep/30"
+                              : "border-ink/10 hover:border-ink/25"
+                          }`}
+                        >
+                          <img
+                            src={galleryMediaUrl(photo.image)}
+                            alt=""
+                            className="aspect-[4/3] w-full object-cover"
+                          />
+                          <p className="truncate px-2.5 py-2 text-xs font-semibold text-ink">
+                            {photo.alt}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label className="mt-5 block text-sm font-semibold text-ink">
+                    Description for new photo
+                    <input
+                      type="text"
+                      value={newAlt}
+                      onChange={(e) => setNewAlt(e.target.value)}
+                      placeholder="e.g. Sunset over the cove"
+                      className="mt-1.5 w-full rounded-xl border border-ink/12 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-sky-deep"
+                    />
+                  </label>
+
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={(e) => void onReplaceFile(e.target.files?.[0] ?? null)}
+                  />
+                  <input
+                    ref={addFileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={(e) => void onAddFile(e.target.files?.[0] ?? null)}
+                  />
+
+                  {error ? (
+                    <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+                      {error}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex shrink-0 flex-col gap-2 border-t border-ink/8 bg-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => addFileRef.current?.click()}
+                      className="btn-press rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky disabled:opacity-60"
+                    >
+                      {busy ? "Working…" : "Add photo"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !selectedId}
+                      onClick={() => fileRef.current?.click()}
+                      className="btn-press rounded-full border border-ink/12 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+                    >
+                      Replace selected
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !selectedId || editorPhotos.length <= 1}
+                      onClick={() => void onDelete()}
+                      className="btn-press rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800 disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onResetAll()}
+                      className="btn-press rounded-full border border-ink/12 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+                    >
+                      Reset all
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setOpen(false)}
+                      className="btn-press rounded-full border border-ink/12 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

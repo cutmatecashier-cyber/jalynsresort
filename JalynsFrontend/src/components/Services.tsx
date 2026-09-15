@@ -43,8 +43,8 @@ const services = [
     id: "spa",
     title: "SPA",
     description: "Massage and quiet spaces for slow mornings by the water.",
-    href: "#spa",
-    cta: "Learn More",
+    href: "/spa",
+    cta: "Explore SPA",
     image:
       "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=80",
     icon: LotusIcon,
@@ -53,14 +53,24 @@ const services = [
 
 export function Services() {
   return (
-    <section className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12">
+    <section
+      id="services"
+      className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12"
+    >
       <div className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6 xl:gap-7">
         {services.map((service, index) => {
           const Icon = service.icon;
           return (
             <Reveal key={service.id} delay={index * 80} variant="up" className="h-full">
               <article
-                id={service.id === "rooms" || service.id === "restaurant" ? undefined : service.id}
+                id={
+                  service.id === "rooms" ||
+                  service.id === "restaurant" ||
+                  service.id === "diving" ||
+                  service.id === "spa"
+                    ? undefined
+                    : service.id
+                }
                 className="card-lift group flex h-full flex-col overflow-hidden rounded-2xl border border-ink/6 bg-white shadow-[0_8px_24px_rgba(12,18,16,0.05)] hover:border-ink/12 hover:shadow-[0_16px_36px_rgba(12,18,16,0.1)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden lg:aspect-[5/4] xl:aspect-[4/3]">

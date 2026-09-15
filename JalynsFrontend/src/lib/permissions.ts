@@ -37,6 +37,18 @@ export const permissions = {
   /** Admin-only: home page hero background slides */
   canEditHomeBackground: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
+
+  /** Admin-only: Our Rooms and Apartments photos */
+  canEditRooms: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
+
+  /** Admin-only: Moments by the water gallery photos */
+  canEditGallery: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
+
+  /** Admin-only: SPA categories, services, and category pictures */
+  canEditSpa: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
 } as const;
 
 export function roleLabel(role: UserRole | null): string {

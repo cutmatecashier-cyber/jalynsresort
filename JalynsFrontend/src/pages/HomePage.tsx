@@ -16,8 +16,11 @@ export function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (window.location.hash === "#diving") {
+    const hash = window.location.hash;
+    if (hash === "#diving") {
       navigate("/scuba-diving", { replace: true });
+    } else if (hash === "#spa") {
+      navigate("/spa", { replace: true });
     }
   }, [navigate]);
 

@@ -8,7 +8,11 @@ import { contactRouter } from './routes/contact.js'
 import { homeRouter } from './routes/home.js'
 import { menuRouter } from './routes/menu.js'
 import { reviewsRouter } from './routes/reviews.js'
+import { roomsRouter } from './routes/rooms.js'
+import { galleryRouter } from './routes/gallery.js'
+import { contentRouter } from './routes/content.js'
 import { scubaRouter } from './routes/scuba.js'
+import { spaRouter } from './routes/spa.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -68,7 +72,11 @@ app.use('/api/contact', contactRouter)
 app.use('/api/home', homeRouter)
 app.use('/api/menu', menuRouter)
 app.use('/api/reviews', reviewsRouter)
+app.use('/api/rooms', roomsRouter)
+app.use('/api/gallery', galleryRouter)
+app.use('/api/content', contentRouter)
 app.use('/api/scuba', scubaRouter)
+app.use('/api/spa', spaRouter)
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''

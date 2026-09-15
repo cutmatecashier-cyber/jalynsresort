@@ -14,6 +14,8 @@ import {
 } from "../lib/homeHero";
 import { supabase } from "../lib/supabase";
 import { BookingBar } from "./BookingBar";
+import { AdminEditButton } from "./AdminEditButton";
+import { broadcastContentChanged } from "./ContentSync";
 import { MapPinIcon } from "./Icons";
 import { Navbar } from "./Navbar";
 
@@ -181,6 +183,7 @@ export function Hero() {
       } else {
         notifyHomeHeroUpdated();
       }
+      broadcastContentChanged();
     } catch (err) {
       setBgError(err instanceof Error ? err.message : "Could not upload background.");
     } finally {
@@ -202,6 +205,7 @@ export function Hero() {
       } else {
         notifyHomeHeroUpdated();
       }
+      broadcastContentChanged();
     } catch (err) {
       setBgError(err instanceof Error ? err.message : "Could not reset slide.");
     } finally {
@@ -223,6 +227,7 @@ export function Hero() {
       } else {
         notifyHomeHeroUpdated();
       }
+      broadcastContentChanged();
     } catch (err) {
       setBgError(err instanceof Error ? err.message : "Could not reset backgrounds.");
     } finally {
@@ -338,13 +343,9 @@ export function Hero() {
 
         {canEditBg ? (
           <div className="order-5 mt-4 flex justify-start sm:mt-6">
-            <button
-              type="button"
-              onClick={() => void openBackgroundEditor()}
-              className="btn-press inline-flex items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold whitespace-nowrap text-white backdrop-blur-md transition hover:bg-white/16"
-            >
+            <AdminEditButton onClick={() => void openBackgroundEditor()}>
               Edit background
-            </button>
+            </AdminEditButton>
           </div>
         ) : null}
 

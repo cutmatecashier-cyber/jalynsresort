@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
+import { AdminEditButton } from "../components/AdminEditButton";
 import {
   ArrowRightIcon,
   BangkaIcon,
@@ -677,20 +678,18 @@ export function ScubaDivingPage() {
               className="pointer-events-auto mt-7 flex flex-wrap gap-2"
               style={{ animationDelay: "0.24s" }}
             >
-              <button
-                type="button"
+              <AdminEditButton
+                className="animate-fade-up"
                 onClick={() => setBgEditor("hero")}
-                className="btn-press animate-fade-up inline-flex items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/16"
               >
                 Change hero background
-              </button>
-              <button
-                type="button"
+              </AdminEditButton>
+              <AdminEditButton
+                className="animate-fade-up"
                 onClick={() => setBgEditor("content")}
-                className="btn-press animate-fade-up inline-flex items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/16"
               >
                 Change content background
-              </button>
+              </AdminEditButton>
             </div>
           ) : null}
         </div>
@@ -1016,14 +1015,13 @@ export function ScubaDivingPage() {
                     className="hidden"
                     onChange={(event) => void onGalleryFiles(event.target.files)}
                   />
-                  <button
-                    type="button"
+                  <AdminEditButton
+                    surface="light"
                     disabled={busy}
                     onClick={() => galleryInput.current?.click()}
-                    className="btn-press rounded-full bg-[#0b1d33] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
-                  </button>
+                  </AdminEditButton>
                 </div>
               ) : null}
             </Reveal>

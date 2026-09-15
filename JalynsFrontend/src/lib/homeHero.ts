@@ -61,7 +61,7 @@ export function notifyHomeHeroUpdated(slides?: HomeHeroSlide[]) {
 
 export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[]> {
   try {
-    const res = await fetch(`${getApiUrl()}/api/home/hero`);
+    const res = await fetch(`${getApiUrl()}/api/home/hero`, { cache: "no-store" });
     const body = (await res.json()) as {
       success?: boolean;
       slides?: HomeHeroSlide[];
@@ -138,7 +138,9 @@ export function notifyHomeSectionUpdated(section: HomeSectionKey, url?: string) 
 
 export async function fetchHomeSectionBackground(section: HomeSectionKey): Promise<string> {
   try {
-    const res = await fetch(`${getApiUrl()}/api/home/sections/${section}`);
+    const res = await fetch(`${getApiUrl()}/api/home/sections/${section}`, {
+      cache: "no-store",
+    });
     const body = (await res.json()) as {
       success?: boolean;
       url?: string;

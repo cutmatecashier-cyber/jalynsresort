@@ -94,6 +94,7 @@ async function requireApprovedAdmin(req: Request, res: Response): Promise<string
 
 homeRouter.get('/hero', (_req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store')
     const slides = listHomeHeroSlides()
     return res.json({ success: true, slides })
   } catch (err) {
@@ -179,6 +180,7 @@ homeRouter.post('/hero/reset-all', async (req, res) => {
 
 homeRouter.get('/sections', (_req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store')
     const sections = listHomeSections()
     return res.json({ success: true, sections })
   } catch (err) {
@@ -193,6 +195,7 @@ homeRouter.get('/sections/:key', (req, res) => {
     if (!isHomeSectionKey(key)) {
       return res.status(400).json({ success: false, message: 'Unknown section key.' })
     }
+    res.setHeader('Cache-Control', 'no-store')
     return res.json({ success: true, url: getHomeSection(key), sections: listHomeSections() })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load section background.'
