@@ -58,8 +58,8 @@ export function Gallery() {
           {photos.map((photo, index) => (
             <Reveal
               key={photo.id}
-              delay={index * 80}
-              variant="scale"
+              delay={index * 70}
+              variant="up"
               className={`${photo.className || "aspect-square"} ${
                 photo.className.includes("row-span")
                   ? "aspect-auto min-h-[16rem] md:min-h-0"

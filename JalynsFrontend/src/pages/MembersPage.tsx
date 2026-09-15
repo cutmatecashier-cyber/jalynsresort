@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminHeader } from "../components/AdminHeader";
 import { useAuth } from "../context/AuthContext";
-import { API_URL } from "../lib/api";
+import { getApiUrl } from "../lib/api";
 import { roleLabel, statusLabel } from "../lib/permissions";
 import { supabase } from "../lib/supabase";
 import type { ApprovalStatus, MemberRow, UserRole } from "../types/database";
@@ -122,7 +122,7 @@ export function MembersPage() {
         return;
       }
 
-      const res = await fetch(`${API_URL}/api/auth/admin/delete-member`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/admin/delete-member`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

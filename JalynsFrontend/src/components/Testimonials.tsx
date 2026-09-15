@@ -106,8 +106,8 @@ export function Testimonials() {
 
         <div className="mt-8 hidden gap-4 md:grid md:grid-cols-3">
           {reviews.map((review, index) => (
-            <Reveal key={review.id} delay={100 + index * 100}>
-              <article className="h-full rounded-2xl border border-ink/8 bg-foam p-5 transition duration-300 hover:-translate-y-1 hover:border-ink/15 hover:shadow-[0_12px_30px_rgba(12,18,16,0.06)]">
+            <Reveal key={review.id} delay={80 + index * 90} variant="up">
+              <article className="card-lift h-full rounded-2xl border border-ink/8 bg-foam p-5 hover:border-ink/15 hover:shadow-[0_12px_30px_rgba(12,18,16,0.06)]">
                 <div className="flex items-center gap-3">
                   <img
                     src={review.avatar}

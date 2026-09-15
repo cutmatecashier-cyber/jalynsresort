@@ -29,6 +29,14 @@ export const permissions = {
   /** Admin-only: scuba diving rates, PADI courses, and page images */
   canManageScubaDiving: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
+
+  /** Admin-only: restaurant menu categories & items */
+  canEditRestaurantMenu: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
+
+  /** Admin-only: home page hero background slides */
+  canEditHomeBackground: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
 } as const;
 
 export function roleLabel(role: UserRole | null): string {

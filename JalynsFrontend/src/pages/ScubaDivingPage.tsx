@@ -33,7 +33,7 @@ import {
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { useAuth } from "../context/AuthContext";
-import { API_URL } from "../lib/api";
+import { getApiUrl } from "../lib/api";
 import {
   formatPhMobileForDisplay,
   type ResortContactSettings,
@@ -234,7 +234,7 @@ export function ScubaDivingPage() {
 
   const loadContact = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/contact/settings`);
+      const res = await fetch(`${getApiUrl()}/api/contact/settings`);
       const body = (await res.json()) as {
         success?: boolean;
         settings?: ResortContactSettings;
@@ -979,7 +979,7 @@ export function ScubaDivingPage() {
               {FEATURES.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
-                  <Reveal key={feature.title} delay={index * 60} variant="up">
+                  <Reveal key={feature.title} delay={index * 70} variant="up">
                     <article className="flex h-full items-start gap-4 rounded-2xl border border-[#0b1d33]/10 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
                       <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0b1d33] text-white">
                         <Icon className="h-[1.15rem] w-[1.15rem]" />

@@ -17,11 +17,13 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "multer": "^2.4.0",
     "nodemailer": "^10.0.9"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.20.2",
     "@types/nodemailer": "^8.0.1",
     "tsx": "^4.23.13",

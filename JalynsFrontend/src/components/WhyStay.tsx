@@ -1,3 +1,12 @@
+import { useEffect, useState } from "react";
+import {
+  DEFAULT_HOME_SECTIONS,
+  fetchHomeSectionBackground,
+  HOME_SECTION_UPDATED_EVENT,
+  homeHeroMediaUrl,
+  type HomeSectionKey,
+} from "../lib/homeHero";
+import { HomeSectionBgEditButton } from "./HomeSectionBgEditButton";
 import {
   DiveFlagIcon,
   HeartHandIcon,
@@ -29,16 +38,70 @@ const reasons = [
   },
 ] as const;
 
+const SECTION: HomeSectionKey = "whystay";
+
 export function WhyStay() {
+  const [parallaxY, setParallaxY] = useState(0);
+  const [bgUrl, setBgUrl] = useState(DEFAULT_HOME_SECTIONS.whystay);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchHomeSectionBackground(SECTION).then((url) => {
+      if (alive) setBgUrl(url);
+    });
+
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ section?: HomeSectionKey; url?: string }>).detail;
+      if (detail?.section !== SECTION) return;
+      if (detail.url) {
+        setBgUrl(detail.url);
+        return;
+      }
+      void fetchHomeSectionBackground(SECTION).then((url) => {
+        if (alive) setBgUrl(url);
+      });
+    };
+
+    window.addEventListener(HOME_SECTION_UPDATED_EVENT, onUpdated);
+    return () => {
+      alive = false;
+      window.removeEventListener(HOME_SECTION_UPDATED_EVENT, onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    const section = document.getElementById("about");
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!section) return;
+        const rect = section.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2 - window.innerHeight / 2;
+        setParallaxY(Math.max(-60, Math.min(60, mid * -0.12)));
+      });
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
   return (
     <section
       id="about"
       className="relative overflow-hidden px-5 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-10 xl:px-12"
     >
       <img
-        src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2400&q=80"
+        src={homeHeroMediaUrl(bgUrl)}
         alt="Ocean coastline"
-        className="absolute inset-0 h-full w-full object-cover animate-ken-burns"
+        className="absolute inset-0 h-full w-full scale-110 object-cover will-change-transform"
+        style={{ transform: `translate3d(0, ${parallaxY}px, 0) scale(1.12)` }}
       />
       <div className="absolute inset-0 bg-ink/75" />
       <div className="live-orb top-[20%] right-[15%] h-44 w-44 bg-white/15" />
@@ -58,7 +121,7 @@ export function WhyStay() {
           {reasons.map((reason, index) => {
             const Icon = reason.icon;
             return (
-              <Reveal key={reason.title} delay={120 + index * 100} variant="up">
+              <Reveal key={reason.title} delay={100 + index * 90} variant="up">
                 <div className="text-center sm:text-left">
                   <span
                     className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white transition hover:scale-110 hover:bg-white/10 sm:mx-0"
@@ -79,6 +142,14 @@ export function WhyStay() {
             More than a stay, it&apos;s an experience.
           </p>
         </Reveal>
+
+        <div className="mt-8 flex justify-start sm:mt-10">
+          <HomeSectionBgEditButton
+            section={SECTION}
+            title="Why Stay background"
+            defaultUrl={DEFAULT_HOME_SECTIONS.whystay}
+          />
+        </div>
       </div>
     </section>
   );

@@ -1,8 +1,19 @@
 import { useLayoutEffect } from "react";
 import { useLocation } from "react-router-dom";
+import type Lenis from "lenis";
 
-/** Jump to top instantly — ignores CSS `scroll-behavior: smooth`. */
+function getLenis() {
+  return (window as Window & { __lenis?: Lenis }).__lenis;
+}
+
+/** Jump to top instantly — ignores CSS / Lenis smooth scrolling. */
 export function scrollToTopInstant() {
+  const lenis = getLenis();
+  if (lenis) {
+    lenis.scrollTo(0, { immediate: true });
+    return;
+  }
+
   const html = document.documentElement;
   const previous = html.style.scrollBehavior;
   html.style.scrollBehavior = "auto";
@@ -28,7 +39,12 @@ export function ScrollToTop() {
       const id = decodeURIComponent(hash.replace("#", ""));
       const el = document.getElementById(id);
       if (el) {
-        el.scrollIntoView();
+        const lenis = getLenis();
+        if (lenis) {
+          lenis.scrollTo(el, { offset: -88 });
+        } else {
+          el.scrollIntoView();
+        }
         return;
       }
     }

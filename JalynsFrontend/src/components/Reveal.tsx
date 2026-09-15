@@ -6,13 +6,29 @@ import {
   type ReactNode,
 } from "react";
 
+export type RevealVariant = "up" | "in" | "left" | "right" | "scale";
+
 type RevealProps = {
   children: ReactNode;
   className?: string;
+  /** Stagger delay in ms (e.g. index * 100). */
   delay?: number;
-  variant?: "up" | "in" | "left" | "right" | "scale";
+  /**
+   * Direction of the cinematic entrance.
+   * Prefer `left` / `right` for cards; `up` for section headers.
+   */
+  variant?: RevealVariant;
 };
 
+/** Optional helper — prefer soft `up` for grids; use left/right only for split layouts. */
+export function slideSide(index: number): "left" | "right" {
+  return index % 2 === 0 ? "left" : "right";
+}
+
+/**
+ * Scroll-triggered reveal — soft fade + horizontal glide (luxury / Apple-style).
+ * Uses IntersectionObserver; reduced-motion users see content immediately.
+ */
 export function Reveal({
   children,
   className = "",
@@ -38,7 +54,8 @@ export function Reveal({
           observer.unobserve(node);
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+      // Trigger slightly before the card is fully in view — feels intentional, not late
+      { threshold: 0.12, rootMargin: "0px 0px -10% 0px" },
     );
 
     observer.observe(node);

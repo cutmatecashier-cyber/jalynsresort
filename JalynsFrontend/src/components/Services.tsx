@@ -23,7 +23,7 @@ const services = [
     id: "restaurant",
     title: "Restaurant",
     description: "Fresh seafood and Filipino favorites by Mangrove Cove.",
-    href: "#restaurant",
+    href: "/restaurant",
     cta: "View Menu",
     image:
       "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1000&q=80",
@@ -58,10 +58,10 @@ export function Services() {
         {services.map((service, index) => {
           const Icon = service.icon;
           return (
-            <Reveal key={service.id} delay={index * 90} variant="up" className="h-full">
+            <Reveal key={service.id} delay={index * 80} variant="up" className="h-full">
               <article
-                id={service.id === "rooms" ? undefined : service.id}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-ink/6 bg-white shadow-[0_8px_24px_rgba(12,18,16,0.05)] transition duration-500 hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(12,18,16,0.1)]"
+                id={service.id === "rooms" || service.id === "restaurant" ? undefined : service.id}
+                className="card-lift group flex h-full flex-col overflow-hidden rounded-2xl border border-ink/6 bg-white shadow-[0_8px_24px_rgba(12,18,16,0.05)] hover:border-ink/12 hover:shadow-[0_16px_36px_rgba(12,18,16,0.1)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden lg:aspect-[5/4] xl:aspect-[4/3]">
                   <img

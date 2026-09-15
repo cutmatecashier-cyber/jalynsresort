@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { SmoothScroll } from "./components/SmoothScroll";
 import { AuthProvider } from "./context/AuthContext";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { ContactPage } from "./pages/ContactPage";
@@ -11,6 +12,7 @@ import { MembersPage } from "./pages/MembersPage";
 import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { RestaurantPage } from "./pages/RestaurantPage";
 import { SignupPage } from "./pages/SignupPage";
 import { VerifyCodePage } from "./pages/VerifyCodePage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
@@ -19,11 +21,13 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <SmoothScroll />
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/scuba-diving" element={<ScubaDivingPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/restaurant" element={<RestaurantPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-code" element={<VerifyCodePage />} />

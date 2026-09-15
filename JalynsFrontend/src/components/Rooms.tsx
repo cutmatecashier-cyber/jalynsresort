@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
 
@@ -31,19 +31,44 @@ const rooms = [
 
 export function Rooms() {
   const [active, setActive] = useState(0);
+  const [parallaxY, setParallaxY] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    const section = document.getElementById("rooms");
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!section) return;
+        const rect = section.getBoundingClientRect();
+        const progress = Math.min(Math.max(-rect.top / (rect.height + window.innerHeight), 0), 1);
+        setParallaxY(progress * 48);
+      });
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   return (
     <section id="rooms" className="bg-white px-5 pb-10 sm:px-6 sm:pb-14 md:px-8 lg:px-10 xl:px-12">
-      <Reveal variant="scale" className="w-full">
-        <div className="relative overflow-hidden rounded-[1.5rem]">
-          <img
-            src={rooms[active].image}
-            alt=""
-            className="absolute inset-0 h-full w-full scale-110 object-cover blur-sm transition duration-700"
-          />
-          <div className="absolute inset-0 bg-ink/70" />
+      <div className="relative overflow-hidden rounded-[1.5rem]">
+        <img
+          src={rooms[active].image}
+          alt=""
+          className="absolute inset-0 h-full w-full scale-110 object-cover blur-sm will-change-transform"
+          style={{ transform: `translate3d(0, ${parallaxY}px, 0) scale(1.12)` }}
+        />
+        <div className="absolute inset-0 bg-ink/70" />
 
-          <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
+        <div className="relative grid gap-6 p-5 sm:p-7 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
+          <Reveal variant="left" delay={40}>
             <div className="text-white">
               <p className="text-[0.65rem] font-semibold tracking-[0.28em] text-white/55 uppercase">
                 Our Rooms and Apartments
@@ -63,7 +88,9 @@ export function Rooms() {
                 <ArrowRightIcon className="h-3.5 w-3.5" />
               </a>
             </div>
+          </Reveal>
 
+          <Reveal variant="right" delay={160}>
             <div className="relative">
               <div className="overflow-hidden rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
                 <div className="relative aspect-[5/4]">
@@ -106,9 +133,9 @@ export function Rooms() {
                 </p>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
-      </Reveal>
+      </div>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @theme {
   --font-display: "Instrument Serif", Georgia, serif;
@@ -21,6 +21,7 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -31,6 +32,17 @@
     color: var(--color-ink);
     background: var(--color-foam);
     -webkit-font-smoothing: antialiased;
+  }
+
+  a,
+  button {
+    transition:
+      color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   img,
@@ -51,11 +63,11 @@
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(1.1rem);
+    transform: translate3d(0, 1.5rem, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -222,7 +234,7 @@
 }
 
 .animate-fade-up {
-  animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-up 1.05s cubic-bezier(0.215, 0.61, 0.355, 1) both;
 }
 
 .animate-fade-in {
@@ -231,6 +243,196 @@
 
 .animate-ken-burns {
   animation: ken-burns-live 22s ease-in-out infinite;
+}
+
+/* News cinematic slideshow — Ken Burns 1.05 → 1.15 over ~10s */
+@keyframes news-ken-burns-left {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(-2.4%, 0, 0);
+  }
+}
+
+@keyframes news-ken-burns-right {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(2.4%, 0, 0);
+  }
+}
+
+@keyframes news-copy-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.25rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.news-cinematic-slide {
+  transform: scale(1.05);
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+.news-cinematic-slide.is-active.burn-0.news-pan-left,
+.news-cinematic-slide.is-active.burn-1.news-pan-left {
+  animation: news-ken-burns-left 10s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.news-cinematic-slide.is-active.burn-0.news-pan-right,
+.news-cinematic-slide.is-active.burn-1.news-pan-right {
+  animation: news-ken-burns-right 10s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Single fixed background — seamless Ken Burns loop */
+.news-cinematic-slide.is-active.burn-loop.news-pan-left {
+  animation: news-ken-burns-loop 12s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+
+@keyframes news-ken-burns-loop {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(-2.2%, 0, 0);
+  }
+}
+
+/* Alternating burn class remounts the same keyframes so each visit restarts cleanly */
+.news-cinematic-slide.is-active.burn-1.news-pan-left {
+  animation-name: news-ken-burns-left-b;
+}
+
+.news-cinematic-slide.is-active.burn-1.news-pan-right {
+  animation-name: news-ken-burns-right-b;
+}
+
+@keyframes news-ken-burns-left-b {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(-2.4%, 0, 0);
+  }
+}
+
+@keyframes news-ken-burns-right-b {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.15) translate3d(2.4%, 0, 0);
+  }
+}
+
+.news-copy-in {
+  opacity: 0;
+  animation: news-copy-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.news-card-in {
+  opacity: 0;
+  animation: news-copy-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.news-glass-arrow {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.news-glass-arrow:hover {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.news-glass-arrow:active {
+  transform: scale(0.94);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.news-glass-arrow:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+/* Mobile-friendly card press + staggered float */
+@media (max-width: 767px) {
+  .news-cinematic-slide.is-active.burn-loop.news-pan-left {
+    animation: news-ken-burns-loop-mobile 9s cubic-bezier(0.22, 1, 0.36, 1) infinite
+      alternate;
+  }
+
+  @keyframes news-ken-burns-loop-mobile {
+    from {
+      transform: scale(1.06) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.14) translate3d(-1.8%, -0.6%, 0);
+    }
+  }
+
+  .news-card-in {
+    animation: news-card-mobile-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes news-card-mobile-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 1.75rem, 0) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  .news-card-mobile-lift {
+    transform: translate3d(0, -0.35rem, 0);
+  }
+
+  .card-lift:active {
+    transform: translate3d(0, -0.25rem, 0);
+  }
+}
+
+@media (min-width: 768px) {
+  .news-glass-arrow {
+    height: 3.25rem;
+    width: 3.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-glass-arrow {
+    height: 3.5rem;
+    width: 3.5rem;
+  }
 }
 
 .animate-float {
@@ -461,38 +663,62 @@
   animation-duration: 14s;
 }
 
+/*
+ * Scroll reveals — soft fade + light rise (luxury default).
+ * Left/right reserved for intentional 2-column compositions only.
+ */
 .reveal {
   opacity: 0;
   transition:
-    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--reveal-delay, 0ms);
   will-change: opacity, transform;
 }
 
 .reveal-up {
-  transform: translateY(1.75rem);
+  transform: translate3d(0, 1.75rem, 0);
 }
 
 .reveal-in {
-  transform: none;
+  transform: translate3d(0, 0.5rem, 0);
 }
 
+/* Softer horizontal — only for split layouts (e.g. Rooms) */
 .reveal-left {
-  transform: translateX(-1.5rem);
+  transform: translate3d(-3.5rem, 0, 0);
 }
 
 .reveal-right {
-  transform: translateX(1.5rem);
+  transform: translate3d(3.5rem, 0, 0);
 }
 
 .reveal-scale {
-  transform: scale(0.96);
+  transform: translate3d(0, 1.25rem, 0) scale(0.985);
 }
 
 .reveal.is-visible {
   opacity: 1;
-  transform: none;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+@media (max-width: 640px) {
+  .reveal-left,
+  .reveal-right {
+    transform: translate3d(0, 1.5rem, 0);
+  }
+}
+
+/* Soft lift for interactive cards — elegant, no bounce */
+.card-lift {
+  transition:
+    transform 0.55s cubic-bezier(0.215, 0.61, 0.355, 1),
+    box-shadow 0.55s cubic-bezier(0.215, 0.61, 0.355, 1),
+    border-color 0.55s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.card-lift:hover {
+  transform: translate3d(0, -0.4rem, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -507,6 +733,10 @@
   .animate-fade-up,
   .animate-fade-in,
   .animate-ken-burns,
+  .news-cinematic-slide,
+  .news-cinematic-slide.is-active,
+  .news-copy-in,
+  .news-card-in,
   .animate-float,
   .animate-pulse-glow,
   .animate-pulse-soft,
@@ -520,7 +750,8 @@
   .btn-press.is-pressed,
   .btn-press::after,
   .nav-link,
-  .nav-link::after {
+  .nav-link::after,
+  .card-lift {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
