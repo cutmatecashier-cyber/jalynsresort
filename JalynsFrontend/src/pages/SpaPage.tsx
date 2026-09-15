@@ -84,16 +84,16 @@ export function SpaPage() {
           <div className="absolute inset-0 bg-[#0c1210]/68" />
         </div>
 
-        <div className="relative z-0 -mt-[100svh] px-5 pt-10 pb-16 sm:px-6 sm:pt-12 sm:pb-20 md:px-8 lg:px-10 lg:pb-24 xl:px-12">
+        <div className="relative z-0 -mt-[100svh] px-4 pt-8 pb-12 sm:px-6 sm:pt-10 sm:pb-16 md:px-8 lg:px-10 lg:pb-20 xl:px-12">
           <SpaTreatmentsSection canEdit={canEdit} />
 
           <Reveal delay={70} variant="up">
-            <section className="mt-8 sm:mt-10">
-              <div className="mb-5 sm:mb-6">
+            <section className="mt-7 sm:mt-9">
+              <div className="mb-4 sm:mb-5">
                 <p className="text-[0.65rem] font-semibold tracking-[0.28em] text-white/50 uppercase">
                   Atmosphere
                 </p>
-                <h2 className="mt-2 font-display text-3xl text-white sm:text-4xl">
+                <h2 className="mt-1.5 font-display text-2xl text-white sm:text-3xl md:text-4xl">
                   Soft light. Quiet hands.
                 </h2>
               </div>

@@ -18,7 +18,7 @@ import { broadcastContentChanged } from "./ContentSync";
 import { Reveal } from "./Reveal";
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-ink/12 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
+  "mt-1 w-full rounded-lg border border-ink/12 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
 
 type Props = {
   canEdit: boolean;
@@ -214,14 +214,14 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
   return (
     <>
       <Reveal variant="up">
-        <section className="overflow-hidden rounded-[1.5rem] border border-white/40 bg-white/92 shadow-[0_16px_48px_rgba(0,0,0,0.22)] backdrop-blur-md">
-          <div className="border-b border-ink/8 px-5 pt-6 pb-5 sm:px-7 sm:pt-8 lg:px-9">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-2xl text-ink sm:text-3xl">
+        <section className="overflow-hidden rounded-2xl border border-white/40 bg-white/92 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur-md">
+          <div className="border-b border-ink/8 px-4 pt-4 pb-3.5 sm:px-5 sm:pt-5 sm:pb-4 lg:px-6">
+            <div className="flex flex-wrap items-start justify-between gap-2.5">
+              <div className="min-w-0">
+                <h2 className="font-display text-xl text-ink sm:text-2xl">
                   Treatments &amp; prices
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone sm:text-base">
+                <p className="mt-1 max-w-2xl text-[0.8125rem] leading-relaxed text-stone sm:text-sm">
                   Rates in Philippine pesos. Speak with reception to book a session at our partner
                   Spa Center
                   {canEdit ? " — add, edit, or remove services and pictures." : "."}
@@ -231,7 +231,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                 <button
                   type="button"
                   onClick={openCreateCategory}
-                  className="btn-press rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky"
+                  className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky"
                 >
                   Add category
                 </button>
@@ -239,19 +239,19 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             </div>
 
             {loading ? (
-              <p className="mt-6 text-sm text-stone">Loading treatments…</p>
+              <p className="mt-3.5 text-sm text-stone">Loading treatments…</p>
             ) : error ? (
-              <p className="mt-6 text-sm font-medium text-red-700" role="alert">
+              <p className="mt-3.5 text-sm font-medium text-red-700" role="alert">
                 {error}
               </p>
             ) : categories.length === 0 ? (
-              <p className="mt-6 text-sm text-stone">
+              <p className="mt-3.5 text-sm text-stone">
                 No spa categories yet
                 {canEdit ? " — click Add category to start." : "."}
               </p>
             ) : (
               <div
-                className="mt-6 flex gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="mt-3.5 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="tablist"
                 aria-label="Spa categories"
               >
@@ -264,7 +264,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       role="tab"
                       aria-selected={selected}
                       onClick={() => setActiveId(cat.id)}
-                      className={`btn-press shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      className={`btn-press shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition sm:text-[0.8125rem] ${
                         selected
                           ? "bg-ink text-white"
                           : "bg-mist text-ink/75 hover:bg-ink/10 hover:text-ink"
@@ -281,9 +281,9 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
           {current ? (
             <div
               key={current.id}
-              className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+              className="grid lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]"
             >
-              <div className="relative hidden min-h-[22rem] overflow-hidden lg:block">
+              <div className="relative hidden min-h-[14rem] overflow-hidden lg:block xl:min-h-[16rem]">
                 {current.image_url ? (
                   <img
                     src={spaMediaUrl(current.image_url)}
@@ -294,51 +294,53 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                   <div className="absolute inset-0 bg-mist" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/50 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-7">
-                  <p className="font-display text-3xl text-white">{current.label}</p>
+                <div className="absolute inset-x-0 bottom-0 p-4 xl:p-5">
+                  <p className="font-display text-2xl text-white xl:text-[1.65rem]">
+                    {current.label}
+                  </p>
                   {current.note ? (
-                    <p className="mt-1.5 text-sm text-white/75">{current.note}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/75">{current.note}</p>
                   ) : (
-                    <p className="mt-1.5 text-xs font-medium tracking-[0.2em] text-white/60 uppercase">
+                    <p className="mt-1 text-[0.65rem] font-medium tracking-[0.18em] text-white/60 uppercase">
                       {current.services.length} services
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="px-5 py-2 sm:px-7 lg:px-8 lg:py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-ink/8 py-4">
+              <div className="px-4 py-1.5 sm:px-5 lg:px-6 lg:py-2">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-ink/8 py-2.5">
                   <div className="min-w-0">
-                    <h3 className="font-display text-2xl text-ink lg:hidden">{current.label}</h3>
+                    <h3 className="font-display text-xl text-ink lg:hidden">{current.label}</h3>
                     {current.note ? (
-                      <p className="mt-1 text-sm text-stone lg:hidden">{current.note}</p>
+                      <p className="mt-0.5 text-xs text-stone lg:hidden">{current.note}</p>
                     ) : null}
                     {canEdit ? (
-                      <p className="hidden text-sm text-stone lg:block">
+                      <p className="hidden text-xs text-stone lg:block">
                         Manage services in this category
                       </p>
                     ) : null}
                   </div>
                   {canEdit ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={openCreateService}
-                        className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky"
+                        className="btn-press rounded-full bg-sky-deep px-3 py-1 text-[0.7rem] font-semibold text-white transition hover:bg-sky"
                       >
                         Add service
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditCategory(current)}
-                        className="btn-press rounded-full border border-ink/15 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:border-ink/30"
+                        className="btn-press rounded-full border border-ink/15 bg-white px-3 py-1 text-[0.7rem] font-semibold text-ink transition hover:border-ink/30"
                       >
                         Edit category
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget({ type: "category", category: current })}
-                        className="btn-press rounded-full border border-red-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                        className="btn-press rounded-full border border-red-200 bg-white px-3 py-1 text-[0.7rem] font-semibold text-red-700 transition hover:bg-red-50"
                       >
                         Delete
                       </button>
@@ -347,7 +349,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                 </div>
 
                 {current.services.length === 0 ? (
-                  <p className="py-8 text-sm text-stone">
+                  <p className="py-5 text-sm text-stone">
                     No services yet
                     {canEdit ? " — click Add service." : "."}
                   </p>
@@ -356,37 +358,37 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                     {current.services.map((row) => (
                       <li
                         key={row.id}
-                        className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 py-4 sm:gap-x-8"
+                        className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-0.5 py-2.5 sm:gap-x-6"
                       >
                         <div className="min-w-0">
-                          <p className="text-[0.92rem] font-semibold leading-snug text-ink sm:text-[0.98rem]">
+                          <p className="text-[0.84rem] font-semibold leading-snug text-ink sm:text-[0.9rem]">
                             {row.name}
                           </p>
                           {row.mins ? (
-                            <p className="mt-1 text-[0.7rem] font-medium tracking-[0.14em] text-stone uppercase">
+                            <p className="mt-0.5 text-[0.65rem] font-medium tracking-[0.12em] text-stone uppercase">
                               {row.mins} min
                             </p>
                           ) : null}
                           {canEdit ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="mt-1 flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditService(row)}
-                                className="text-xs font-semibold text-sky-deep hover:underline"
+                                className="text-[0.7rem] font-semibold text-sky-deep hover:underline"
                               >
                                 Edit
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setDeleteTarget({ type: "service", service: row })}
-                                className="text-xs font-semibold text-red-700 hover:underline"
+                                className="text-[0.7rem] font-semibold text-red-700 hover:underline"
                               >
                                 Delete
                               </button>
                             </div>
                           ) : null}
                         </div>
-                        <p className="text-[1rem] font-semibold tabular-nums text-ink sm:text-[1.05rem]">
+                        <p className="text-[0.9rem] font-semibold tabular-nums text-ink sm:text-[0.95rem]">
                           {row.rate}
                         </p>
                       </li>
@@ -410,16 +412,16 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             >
               <form
                 onSubmit={(e) => void saveCategory(e)}
-                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(88dvh,34rem)] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
-                  <h3 className="font-display text-xl text-ink">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
+                  <h3 className="font-display text-lg text-ink">
                     {catModal === "create" ? "Add category" : "Edit category"}
                   </h3>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-3 space-y-2.5">
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="spa-cat-label">
+                      <label className="text-xs font-semibold text-ink" htmlFor="spa-cat-label">
                         Name
                       </label>
                       <input
@@ -432,7 +434,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="spa-cat-note">
+                      <label className="text-xs font-semibold text-ink" htmlFor="spa-cat-note">
                         Note (optional)
                       </label>
                       <input
@@ -444,15 +446,15 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-ink">Picture</p>
+                      <p className="text-xs font-semibold text-ink">Picture</p>
                       {catPreview ? (
                         <img
                           src={catPreview}
                           alt=""
-                          className="mt-2 h-36 w-full rounded-xl object-cover"
+                          className="mt-1.5 h-28 w-full rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="mt-2 flex h-36 items-center justify-center rounded-xl bg-mist text-sm text-stone">
+                        <div className="mt-1.5 flex h-28 items-center justify-center rounded-lg bg-mist text-xs text-stone">
                           No image yet
                         </div>
                       )}
@@ -466,29 +468,29 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       <button
                         type="button"
                         onClick={() => catFileRef.current?.click()}
-                        className="btn-press mt-2 rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink"
+                        className="btn-press mt-1.5 rounded-full border border-ink/15 px-3 py-1 text-[0.7rem] font-semibold text-ink"
                       >
                         {catPreview ? "Change picture" : "Upload picture"}
                       </button>
                     </div>
                   </div>
                   {modalError ? (
-                    <p className="mt-3 text-sm font-medium text-red-700">{modalError}</p>
+                    <p className="mt-2 text-sm font-medium text-red-700">{modalError}</p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 justify-end gap-2 border-t border-ink/8 bg-white px-5 py-4 sm:px-6">
+                <div className="flex shrink-0 justify-end gap-2 border-t border-ink/8 bg-white px-4 py-3 sm:px-5">
                   <button
                     type="button"
                     disabled={saving}
                     onClick={() => setCatModal(null)}
-                    className="btn-press rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink"
+                    className="btn-press rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn-press rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                   >
                     {saving ? "Saving…" : "Save"}
                   </button>
@@ -510,16 +512,16 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             >
               <form
                 onSubmit={(e) => void saveService(e)}
-                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(88dvh,30rem)] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
-                  <h3 className="font-display text-xl text-ink">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
+                  <h3 className="font-display text-lg text-ink">
                     {svcModal === "create" ? "Add service" : "Edit service"}
                   </h3>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-3 space-y-2.5">
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="spa-svc-name">
+                      <label className="text-xs font-semibold text-ink" htmlFor="spa-svc-name">
                         Name
                       </label>
                       <input
@@ -532,7 +534,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="spa-svc-mins">
+                      <label className="text-xs font-semibold text-ink" htmlFor="spa-svc-mins">
                         Duration (minutes, optional)
                       </label>
                       <input
@@ -546,7 +548,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="spa-svc-rate">
+                      <label className="text-xs font-semibold text-ink" htmlFor="spa-svc-rate">
                         Rate
                       </label>
                       <input
@@ -560,22 +562,22 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                     </div>
                   </div>
                   {modalError ? (
-                    <p className="mt-3 text-sm font-medium text-red-700">{modalError}</p>
+                    <p className="mt-2 text-sm font-medium text-red-700">{modalError}</p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 justify-end gap-2 border-t border-ink/8 bg-white px-5 py-4 sm:px-6">
+                <div className="flex shrink-0 justify-end gap-2 border-t border-ink/8 bg-white px-4 py-3 sm:px-5">
                   <button
                     type="button"
                     disabled={saving}
                     onClick={() => setSvcModal(null)}
-                    className="btn-press rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink"
+                    className="btn-press rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn-press rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                   >
                     {saving ? "Saving…" : "Save"}
                   </button>
