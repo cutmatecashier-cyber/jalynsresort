@@ -14,6 +14,7 @@ import { galleryRouter } from './routes/gallery.js'
 import { contentRouter } from './routes/content.js'
 import { scubaRouter } from './routes/scuba.js'
 import { spaRouter } from './routes/spa.js'
+import { newsRouter } from './routes/news.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -49,7 +50,19 @@ app.use(
   }),
 )
 app.use(express.json())
-app.use('/uploads', express.static(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../uploads')))
+app.use(
+  '/uploads',
+  express.static(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../uploads'), {
+    maxAge: '30d',
+    etag: true,
+    lastModified: true,
+    setHeaders(res, filePath) {
+      if (/\.(jpe?g|png|webp|gif|avif)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable')
+      }
+    },
+  }),
+)
 
 app.get('/api/health', (_req, res) => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -79,6 +92,7 @@ app.use('/api/gallery', galleryRouter)
 app.use('/api/content', contentRouter)
 app.use('/api/scuba', scubaRouter)
 app.use('/api/spa', spaRouter)
+app.use('/api/news', newsRouter)
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''

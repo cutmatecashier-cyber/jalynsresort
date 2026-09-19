@@ -53,6 +53,10 @@ export const permissions = {
   /** Admin-only: SPA categories, services, and category pictures */
   canEditSpa: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
+
+  /** Admin-only: News, Offers & Events posts */
+  canEditNews: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
 } as const;
 
 export function roleLabel(role: UserRole | null): string {

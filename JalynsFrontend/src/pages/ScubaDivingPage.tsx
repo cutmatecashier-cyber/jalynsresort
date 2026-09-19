@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type TouchEvent,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
@@ -81,6 +81,38 @@ const DEFAULT_CONTACT: ResortContactSettings = {
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
+/** In-app news detail paths — match live WP “Course details” blue links */
+const SCUBA_NEWS = {
+  ecotourism:
+    "/news/our-commitment-to-responsible-ecotourism-in-marine-protected-areas",
+  discover:
+    "/news/discover-scuba-diving-in-beautiful-puerto-galera-at-jalyns-resort-dive-center",
+  openWater: "/news/padi-open-water-diver-courses-at-jalyns-resort",
+  advanced:
+    "/news/padi-advanced-open-water-course-at-jalyns-resort-dive-center",
+} as const;
+
+const blueLinkClass =
+  "font-semibold text-[#1e6bb8] underline-offset-2 transition hover:text-[#0b4f8a] hover:underline";
+
+function newsPathForCourse(course: string): string | null {
+  const key = course.toLowerCase();
+  if (key.includes("discover")) return SCUBA_NEWS.discover;
+  if (key.includes("advanced")) return SCUBA_NEWS.advanced;
+  if (key.includes("open water")) return SCUBA_NEWS.openWater;
+  return null;
+}
+
+function CourseDetailsLink({ course }: { course: string }) {
+  const to = newsPathForCourse(course);
+  if (!to) return null;
+  return (
+    <Link to={to} className={`${blueLinkClass} whitespace-nowrap`}>
+      Course details
+    </Link>
+  );
 }
 
 const FEATURES = [
@@ -787,17 +819,17 @@ export function ScubaDivingPage() {
                     />
                   </a>
                   <p className="mt-5 text-[0.95rem] font-semibold tracking-wide text-[#0b1d33]">
-                    Blue Alliance Philippines
+                    <Link to={SCUBA_NEWS.ecotourism} className={blueLinkClass}>
+                      Blue Alliance Philippines
+                    </Link>
                   </p>
-                  <a
-                    href="https://divemindoro.org/"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={SCUBA_NEWS.ecotourism}
                     className="btn-press mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0b1d33] px-5 py-2.5 text-[0.8rem] font-semibold text-white transition hover:bg-[#12304d]"
                   >
                     Learn More
                     <ArrowRightIcon className="h-3.5 w-3.5" />
-                  </a>
+                  </Link>
                 </div>
               </Reveal>
 
@@ -810,9 +842,9 @@ export function ScubaDivingPage() {
                     </h3>
                     <p className="mt-3 text-[0.95rem] leading-[1.75] text-[#0b1d33]/90 sm:text-base">
                       Jalyn&apos;s Resort has pledged our{" "}
-                      <span className="font-semibold text-[#0b1d33]">
+                      <Link to={SCUBA_NEWS.ecotourism} className={blueLinkClass}>
                         ongoing support of Blue Alliance Philippines
-                      </span>
+                      </Link>
                       , an NGO committed to safeguarding marine ecosystems and improving the lives
                       of coastal communities in North Oriental Mindoro, Philippines.
                     </p>
@@ -841,9 +873,11 @@ export function ScubaDivingPage() {
                         Mindoro MPA network for future generations to enjoy.
                       </p>
                       <p>
-                        We will also be hosting guest speakers to explain more about Blue Alliance
-                        Philippines&apos; mission and motivations in protecting our most valuable
-                        resource.
+                        We will also be hosting guest speakers to explain more about{" "}
+                        <Link to={SCUBA_NEWS.ecotourism} className={blueLinkClass}>
+                          Blue Alliance Philippines
+                        </Link>
+                        &apos; mission and motivations in protecting our most valuable resource.
                       </p>
                     </div>
                   </div>
@@ -937,10 +971,23 @@ export function ScubaDivingPage() {
                 <p>
                   Jalyn&apos;s Resort Scuba Diving Center offers everything from daily fun dives and
                   exciting night dives, to trips to the amazing Verde Island. You can also become a
-                  PADI accredited scuba diver with our range of courses, including Discover Scuba
-                  Diving, Open Water, and Advanced Open Water. If you&apos;ve never dived before,
-                  the Discover Scuba course will have you diving in the open water in just a few
-                  short hours!
+                  PADI accredited scuba diver with our range of courses, including{" "}
+                  <Link to={SCUBA_NEWS.discover} className={blueLinkClass}>
+                    Discover Scuba Diving
+                  </Link>
+                  ,{" "}
+                  <Link to={SCUBA_NEWS.openWater} className={blueLinkClass}>
+                    Open Water
+                  </Link>
+                  , and{" "}
+                  <Link to={SCUBA_NEWS.advanced} className={blueLinkClass}>
+                    Advanced Open Water
+                  </Link>
+                  . If you&apos;ve never dived before, the{" "}
+                  <Link to={SCUBA_NEWS.discover} className={blueLinkClass}>
+                    Discover Scuba
+                  </Link>{" "}
+                  course will have you diving in the open water in just a few short hours!
                 </p>
                 <p className="mt-4">
                   Ask anyone who&apos;s dived in the Philippines about Puerto Galera and Sabang and
@@ -1288,9 +1335,23 @@ export function ScubaDivingPage() {
                       {courses.map((row) => (
                         <tr key={row.id} className="border-t border-[#0b1d33]/8">
                           <td className="px-4 py-3.5 font-medium text-[#0b1d33] lg:px-6 lg:py-4">
-                            {row.course}
+                            {newsPathForCourse(row.course) ? (
+                              <Link to={newsPathForCourse(row.course)!} className={blueLinkClass}>
+                                {row.course}
+                              </Link>
+                            ) : (
+                              row.course
+                            )}
                           </td>
-                          <td className="px-4 py-3.5 text-ink/70 lg:px-6 lg:py-4">{row.details}</td>
+                          <td className="px-4 py-3.5 text-ink/70 lg:px-6 lg:py-4">
+                            <span>{row.details}</span>
+                            {newsPathForCourse(row.course) ? (
+                              <>
+                                {" "}
+                                <CourseDetailsLink course={row.course} />
+                              </>
+                            ) : null}
+                          </td>
                           <td className="px-4 py-3.5 font-semibold break-words text-[#0b1d33] lg:px-6 lg:py-4">
                             {displayPrice(row.price)}
                           </td>
@@ -1321,8 +1382,24 @@ export function ScubaDivingPage() {
                       key={row.id}
                       className="rounded-2xl border border-[#0b1d33]/8 bg-white/85 px-5 py-4 shadow-sm backdrop-blur-sm"
                     >
-                      <p className="font-semibold text-[#0b1d33]">{row.course}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-ink/70">{row.details}</p>
+                      <p className="font-semibold text-[#0b1d33]">
+                        {newsPathForCourse(row.course) ? (
+                          <Link to={newsPathForCourse(row.course)!} className={blueLinkClass}>
+                            {row.course}
+                          </Link>
+                        ) : (
+                          row.course
+                        )}
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink/70">
+                        {row.details}
+                        {newsPathForCourse(row.course) ? (
+                          <>
+                            {" "}
+                            <CourseDetailsLink course={row.course} />
+                          </>
+                        ) : null}
+                      </p>
                       <p className="mt-2 text-lg font-semibold text-[#0b1d33]">
                         {displayPrice(row.price)}
                       </p>

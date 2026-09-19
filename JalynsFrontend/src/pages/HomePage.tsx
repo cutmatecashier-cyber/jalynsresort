@@ -21,6 +21,8 @@ export function HomePage() {
       navigate("/scuba-diving", { replace: true });
     } else if (hash === "#spa") {
       navigate("/spa", { replace: true });
+    } else if (hash === "#news") {
+      navigate("/news", { replace: true });
     }
   }, [navigate]);
 

@@ -3,5 +3,8 @@ dist/
 .env
 .env.*
 !.env.example
-JalynsBackend/data/
-JalynsBackend/uploads/
+JalynsBackend/data/*
+!JalynsBackend/data/news.json
+JalynsBackend/uploads/*
+!JalynsBackend/uploads/news/
+!JalynsBackend/uploads/news/**

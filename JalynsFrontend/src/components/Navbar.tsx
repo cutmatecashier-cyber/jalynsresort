@@ -14,7 +14,7 @@ const links: NavItem[] = [
   { label: "Restaurant", shortLabel: "Restaurant", kind: "route", to: "/restaurant" },
   { label: "Scuba Diving", shortLabel: "Scuba Diving", kind: "route", to: "/scuba-diving" },
   { label: "SPA", shortLabel: "SPA", kind: "route", to: "/spa" },
-  { label: "News, Offers and Events", shortLabel: "News", kind: "hash", hash: "#news" },
+  { label: "News, Offers and Events", shortLabel: "News", kind: "route", to: "/news" },
   { label: "Contact Us", shortLabel: "Contact Us", kind: "route", to: "/contact" },
 ];
 

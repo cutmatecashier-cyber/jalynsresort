@@ -10,6 +10,8 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MembersPage } from "./pages/MembersPage";
+import { NewsDetailPage } from "./pages/NewsDetailPage";
+import { NewsPage } from "./pages/NewsPage";
 import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -30,7 +32,10 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/rooms" element={<Navigate to="/#rooms" replace />} />
           <Route path="/spa" element={<SpaPage />} />
+          <Route path="/news" element={<NewsPage />} />
+          <Route path="/news/:id" element={<NewsDetailPage />} />
           <Route path="/scuba-diving" element={<ScubaDivingPage />} />
+          <Route path="/scuba" element={<Navigate to="/scuba-diving" replace />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/restaurant" element={<RestaurantPage />} />
           <Route path="/login" element={<LoginPage />} />

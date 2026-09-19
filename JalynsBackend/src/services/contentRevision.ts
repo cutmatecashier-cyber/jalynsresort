@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data')
 
-const TRACKED_FILES = ['home-hero.json', 'rooms.json', 'gallery.json'] as const
+const TRACKED_FILES = ['home-hero.json', 'rooms.json', 'gallery.json', 'news.json'] as const
 
 /** Monotonic-ish revision from JSON store mtimes — guests poll this to refresh media. */
 export function getContentRevision(): { revision: string; updatedAt: string } {

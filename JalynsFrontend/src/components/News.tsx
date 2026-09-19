@@ -7,80 +7,11 @@ import {
   homeHeroMediaUrl,
   type HomeSectionKey,
 } from "../lib/homeHero";
+import { NEWS_POSTS, NEWS_UPDATED_EVENT, fetchNewsPosts, newsMediaUrl, type NewsPost } from "../lib/news";
 import { HomeSectionBgEditButton } from "./HomeSectionBgEditButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 
 const SECTION: HomeSectionKey = "news";
-
-const posts = [
-  {
-    id: "dive-season",
-    category: "Scuba Diving",
-    title: "Peak dive season returns to Mangrove Cove",
-    excerpt:
-      "Calm mornings and clear water make this month ideal for reef dives and first-time open-water guests.",
-    image:
-      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80",
-    cta: "Dive In",
-    href: "/scuba-diving",
-  },
-  {
-    id: "kitchen",
-    category: "Restaurant",
-    title: "Fresh catch nights at Jalyn’s Restaurant",
-    excerpt:
-      "Our kitchen highlights local seafood and slow evenings by the water — reserve a table for sunset.",
-    image:
-      "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=80",
-    cta: "View Menu",
-    href: "/restaurant",
-  },
-  {
-    id: "stay",
-    category: "Resort",
-    title: "Quiet mornings, longer stays",
-    excerpt:
-      "Guests are lingering longer this season — poolside breakfasts, spa hours, and unhurried afternoons.",
-    image:
-      "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=900&q=80",
-    cta: "Stay Here",
-    href: "#rooms",
-  },
-  {
-    id: "weekday",
-    category: "Stay Offer",
-    title: "Weekday escape by the cove",
-    excerpt:
-      "Quiet midweek stays with breakfast — perfect for a slower Puerto Galera reset.",
-    image:
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80",
-    cta: "Book Stay",
-    href: "#book",
-  },
-  {
-    id: "dive-package",
-    category: "Scuba Package",
-    title: "Dive & dine weekends",
-    excerpt:
-      "Guided reef dives paired with dinner at Jalyn’s Restaurant for a full day on the water.",
-    image:
-      "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=900&q=80",
-    cta: "Explore Package",
-    href: "/scuba-diving",
-  },
-  {
-    id: "events",
-    category: "Events",
-    title: "Private dinners & celebrations",
-    excerpt:
-      "Intimate gatherings by the shore — birthdays, small reunions, and sunset tables.",
-    image:
-      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80",
-    cta: "Enquire",
-    href: "/contact",
-  },
-] as const;
-
 const PAGE_SIZE = 3;
 
 function CtaLink({
@@ -107,14 +38,41 @@ function CtaLink({
 }
 
 export function News() {
+  const [posts, setPosts] = useState<NewsPost[]>(NEWS_POSTS);
   const [page, setPage] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [bgUrl, setBgUrl] = useState(DEFAULT_HOME_SECTIONS.news);
   const touchStartX = useRef<number | null>(null);
 
-  const pageCount = Math.ceil(posts.length / PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
   const visible = posts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchNewsPosts().then((next) => {
+      if (alive) setPosts(next);
+    });
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ posts?: NewsPost[] }>).detail;
+      if (detail?.posts?.length) {
+        setPosts(detail.posts);
+        return;
+      }
+      void fetchNewsPosts().then((next) => {
+        if (alive) setPosts(next);
+      });
+    };
+    window.addEventListener(NEWS_UPDATED_EVENT, onUpdated);
+    return () => {
+      alive = false;
+      window.removeEventListener(NEWS_UPDATED_EVENT, onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, Math.max(0, Math.ceil(posts.length / PAGE_SIZE) - 1)));
+  }, [posts.length]);
 
   useEffect(() => {
     setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -290,13 +248,16 @@ export function News() {
                 >
                   <div className="overflow-hidden">
                     <img
-                      src={post.image}
+                      src={newsMediaUrl(post.image)}
                       alt=""
                       className={`w-full object-cover transition duration-700 group-hover:scale-[1.04] ${
                         isCenter
                           ? "aspect-[5/4] min-h-[11rem] sm:min-h-[13rem] lg:min-h-[15rem]"
                           : "aspect-[4/3] min-h-[10rem] sm:min-h-[12rem] lg:min-h-[14rem]"
                       }`}
+                      loading={index < 3 ? "eager" : "lazy"}
+                      decoding="async"
+                      fetchPriority={index === 0 ? "high" : "auto"}
                     />
                   </div>
                   <div className="flex flex-1 flex-col px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
@@ -316,7 +277,7 @@ export function News() {
                       {post.excerpt}
                     </p>
                     <CtaLink
-                      href={post.href}
+                      href={`/news/${post.id}`}
                       className="btn-press mt-5 inline-flex w-fit items-center justify-center rounded-full bg-sea px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink"
                     >
                       {post.cta}
