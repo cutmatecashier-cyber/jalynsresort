@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { getApiUrl } from "../lib/api";
 import { notifyHomeHeroUpdated, notifyHomeSectionUpdated } from "../lib/homeHero";
 import { notifyGalleryUpdated } from "../lib/gallery";
-import { notifyNewsUpdated } from "../lib/news";
+import { fetchNewsPosts, notifyNewsUpdated } from "../lib/news";
 import { notifyRoomsUpdated } from "../lib/rooms";
 
 export const CONTENT_CHANGED_EVENT = "jalyns:content-changed";
@@ -18,7 +18,7 @@ export function refreshLocalContent() {
   notifyHomeSectionUpdated("news");
   notifyRoomsUpdated();
   notifyGalleryUpdated();
-  notifyNewsUpdated();
+  void fetchNewsPosts().then((posts) => notifyNewsUpdated(posts));
 }
 
 /** Call after an admin save so other tabs update instantly. */

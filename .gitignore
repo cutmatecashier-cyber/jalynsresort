@@ -8,3 +8,5 @@ JalynsBackend/data/*
 JalynsBackend/uploads/*
 !JalynsBackend/uploads/news/
 !JalynsBackend/uploads/news/**
+!JalynsBackend/uploads/menu/
+!JalynsBackend/uploads/menu/**

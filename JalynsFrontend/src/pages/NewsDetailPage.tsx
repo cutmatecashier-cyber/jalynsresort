@@ -5,6 +5,7 @@ import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { getApiUrl } from "../lib/api";
+import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
   fetchNewsPosts,
   formatNewsDate,
@@ -150,6 +151,7 @@ export function NewsDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const recentScrollRef = useWheelScrollContain<HTMLUListElement>();
 
   useEffect(() => {
     setLightbox(null);
@@ -249,7 +251,7 @@ export function NewsDetailPage() {
 
   const counts = newsCategoryCounts(allPosts);
   const recent = useMemo(
-    () => [...allPosts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+    () => [...allPosts].sort((a, b) => b.date.localeCompare(a.date)),
     [allPosts],
   );
   const related = useMemo(() => {
@@ -574,7 +576,10 @@ export function NewsDetailPage() {
 
               <div className="rounded-xl bg-white p-4 shadow-[0_8px_22px_rgba(12,18,16,0.05)]">
                 <h2 className="font-display text-lg text-ink">Recent Posts</h2>
-                <ul className="mt-3 divide-y divide-ink/8">
+                <ul
+                  ref={recentScrollRef}
+                  className="mt-3 max-h-[min(42vh,20rem)] divide-y divide-ink/8 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]"
+                >
                   {recent.map((item) => (
                     <li key={item.id} className="py-2 first:pt-0 last:pb-0">
                       <Link

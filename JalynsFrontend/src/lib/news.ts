@@ -1,4 +1,4 @@
-import { getApiUrl } from "./api";
+import { getApiUrl, resolveMediaUrl } from "./api";
 import { supabase } from "./supabase";
 
 export type NewsKind = "news" | "offer" | "event";
@@ -171,18 +171,14 @@ export const NEWS_UPDATED_EVENT = "jalyns:news-updated";
 export function newsMediaUrl(url: string | null | undefined) {
   if (!url) return "";
   // Prefer local API uploads so photos survive if the old WordPress site is removed.
-  // Only fall back to Photon for rare leftover remote WP URLs.
-  if (/^(https?:|data:|blob:)/i.test(url)) {
-    const wpMatch = url.match(
-      /^https?:\/\/(?:www\.)?jalynsresort\.com\/(wp-content\/uploads\/.+)$/i,
-    );
-    if (wpMatch) {
-      return `https://i0.wp.com/jalynsresort.com/${wpMatch[1]}?w=1400&quality=78&strip=info`;
-    }
-    return url;
+  if (/^(data:|blob:)/i.test(url)) return url;
+  const wpMatch = url.match(
+    /^https?:\/\/(?:www\.)?jalynsresort\.com\/(wp-content\/uploads\/.+)$/i,
+  );
+  if (wpMatch) {
+    return `https://i0.wp.com/jalynsresort.com/${wpMatch[1]}?w=1400&quality=78&strip=info`;
   }
-  const base = getApiUrl().replace(/\/$/, "");
-  return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+  return resolveMediaUrl(url) || "";
 }
 
 export function notifyNewsUpdated(posts?: NewsPost[]) {

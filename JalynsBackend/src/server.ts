@@ -58,7 +58,8 @@ app.use(
     lastModified: true,
     setHeaders(res, filePath) {
       if (/\.(jpe?g|png|webp|gif|avif)$/i.test(filePath)) {
-        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable')
+        // Avoid immutable — brief 404s during deploys must not stick in the browser for weeks.
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate')
       }
     },
   }),

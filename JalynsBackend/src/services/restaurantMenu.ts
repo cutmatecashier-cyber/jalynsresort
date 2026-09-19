@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,6 +88,17 @@ function mapCategory(row: Record<string, unknown>): Omit<MenuCategory, 'items'> 
   }
 }
 
+function localUploadExists(imageUrl: string | null): string | null {
+  if (!imageUrl) return null
+  if (!imageUrl.startsWith('/uploads/')) return imageUrl
+  const full = path.resolve(dataDir, '..', imageUrl.replace(/^\//, ''))
+  try {
+    return existsSync(full) ? imageUrl : null
+  } catch {
+    return null
+  }
+}
+
 function mapItem(row: Record<string, unknown>): MenuItem {
   const priceRaw = row.price
   let price: number | null = null
@@ -94,13 +106,15 @@ function mapItem(row: Record<string, unknown>): MenuItem {
     const n = Number(priceRaw)
     price = Number.isFinite(n) ? n : null
   }
+  const rawImage =
+    row.image_url == null || row.image_url === '' ? null : String(row.image_url)
   return {
     id: String(row.id),
     category_id: String(row.category_id),
     name: String(row.name),
     description: String(row.description ?? ''),
     price,
-    image_url: row.image_url == null || row.image_url === '' ? null : String(row.image_url),
+    image_url: localUploadExists(rawImage),
     sort_order: Number(row.sort_order ?? 0),
     available: row.available !== false,
   }
