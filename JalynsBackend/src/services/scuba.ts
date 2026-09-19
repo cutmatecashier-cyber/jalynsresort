@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js'
+import { createFolderBackgroundStore } from './pageBackgrounds.js'
 
 export const SCUBA_BUCKET = 'scuba-diving'
 export const SCUBA_HERO_FOLDER = 'hero'
@@ -58,60 +59,10 @@ function extFromMime(mime: string) {
   return 'jpg'
 }
 
-async function listFolderImages(folder: string) {
-  const { data, error } = await supabaseAdmin.storage.from(SCUBA_BUCKET).list(folder, {
-    limit: 100,
-    sortBy: { column: 'updated_at', order: 'desc' },
-  })
-  if (error || !data) return []
-  return data.filter((item) => item.name && isImageFile(item.name))
-}
-
-async function resolveFolderBackground(
-  folder: string,
-  stablePrefix: string,
-): Promise<ScubaBackground> {
-  const files = await listFolderImages(folder)
-  const stable = files.find((file) => `${folder}/${file.name}`.startsWith(stablePrefix))
-  const newest = stable ?? files[0]
-  if (!newest) return { url: null, path: null }
-  const path = `${folder}/${newest.name}`
-  return {
-    path,
-    url: publicImageUrl(path, newest.updated_at ?? newest.created_at ?? String(Date.now())),
-  }
-}
-
-async function uploadStableBackground(
-  folder: string,
-  file: Express.Multer.File,
-): Promise<{ path: string; url: string }> {
-  const ext = extFromMime(file.mimetype || 'image/jpeg')
-  const stablePath = `${folder}/current.${ext}`
-  const { error } = await supabaseAdmin.storage.from(SCUBA_BUCKET).upload(stablePath, file.buffer, {
-    cacheControl: '3600',
-    upsert: true,
-    contentType: file.mimetype || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-  })
-  if (error) throw new Error(scubaErrorMessage(error, 'Could not upload image.'))
-
-  const leftovers = (await listFolderImages(folder))
-    .filter((item) => `${folder}/${item.name}` !== stablePath)
-    .map((item) => `${folder}/${item.name}`)
-  if (leftovers.length) {
-    await supabaseAdmin.storage.from(SCUBA_BUCKET).remove(leftovers)
-  }
-
-  return { path: stablePath, url: publicImageUrl(stablePath, String(Date.now())) }
-}
-
-async function removeFolderImages(folder: string) {
-  const files = await listFolderImages(folder)
-  const paths = files.map((item) => `${folder}/${item.name}`)
-  if (!paths.length) return
-  const { error } = await supabaseAdmin.storage.from(SCUBA_BUCKET).remove(paths)
-  if (error) throw new Error(scubaErrorMessage(error, 'Could not remove image.'))
-}
+const scubaBackgrounds = createFolderBackgroundStore({
+  bucket: SCUBA_BUCKET,
+  formatError: scubaErrorMessage,
+})
 
 export async function listDivingRates() {
   const { data, error } = await supabaseAdmin
@@ -216,27 +167,27 @@ export async function deletePadiCourse(id: number) {
 }
 
 export async function getHeroBackground() {
-  return resolveFolderBackground(SCUBA_HERO_FOLDER, STABLE_HERO_PREFIX)
+  return scubaBackgrounds.resolve(SCUBA_HERO_FOLDER, STABLE_HERO_PREFIX)
 }
 
 export async function getContentBackground() {
-  return resolveFolderBackground(SCUBA_CONTENT_FOLDER, STABLE_CONTENT_PREFIX)
+  return scubaBackgrounds.resolve(SCUBA_CONTENT_FOLDER, STABLE_CONTENT_PREFIX)
 }
 
 export async function uploadHeroBackground(file: Express.Multer.File) {
-  return uploadStableBackground(SCUBA_HERO_FOLDER, file)
+  return scubaBackgrounds.upload(SCUBA_HERO_FOLDER, file)
 }
 
 export async function uploadContentBackground(file: Express.Multer.File) {
-  return uploadStableBackground(SCUBA_CONTENT_FOLDER, file)
+  return scubaBackgrounds.upload(SCUBA_CONTENT_FOLDER, file)
 }
 
 export async function removeHeroBackground() {
-  await removeFolderImages(SCUBA_HERO_FOLDER)
+  await scubaBackgrounds.remove(SCUBA_HERO_FOLDER)
 }
 
 export async function removeContentBackground() {
-  await removeFolderImages(SCUBA_CONTENT_FOLDER)
+  await scubaBackgrounds.remove(SCUBA_CONTENT_FOLDER)
 }
 
 export async function listGallery(): Promise<ScubaImage[]> {

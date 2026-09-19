@@ -214,7 +214,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
   return (
     <>
       <Reveal variant="up">
-        <section className="overflow-hidden rounded-2xl border border-white/40 bg-white/92 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur-md">
+        <section className="overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
           <div className="border-b border-ink/8 px-4 pt-4 pb-3.5 sm:px-5 sm:pt-5 sm:pb-4 lg:px-6">
             <div className="flex flex-wrap items-start justify-between gap-2.5">
               <div className="min-w-0">
@@ -404,7 +404,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
       {catModal
         ? createPortal(
             <div
-              className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               aria-label={catModal === "create" ? "Add category" : "Edit category"}
@@ -412,7 +412,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             >
               <form
                 onSubmit={(e) => void saveCategory(e)}
-                className="flex max-h-[min(88dvh,34rem)] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(88dvh,34rem)] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
@@ -504,7 +504,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
       {svcModal
         ? createPortal(
             <div
-              className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               aria-label={svcModal === "create" ? "Add service" : "Edit service"}
@@ -512,7 +512,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             >
               <form
                 onSubmit={(e) => void saveService(e)}
-                className="flex max-h-[min(88dvh,30rem)] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(88dvh,30rem)] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2 sm:px-5 sm:pt-5">

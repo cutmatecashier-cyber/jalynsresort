@@ -1,8 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { getApiUrl } from "../lib/api";
+import { getApiUrl, resolveMediaUrl } from "../lib/api";
+import { optimizeImageFile } from "../lib/scuba";
 import { supabase } from "../lib/supabase";
+import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
+
+const DESKTOP_DISH_PER_PAGE = 3;
 
 export type MenuItem = {
   id: string;
@@ -18,17 +22,13 @@ export type MenuItem = {
 export type MenuCategory = {
   id: string;
   name: string;
-  image_url: string | null;
   sort_order: number;
   items: MenuItem[];
 };
 
 /** Resolve relative upload paths against the API host (works on phone LAN). */
 function mediaUrl(url: string | null | undefined) {
-  if (!url) return null;
-  if (/^(https?:|data:|blob:)/i.test(url)) return url;
-  const base = getApiUrl().replace(/\/$/, "");
-  return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+  return resolveMediaUrl(url);
 }
 
 async function authHeaders(json = true): Promise<HeadersInit> {
@@ -77,6 +77,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   const [itemFile, setItemFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [itemAvailable, setItemAvailable] = useState(true);
+  const [dishPage, setDishPage] = useState(0);
 
   async function loadMenu() {
     setLoading(true);
@@ -119,6 +120,10 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   }, []);
 
   useEffect(() => {
+    setDishPage(0);
+  }, [activeId]);
+
+  useEffect(() => {
     if (!lightbox && !catModal && !itemModal && !deleteTarget) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -142,6 +147,31 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   }, [lightbox, catModal, itemModal, deleteTarget, saving, deleting]);
 
   const active = categories.find((c) => c.id === activeId) ?? null;
+
+  const dishPageCount = useMemo(() => {
+    const total = active?.items.length ?? 0;
+    return Math.max(1, Math.ceil(total / DESKTOP_DISH_PER_PAGE));
+  }, [active?.items.length]);
+
+  useEffect(() => {
+    setDishPage((p) => Math.min(p, Math.max(0, dishPageCount - 1)));
+  }, [dishPageCount]);
+
+  const safeDishPage = Math.min(dishPage, dishPageCount - 1);
+
+  const desktopDishPage = useMemo(() => {
+    const items = active?.items ?? [];
+    const start = safeDishPage * DESKTOP_DISH_PER_PAGE;
+    return items.slice(start, start + DESKTOP_DISH_PER_PAGE);
+  }, [active?.items, safeDishPage]);
+
+  const showDishPager = (active?.items.length ?? 0) > DESKTOP_DISH_PER_PAGE;
+  const dishCounterStart =
+    (active?.items.length ?? 0) > 0 ? safeDishPage * DESKTOP_DISH_PER_PAGE + 1 : 0;
+  const dishCounterEnd = Math.min(
+    safeDishPage * DESKTOP_DISH_PER_PAGE + DESKTOP_DISH_PER_PAGE,
+    active?.items.length ?? 0,
+  );
 
   function openCreateCategory() {
     setCatName("");
@@ -188,10 +218,17 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
     setItemPreview(local);
   }
 
-  async function uploadDishImage(file: File): Promise<string> {
+  async function uploadMenuImage(file: File): Promise<string> {
+    // Keep original quality — only downscale huge camera photos.
+    const optimized = await optimizeImageFile(file, {
+      maxWidth: 4500,
+      maxHeight: 4500,
+      quality: 0.98,
+      maxBytes: 12_000_000,
+    });
     const headers = await authHeaders(false);
     const body = new FormData();
-    body.append("image", file);
+    body.append("image", optimized);
     const res = await fetch(`${getApiUrl()}/api/menu/upload`, {
       method: "POST",
       headers,
@@ -212,8 +249,6 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
       const headers = await authHeaders();
       const payload = {
         name: catName.trim(),
-        image_url:
-          catModal !== "create" && catModal ? (catModal.image_url ?? "") : "",
         sort_order:
           catModal !== "create" && catModal
             ? catModal.sort_order
@@ -271,7 +306,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
       let image_url = itemImage.trim();
       if (itemFile) {
         setUploadingImage(true);
-        image_url = await uploadDishImage(itemFile);
+        image_url = await uploadMenuImage(itemFile);
         setItemImage(image_url);
         setItemFile(null);
       }
@@ -350,8 +385,8 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
 
   return (
     <>
-      <Reveal delay={40} variant="up">
       <section className={`mt-8 sm:mt-10 ${cardClass}`}>
+      <Reveal delay={40} variant="up">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ink/8 pb-5 sm:pb-6">
           <div>
             <p className="text-[0.65rem] font-semibold tracking-[0.26em] text-sky-deep uppercase">
@@ -360,7 +395,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
             <h2 className="font-display mt-1.5 text-2xl tracking-tight text-ink sm:text-3xl">
               Restaurant Menu
             </h2>
-            <p className="mt-1.5 max-w-md text-sm text-stone">
+            <p className="mt-1.5 max-w-md text-sm text-ink/70">
               Browse by category
               {canEdit ? " — add, edit, or remove dishes as needed." : "."}
             </p>
@@ -377,13 +412,13 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
         </div>
 
         {loading ? (
-          <p className="mt-6 text-sm text-stone">Loading menu…</p>
+          <p className="mt-6 text-sm text-ink/70">Loading menu…</p>
         ) : error ? (
           <p className="mt-6 text-sm font-medium text-red-700" role="alert">
             {error}
           </p>
         ) : categories.length === 0 ? (
-          <p className="mt-6 text-sm text-stone">
+          <p className="mt-6 text-sm text-ink/70">
             No menu categories yet
             {canEdit ? " — click Add category to start." : "."}
           </p>
@@ -401,7 +436,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                     className={`btn-press shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                       selected
                         ? "bg-sky-deep text-white shadow-[0_4px_14px_rgba(3,105,161,0.25)]"
-                        : "border border-ink/10 bg-white/90 text-ink/80 hover:border-ink/20 hover:text-ink"
+                        : "border border-ink/10 bg-white/90 text-ink/65 hover:border-ink/20 hover:text-ink"
                     }`}
                   >
                     {cat.name}
@@ -414,7 +449,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
               {/* Desktop — soft side rail */}
               <aside className="sticky top-24 hidden self-start md:block md:pr-6 lg:pr-8">
                 <div className="rounded-2xl bg-mist/70 p-3 ring-1 ring-ink/6">
-                  <p className="px-2.5 pt-1 text-[0.62rem] font-semibold tracking-[0.22em] text-stone uppercase">
+                  <p className="px-2.5 pt-1 text-[0.62rem] font-semibold tracking-[0.22em] text-ink/70 uppercase">
                     Categories
                   </p>
                   <nav className="mt-2.5 flex flex-col gap-0.5" aria-label="Menu categories">
@@ -442,7 +477,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
               {active ? (
               <div className="min-w-0 md:border-l md:border-ink/8 md:pl-6 lg:pl-8">
                 {canEdit ? (
-                  <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+                  <div className="mb-4 flex flex-wrap items-center justify-center gap-2 md:justify-end">
                     <button
                       type="button"
                       onClick={openCreateItem}
@@ -468,25 +503,8 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                 ) : null}
 
                 <div>
-                  {/* Show combined category board only when there are no separate dish photos */}
-                  {active.image_url && !active.items.some((i) => i.image_url) ? (
-                    <button
-                      type="button"
-                      onClick={() => setLightbox(mediaUrl(active.image_url)!)}
-                      className="btn-press mb-5 max-w-xs overflow-hidden rounded-xl border border-ink/8 bg-mist shadow-sm"
-                      aria-label={`Enlarge ${active.name} menu image`}
-                    >
-                      <img
-                        src={mediaUrl(active.image_url)!}
-                        alt=""
-                        className="aspect-[500/726] w-full object-cover"
-                        loading="lazy"
-                      />
-                    </button>
-                  ) : null}
-
                   {active.items.length === 0 ? (
-                    <p className="text-sm text-stone">
+                    <p className="text-sm text-ink/70">
                       No dishes in this category yet
                       {canEdit ? " — click Add dish." : "."}
                     </p>
@@ -517,7 +535,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                                     src={mediaUrl(item.image_url)!}
                                     alt={item.name}
                                     className="h-full w-full object-cover object-center"
-                                    loading="lazy"
+                                    loading="eager"
                                     decoding="async"
                                   />
                                 </button>
@@ -529,12 +547,12 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                                   {item.name}
                                 </p>
                                 {!item.available ? (
-                                  <p className="mt-0.5 text-[0.6rem] font-semibold tracking-wide text-ink/40 uppercase">
+                                  <p className="mt-0.5 text-[0.6rem] font-semibold tracking-wide text-ink/55 uppercase">
                                     Unavailable
                                   </p>
                                 ) : null}
                                 {item.description ? (
-                                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-stone">
+                                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink/70">
                                     {item.description}
                                   </p>
                                 ) : null}
@@ -562,69 +580,65 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                         ))}
                       </ul>
 
-                      {/* Desktop — photo-forward dish grid */}
-                      <ul className="hidden grid-cols-2 gap-x-5 gap-y-7 md:grid lg:grid-cols-3 lg:gap-x-6 lg:gap-y-8">
-                        {active.items.map((item, index) => (
-                          <Reveal
-                            key={`d-${item.id}`}
-                            delay={index * 55}
-                            variant="up"
-                            className="h-full"
-                          >
+                      {/* Desktop — 3 dishes per page + gallery pager */}
+                      <div className="hidden md:block">
+                        <ul className="grid grid-cols-3 gap-4 lg:gap-5">
+                          {desktopDishPage.map((item) => (
                             <li
-                              className={`group flex h-full flex-col ${
+                              key={item.id}
+                              className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_6px_20px_rgba(8,18,28,0.08)] ${
                                 item.available ? "" : "opacity-55"
                               }`}
                             >
                               {item.image_url ? (
                                 <button
                                   type="button"
-                                  className="relative isolate block aspect-[5/4] w-full overflow-hidden rounded-xl bg-ink/5 ring-1 ring-ink/6 transition duration-500 group-hover:ring-ink/12"
+                                  className="relative isolate block aspect-[5/4] w-full overflow-hidden bg-mist"
                                   onClick={() => setLightbox(mediaUrl(item.image_url)!)}
                                   aria-label={`View ${item.name}`}
                                 >
                                   <img
                                     src={mediaUrl(item.image_url)!}
                                     alt={item.name}
-                                    className="absolute inset-0 h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.04]"
-                                    loading="lazy"
+                                    className="absolute inset-0 h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.03]"
+                                    loading="eager"
                                     decoding="async"
                                   />
                                 </button>
                               ) : (
-                                <div className="aspect-[5/4] w-full rounded-xl bg-mist ring-1 ring-ink/6" />
+                                <div className="aspect-[5/4] w-full bg-mist" />
                               )}
 
-                              <div className="flex flex-1 flex-col pt-2.5">
+                              <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
                                 <h4 className="font-display text-[1.05rem] leading-snug text-ink">
                                   {item.name}
                                 </h4>
 
                                 {!item.available ? (
-                                  <p className="mt-1 text-[0.6rem] font-semibold tracking-[0.14em] text-ink/40 uppercase">
+                                  <p className="mt-1 text-[0.6rem] font-semibold tracking-[0.14em] text-ink/55 uppercase">
                                     Unavailable
                                   </p>
                                 ) : null}
 
                                 {item.description ? (
-                                  <p className="mt-1 line-clamp-2 text-[0.8rem] leading-relaxed text-stone">
+                                  <p className="mt-1.5 line-clamp-2 text-[0.8rem] leading-relaxed text-ink/70">
                                     {item.description}
                                   </p>
                                 ) : null}
 
                                 {canEdit ? (
-                                  <div className="mt-auto flex flex-wrap gap-1.5 pt-2.5">
+                                  <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
                                     <button
                                       type="button"
                                       onClick={() => openEditItem(item)}
-                                      className="rounded-full border border-ink/12 px-2.5 py-1 text-[0.7rem] font-semibold text-ink transition hover:border-ink/25 hover:bg-mist/80"
+                                      className="rounded-full border border-ink/12 bg-white px-2.5 py-1 text-[0.7rem] font-semibold text-ink transition hover:border-ink/25 hover:bg-mist"
                                     >
                                       Edit
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setDeleteTarget({ type: "item", item })}
-                                      className="rounded-full border border-red-200 px-2.5 py-1 text-[0.7rem] font-semibold text-red-700 transition hover:bg-red-50"
+                                      className="rounded-full border border-red-200 bg-white px-2.5 py-1 text-[0.7rem] font-semibold text-red-700 transition hover:bg-red-50"
                                     >
                                       Delete
                                     </button>
@@ -632,9 +646,37 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                                 ) : null}
                               </div>
                             </li>
-                          </Reveal>
-                        ))}
-                      </ul>
+                          ))}
+                        </ul>
+
+                        {showDishPager ? (
+                          <div className="mt-5 flex items-center justify-between gap-3 sm:mt-6">
+                            <button
+                              type="button"
+                              onClick={() => setDishPage((p) => Math.max(0, p - 1))}
+                              disabled={safeDishPage <= 0}
+                              aria-label="Previous dishes"
+                              className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                            >
+                              <ChevronLeftIcon className="h-5 w-5" />
+                            </button>
+                            <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-ink tabular-nums">
+                              {dishCounterStart}–{dishCounterEnd} / {active?.items.length ?? 0}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDishPage((p) => Math.min(dishPageCount - 1, p + 1))
+                              }
+                              disabled={safeDishPage >= dishPageCount - 1}
+                              aria-label="Next dishes"
+                              className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                            >
+                              <ChevronRightIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </>
                   ) : (
                     <ul className="divide-y divide-ink/8 rounded-xl border border-ink/8 bg-foam/70">
@@ -649,13 +691,13 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                               <p className="font-semibold text-ink">{item.name}</p>
                               {!item.available ? (
-                                <span className="text-[0.65rem] font-semibold tracking-wide text-ink/40 uppercase">
+                                <span className="text-[0.65rem] font-semibold tracking-wide text-ink/55 uppercase">
                                   Unavailable
                                 </span>
                               ) : null}
                             </div>
                             {item.description ? (
-                              <p className="mt-1 text-sm leading-relaxed text-stone">
+                              <p className="mt-1 text-sm leading-relaxed text-ink/70">
                                 {item.description}
                               </p>
                             ) : null}
@@ -688,8 +730,8 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
             </div>
           </>
         )}
-      </section>
       </Reveal>
+      </section>
 
       {lightbox
         ? createPortal(
@@ -736,7 +778,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
       {catModal
         ? createPortal(
             <div
-              className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               aria-label={catModal === "create" ? "Add category" : "Edit category"}
@@ -744,7 +786,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
             >
               <form
                 onSubmit={saveCategory}
-                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
@@ -796,7 +838,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
       {itemModal
         ? createPortal(
             <div
-              className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               aria-label={itemModal === "create" ? "Add dish" : "Edit dish"}
@@ -804,14 +846,14 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
             >
               <form
                 onSubmit={saveItem}
-                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[min(90dvh,42rem)] sm:rounded-2xl"
+                className="flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:max-h-[min(90dvh,42rem)]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
                   <h3 className="font-display text-xl text-ink">
                     {itemModal === "create" ? "Add dish" : "Edit dish"}
                   </h3>
-                  <p className="mt-1 text-xs text-stone">Category: {active?.name}</p>
+                  <p className="mt-1 text-xs text-ink/70">Category: {active?.name}</p>
                   <div className="mt-4 space-y-3">
                     <div>
                       <label className="text-sm font-semibold text-ink" htmlFor="item-name">
@@ -850,7 +892,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                             className="max-h-40 w-full rounded-xl border border-ink/10 object-cover"
                           />
                         ) : (
-                          <div className="flex h-28 w-full items-center justify-center rounded-xl border border-dashed border-ink/15 bg-mist/60 text-sm text-stone">
+                          <div className="flex h-28 w-full items-center justify-center rounded-xl border border-dashed border-ink/15 bg-mist/60 text-sm text-ink/70">
                             No photo yet
                           </div>
                         )}
@@ -858,12 +900,11 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                           id="item-image"
                           type="file"
                           accept="image/jpeg,image/png,image/webp,image/gif"
-                          capture="environment"
-                          className="block w-full text-sm text-stone file:mr-3 file:rounded-full file:border-0 file:bg-sky-deep file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky"
+                          className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-full file:border-0 file:bg-sky-deep file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky"
                           onChange={(e) => onPickDishImage(e.target.files?.[0] ?? null)}
                         />
-                        <p className="text-xs text-stone">
-                          JPG, PNG, or WEBP. You can take a photo on phone.
+                        <p className="text-xs text-ink/70">
+                          JPG, PNG, or WEBP — original quality is kept when possible.
                         </p>
                         {itemImage || itemFile ? (
                           <button
@@ -933,7 +974,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                 <h3 className="font-display text-xl text-ink">
                   {deleteTarget.type === "category" ? "Delete category?" : "Delete dish?"}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-stone">
+                <p className="mt-2 text-sm leading-relaxed text-ink/70">
                   {deleteTarget.type === "category" ? (
                     <>
                       Delete{" "}

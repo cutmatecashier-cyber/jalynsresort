@@ -326,6 +326,126 @@ function isMissingTableError(message: string) {
   return /Could not find the table|relation .* does not exist|PGRST205/i.test(message)
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+}
+
+function isUuidSyntaxError(message: string) {
+  return /invalid input syntax for type uuid/i.test(message)
+}
+
+function shouldUseFallbackStore(message: string) {
+  return (
+    isMissingTableError(message) ||
+    isUuidSyntaxError(message) ||
+    /fetch failed|ECONNREFUSED|network/i.test(message)
+  )
+}
+
+/**
+ * When spa tables exist but are empty, the API used to serve local seed IDs like
+ * "s-m1". Editing those against Postgres fails. Seed real UUID rows once instead.
+ */
+async function seedSpaIfEmpty(): Promise<boolean> {
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('spa_categories')
+    .select('id')
+    .limit(1)
+
+  if (existingError) {
+    if (isMissingTableError(existingError.message || '')) return false
+    throw new Error(existingError.message)
+  }
+  if (existing?.length) return true
+
+  const local = await readFallback()
+  const source =
+    local.categories.length > 0
+      ? local
+      : {
+          categories: DEFAULT_SEED.categories.map((c) => ({ ...c })),
+          services: DEFAULT_SEED.services.map((s) => ({ ...s })),
+        }
+
+  const catMap = new Map<string, string>()
+  for (const cat of source.categories) {
+    const id = isUuid(cat.id) ? cat.id : randomUUID()
+    catMap.set(cat.id, id)
+    const { error } = await supabaseAdmin.from('spa_categories').insert({
+      id,
+      label: cat.label,
+      note: cat.note,
+      image_url: cat.image_url,
+      sort_order: cat.sort_order,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  for (const svc of source.services) {
+    const category_id = catMap.get(svc.category_id)
+    if (!category_id) continue
+    const { error } = await supabaseAdmin.from('spa_services').insert({
+      id: isUuid(svc.id) ? svc.id : randomUUID(),
+      category_id,
+      name: svc.name,
+      mins: svc.mins,
+      rate: svc.rate,
+      sort_order: svc.sort_order,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  return true
+}
+
+async function resolveCategoryId(id: string): Promise<string> {
+  if (isUuid(id)) return id
+  await seedSpaIfEmpty()
+
+  const local = await readFallback()
+  const seed = [...local.categories, ...DEFAULT_SEED.categories].find((c) => c.id === id)
+  if (seed?.label) {
+    const { data } = await supabaseAdmin
+      .from('spa_categories')
+      .select('id')
+      .eq('label', seed.label)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (data?.id) return String(data.id)
+  }
+
+  throw new Error('Spa data was upgraded. Please refresh the page and try again.')
+}
+
+async function resolveServiceId(id: string, nameHint?: string): Promise<string> {
+  if (isUuid(id)) return id
+  await seedSpaIfEmpty()
+
+  const local = await readFallback()
+  const seed =
+    [...local.services, ...DEFAULT_SEED.services].find((s) => s.id === id) ||
+    (nameHint
+      ? [...local.services, ...DEFAULT_SEED.services].find((s) => s.name === nameHint)
+      : undefined)
+
+  const name = nameHint || seed?.name
+  if (name) {
+    const { data } = await supabaseAdmin
+      .from('spa_services')
+      .select('id')
+      .eq('name', name)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (data?.id) return String(data.id)
+  }
+
+  throw new Error('Spa data was upgraded. Please refresh the page and try again.')
+}
+
 function nest(store: Store): SpaCategory[] {
   const cats = [...store.categories].sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label))
   return cats.map((c) => ({
@@ -448,6 +568,19 @@ export async function listSpa(): Promise<SpaCategory[]> {
       throw new Error(catErr.message)
     }
 
+    let mappedCats = (cats ?? []).map((r) => mapCategory(r as Record<string, unknown>))
+    if (!mappedCats.length) {
+      const seeded = await seedSpaIfEmpty()
+      if (seeded) {
+        const { data: seededCats, error: seededCatErr } = await supabaseAdmin
+          .from('spa_categories')
+          .select('id, label, note, image_url, sort_order')
+          .order('sort_order', { ascending: true })
+        if (seededCatErr) throw new Error(seededCatErr.message)
+        mappedCats = (seededCats ?? []).map((r) => mapCategory(r as Record<string, unknown>))
+      }
+    }
+
     const { data: services, error: svcErr } = await supabaseAdmin
       .from('spa_services')
       .select('id, category_id, name, mins, rate, sort_order')
@@ -458,7 +591,6 @@ export async function listSpa(): Promise<SpaCategory[]> {
       throw new Error(svcErr.message)
     }
 
-    const mappedCats = (cats ?? []).map((r) => mapCategory(r as Record<string, unknown>))
     const mappedServices = (services ?? []).map((r) => mapService(r as Record<string, unknown>))
     if (!mappedCats.length) {
       const local = await readFallback()
@@ -518,18 +650,19 @@ export async function updateCategory(
 ): Promise<Omit<SpaCategory, 'services'>> {
   const data = validateCategoryInput(input)
   try {
+    const realId = await resolveCategoryId(id)
     const { data: row, error } = await supabaseAdmin
       .from('spa_categories')
       .update(data)
-      .eq('id', id)
+      .eq('id', realId)
       .select('id, label, note, image_url, sort_order')
       .single()
     if (error) {
-      if (isMissingTableError(error.message || '')) {
+      if (shouldUseFallbackStore(error.message || '')) {
         const store = await readFallback()
-        const idx = store.categories.findIndex((c) => c.id === id)
+        const idx = store.categories.findIndex((c) => c.id === id || c.id === realId)
         if (idx < 0) throw new Error('Category not found.')
-        store.categories[idx] = { id, ...data }
+        store.categories[idx] = { id: store.categories[idx].id, ...data }
         await writeFallback(store)
         return store.categories[idx]
       }
@@ -538,7 +671,7 @@ export async function updateCategory(
     return mapCategory(row as Record<string, unknown>)
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
-    if (isMissingTableError(message) || /fetch failed|ECONNREFUSED|network/i.test(message)) {
+    if (shouldUseFallbackStore(message)) {
       const store = await readFallback()
       const idx = store.categories.findIndex((c) => c.id === id)
       if (idx < 0) throw new Error('Category not found.')
@@ -552,12 +685,15 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<void> {
   try {
-    const { error } = await supabaseAdmin.from('spa_categories').delete().eq('id', id)
+    const realId = await resolveCategoryId(id)
+    const { error } = await supabaseAdmin.from('spa_categories').delete().eq('id', realId)
     if (error) {
-      if (isMissingTableError(error.message || '')) {
+      if (shouldUseFallbackStore(error.message || '')) {
         const store = await readFallback()
-        store.categories = store.categories.filter((c) => c.id !== id)
-        store.services = store.services.filter((s) => s.category_id !== id)
+        store.categories = store.categories.filter((c) => c.id !== id && c.id !== realId)
+        store.services = store.services.filter(
+          (s) => s.category_id !== id && s.category_id !== realId,
+        )
         await writeFallback(store)
         return
       }
@@ -565,7 +701,7 @@ export async function deleteCategory(id: string): Promise<void> {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
-    if (isMissingTableError(message) || /fetch failed|ECONNREFUSED|network/i.test(message)) {
+    if (shouldUseFallbackStore(message)) {
       const store = await readFallback()
       store.categories = store.categories.filter((c) => c.id !== id)
       store.services = store.services.filter((s) => s.category_id !== id)
@@ -585,13 +721,15 @@ export async function createService(input: {
 }): Promise<SpaService> {
   const data = validateServiceInput(input)
   try {
+    const category_id = await resolveCategoryId(data.category_id)
+    const payload = { ...data, category_id }
     const { data: row, error } = await supabaseAdmin
       .from('spa_services')
-      .insert(data)
+      .insert(payload)
       .select('id, category_id, name, mins, rate, sort_order')
       .single()
     if (error) {
-      if (isMissingTableError(error.message || '')) {
+      if (shouldUseFallbackStore(error.message || '')) {
         const store = await readFallback()
         if (!store.categories.some((c) => c.id === data.category_id)) {
           throw new Error('Category not found.')
@@ -606,7 +744,7 @@ export async function createService(input: {
     return mapService(row as Record<string, unknown>)
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
-    if (isMissingTableError(message) || /fetch failed|ECONNREFUSED|network/i.test(message)) {
+    if (shouldUseFallbackStore(message)) {
       const store = await readFallback()
       if (!store.categories.some((c) => c.id === data.category_id)) {
         throw new Error('Category not found.')
@@ -632,18 +770,21 @@ export async function updateService(
 ): Promise<SpaService> {
   const data = validateServiceInput(input)
   try {
+    const realId = await resolveServiceId(id, data.name)
+    const category_id = await resolveCategoryId(data.category_id)
+    const payload = { ...data, category_id }
     const { data: row, error } = await supabaseAdmin
       .from('spa_services')
-      .update(data)
-      .eq('id', id)
+      .update(payload)
+      .eq('id', realId)
       .select('id, category_id, name, mins, rate, sort_order')
       .single()
     if (error) {
-      if (isMissingTableError(error.message || '')) {
+      if (shouldUseFallbackStore(error.message || '')) {
         const store = await readFallback()
-        const idx = store.services.findIndex((s) => s.id === id)
+        const idx = store.services.findIndex((s) => s.id === id || s.id === realId)
         if (idx < 0) throw new Error('Service not found.')
-        store.services[idx] = { id, ...data }
+        store.services[idx] = { id: store.services[idx].id, ...data }
         await writeFallback(store)
         return store.services[idx]
       }
@@ -652,7 +793,7 @@ export async function updateService(
     return mapService(row as Record<string, unknown>)
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
-    if (isMissingTableError(message) || /fetch failed|ECONNREFUSED|network/i.test(message)) {
+    if (shouldUseFallbackStore(message)) {
       const store = await readFallback()
       const idx = store.services.findIndex((s) => s.id === id)
       if (idx < 0) throw new Error('Service not found.')
@@ -666,11 +807,12 @@ export async function updateService(
 
 export async function deleteService(id: string): Promise<void> {
   try {
-    const { error } = await supabaseAdmin.from('spa_services').delete().eq('id', id)
+    const realId = await resolveServiceId(id)
+    const { error } = await supabaseAdmin.from('spa_services').delete().eq('id', realId)
     if (error) {
-      if (isMissingTableError(error.message || '')) {
+      if (shouldUseFallbackStore(error.message || '')) {
         const store = await readFallback()
-        store.services = store.services.filter((s) => s.id !== id)
+        store.services = store.services.filter((s) => s.id !== id && s.id !== realId)
         await writeFallback(store)
         return
       }
@@ -678,7 +820,7 @@ export async function deleteService(id: string): Promise<void> {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
-    if (isMissingTableError(message) || /fetch failed|ECONNREFUSED|network/i.test(message)) {
+    if (shouldUseFallbackStore(message)) {
       const store = await readFallback()
       store.services = store.services.filter((s) => s.id !== id)
       await writeFallback(store)

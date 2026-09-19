@@ -135,23 +135,72 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "-").replace(/-+/g, "-").toLowerCase();
 }
 
-/** Compress/resize images client-side before upload (keeps quality high). */
+/** Resize only when needed — keeps original bytes/format whenever possible. */
 export async function optimizeImageFile(
   file: File,
-  options?: { maxWidth?: number; maxHeight?: number; quality?: number },
+  options?: {
+    maxWidth?: number;
+    maxHeight?: number;
+    quality?: number;
+    /** Re-encode only if larger than this (bytes), unless dimensions also exceed max. */
+    maxBytes?: number;
+  },
 ): Promise<File> {
-  const maxWidth = options?.maxWidth ?? 1920;
-  const maxHeight = options?.maxHeight ?? 1920;
-  const quality = options?.quality ?? 0.82;
+  const maxWidth = options?.maxWidth ?? 2560;
+  const maxHeight = options?.maxHeight ?? 2560;
+  const quality = Math.min(1, Math.max(0.85, options?.quality ?? 0.93));
+  const maxBytes = options?.maxBytes ?? 8_000_000;
 
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
-  if (file.size <= 900_000 && quality >= 0.9) return file;
+
+  const isJpeg = /^image\/jpe?g$/i.test(file.type);
+  const isPng = file.type === "image/png";
 
   const bitmap = await createImageBitmap(file);
   try {
     let { width, height } = bitmap;
+
+    // JPEG: never re-encode through canvas unless the file is huge or absurdly large.
+    // Canvas JPEG re-encode is lossy and is why JPEG looked worse than PNG before.
+    if (isJpeg) {
+      const jpegMaxEdge = Math.max(maxWidth, maxHeight, 4500);
+      const jpegMaxBytes = Math.max(maxBytes, 12_000_000);
+      const scale = Math.min(1, jpegMaxEdge / width, jpegMaxEdge / height);
+      if (scale >= 0.999 && file.size <= jpegMaxBytes) {
+        return file; // keep original JPEG bytes
+      }
+
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(bitmap, 0, 0, width, height);
+
+      const jpegQuality = Math.max(quality, 0.98);
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((value) => resolve(value), "image/jpeg", jpegQuality);
+      });
+      if (!blob || blob.size >= file.size * 0.98) return file;
+
+      const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
+      return new File([blob], `${base}.jpg`, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    }
+
     const scale = Math.min(1, maxWidth / width, maxHeight / height);
-    if (scale >= 1 && quality >= 0.92 && file.size <= 2_500_000) return file;
+    const needsResize = scale < 0.999;
+    const needsShrink = file.size > maxBytes;
+
+    // Already within size + dimension limits → keep the original file untouched.
+    if (!needsResize && !needsShrink) return file;
 
     width = Math.max(1, Math.round(width * scale));
     height = Math.max(1, Math.round(height * scale));
@@ -165,14 +214,28 @@ export async function optimizeImageFile(
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(bitmap, 0, 0, width, height);
 
+    // PNG stays lossless. Other formats → high-quality JPEG only when needed.
+    const keepPng = isPng && !needsShrink;
+    const mime = keepPng ? "image/png" : "image/jpeg";
+    const ext = keepPng ? "png" : "jpg";
+
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((value) => resolve(value), "image/webp", quality);
+      if (keepPng) {
+        canvas.toBlob((value) => resolve(value), mime);
+      } else {
+        canvas.toBlob((value) => resolve(value), mime, Math.max(quality, 0.95));
+      }
     });
     if (!blob) return file;
-    if (blob.size >= file.size * 0.95) return file;
+
+    // If re-encode didn't help and we only wanted a shrink, keep original.
+    if (!needsResize && blob.size >= file.size * 0.92) return file;
 
     const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
-    return new File([blob], `${base}.webp`, { type: "image/webp", lastModified: Date.now() });
+    return new File([blob], `${base}.${ext}`, {
+      type: mime,
+      lastModified: Date.now(),
+    });
   } finally {
     bitmap.close();
   }
@@ -361,9 +424,10 @@ export async function fetchScubaGallery(): Promise<ScubaImage[]> {
 export async function uploadScubaHeroWithResult(file: File) {
   try {
     const optimized = await optimizeImageFile(file, {
-      maxWidth: 3200,
-      maxHeight: 2200,
-      quality: 0.94,
+      maxWidth: 3840,
+      maxHeight: 2560,
+      quality: 0.96,
+      maxBytes: 7_000_000,
     });
     const form = new FormData();
     form.append("image", optimized);
@@ -418,9 +482,10 @@ export async function removeScubaHero() {
 export async function uploadScubaContentBackgroundWithResult(file: File) {
   try {
     const optimized = await optimizeImageFile(file, {
-      maxWidth: 3200,
-      maxHeight: 2200,
-      quality: 0.94,
+      maxWidth: 3840,
+      maxHeight: 2560,
+      quality: 0.96,
+      maxBytes: 7_000_000,
     });
     const form = new FormData();
     form.append("image", optimized);
@@ -490,12 +555,13 @@ export async function uploadScubaGalleryImages(
     for (let i = 0; i < list.length; i += 1) {
       optimizedFiles.push(
         await optimizeImageFile(list[i], {
-          maxWidth: 1600,
-          maxHeight: 1600,
-          quality: 0.8,
+          maxWidth: 2200,
+          maxHeight: 2200,
+          quality: 0.92,
+          maxBytes: 5_000_000,
         }),
       );
-      onProgress?.(i + 1, list.length * 2);
+      onProgress?.(i + 1, list.length);
     }
 
     const form = new FormData();
@@ -507,7 +573,7 @@ export async function uploadScubaGalleryImages(
     });
     const body = await readJson<{ success?: boolean; message?: string }>(res);
     if (!res.ok) return apiMessage(body, "Could not upload gallery image.");
-    onProgress?.(list.length * 2, list.length * 2);
+    onProgress?.(list.length, list.length);
     notifyScubaUpdated();
     return null;
   } catch (err) {
@@ -518,9 +584,10 @@ export async function uploadScubaGalleryImages(
 export async function replaceScubaGalleryImage(path: string, file: File) {
   try {
     const optimized = await optimizeImageFile(file, {
-      maxWidth: 1600,
-      maxHeight: 1600,
-      quality: 0.8,
+      maxWidth: 2200,
+      maxHeight: 2200,
+      quality: 0.92,
+      maxBytes: 5_000_000,
     });
     const form = new FormData();
     form.append("image", optimized);

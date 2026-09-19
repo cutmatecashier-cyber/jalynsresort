@@ -14,6 +14,18 @@ import {
   updateCategory,
   updateService,
 } from '../services/spa.js'
+import {
+  deleteSpaGalleryImage,
+  getSpaContentBackground,
+  getSpaHeroBackground,
+  listSpaGallery,
+  removeSpaContentBackground,
+  removeSpaHeroBackground,
+  replaceSpaGalleryImage,
+  uploadSpaContentBackground,
+  uploadSpaGalleryImages,
+  uploadSpaHeroBackground,
+} from '../services/spaBackgrounds.js'
 
 export const spaRouter = Router()
 
@@ -29,6 +41,19 @@ const upload = multer({
       cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
     },
   }),
+  limits: { fileSize: 12 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
+      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
+      return
+    }
+    cb(null, true)
+  },
+})
+
+const bgUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
@@ -90,7 +115,9 @@ async function requireApprovedAdmin(req: Request, res: Response): Promise<string
 }
 
 function clientErrorStatus(message: string) {
-  return /must be|required|valid|not found|at least|Only JPG|File too large|image|Rate/i.test(message)
+  return /must be|required|valid|not found|at least|Only JPG|File too large|image|Rate|Invalid|bucket is missing/i.test(
+    message,
+  )
     ? 400
     : 500
 }
@@ -196,6 +223,190 @@ spaRouter.delete('/services/:id', async (req, res) => {
     return res.json({ success: true, message: 'Service deleted.' })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not delete service.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.get('/hero', async (_req, res) => {
+  try {
+    const background = await getSpaHeroBackground()
+    return res.json({ success: true, background })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load hero background.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+spaRouter.post('/hero', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    bgUpload.single('image')(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        if (!req.file) {
+          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          return
+        }
+        try {
+          const background = await uploadSpaHeroBackground(req.file)
+          res.status(201).json({ success: true, ...background })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error ? uploadErr.message : 'Could not upload hero background.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not upload hero background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.delete('/hero', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    await removeSpaHeroBackground()
+    return res.json({ success: true, message: 'Hero background removed.' })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not remove hero background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.get('/content-background', async (_req, res) => {
+  try {
+    const background = await getSpaContentBackground()
+    return res.json({ success: true, background })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load content background.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+spaRouter.post('/content-background', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    bgUpload.single('image')(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        if (!req.file) {
+          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          return
+        }
+        try {
+          const background = await uploadSpaContentBackground(req.file)
+          res.status(201).json({ success: true, ...background })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error
+              ? uploadErr.message
+              : 'Could not upload content background.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not upload content background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.delete('/content-background', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    await removeSpaContentBackground()
+    return res.json({ success: true, message: 'Content background removed.' })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not remove content background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.get('/gallery', async (_req, res) => {
+  try {
+    const images = await listSpaGallery()
+    return res.json({ success: true, images })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load gallery.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+spaRouter.post('/gallery', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    bgUpload.array('images', 24)(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload images.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        const files = Array.isArray(req.files) ? req.files : []
+        try {
+          const images = await uploadSpaGalleryImages(files)
+          res.status(201).json({ success: true, images })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error ? uploadErr.message : 'Could not upload gallery images.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not upload gallery images.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.put('/gallery', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    bgUpload.single('image')(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        if (!req.file) {
+          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          return
+        }
+        const path = String(req.body?.path ?? '').trim()
+        try {
+          const image = await replaceSpaGalleryImage(path, req.file)
+          res.json({ success: true, image })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error ? uploadErr.message : 'Could not replace gallery image.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not replace gallery image.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+spaRouter.delete('/gallery', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    const path = String(req.query.path ?? '').trim()
+    await deleteSpaGalleryImage(path)
+    return res.json({ success: true, message: 'Gallery image deleted.' })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not delete gallery image.'
     return res.status(clientErrorStatus(message)).json({ success: false, message })
   }
 })

@@ -8,6 +8,7 @@ import { contactRouter } from './routes/contact.js'
 import { homeRouter } from './routes/home.js'
 import { menuRouter } from './routes/menu.js'
 import { reviewsRouter } from './routes/reviews.js'
+import { restaurantRouter } from './routes/restaurant.js'
 import { roomsRouter } from './routes/rooms.js'
 import { galleryRouter } from './routes/gallery.js'
 import { contentRouter } from './routes/content.js'
@@ -71,6 +72,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/contact', contactRouter)
 app.use('/api/home', homeRouter)
 app.use('/api/menu', menuRouter)
+app.use('/api/restaurant', restaurantRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/rooms', roomsRouter)
 app.use('/api/gallery', galleryRouter)

@@ -18,7 +18,6 @@ export type MenuItem = {
 export type MenuCategory = {
   id: string
   name: string
-  image_url: string | null
   sort_order: number
   items: MenuItem[]
 }
@@ -32,17 +31,17 @@ const dataDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.
 const fallbackFile = path.join(dataDir, 'restaurant-menu.json')
 
 const DEFAULT_SEED: Omit<MenuCategory, 'items'>[] = [
-  { id: 'seed-breakfast', name: 'Breakfast', image_url: null, sort_order: 1 },
-  { id: 'seed-salad', name: 'Salad & Soup', image_url: null, sort_order: 2 },
-  { id: 'seed-seafood', name: 'Seafood & Filipino', image_url: null, sort_order: 3 },
-  { id: 'seed-german', name: 'German Dishes', image_url: null, sort_order: 4 },
-  { id: 'seed-pasta', name: 'Pasta', image_url: null, sort_order: 5 },
-  { id: 'seed-beef', name: 'Beef', image_url: null, sort_order: 6 },
-  { id: 'seed-burgers', name: 'Burgers', image_url: null, sort_order: 7 },
-  { id: 'seed-pizza', name: 'Pizza', image_url: null, sort_order: 8 },
-  { id: 'seed-pork', name: 'Pork', image_url: null, sort_order: 9 },
-  { id: 'seed-chicken', name: 'Chicken', image_url: null, sort_order: 10 },
-  { id: 'seed-desserts', name: 'Desserts', image_url: null, sort_order: 11 },
+  { id: 'seed-breakfast', name: 'Breakfast', sort_order: 1 },
+  { id: 'seed-salad', name: 'Salad & Soup', sort_order: 2 },
+  { id: 'seed-seafood', name: 'Seafood & Filipino', sort_order: 3 },
+  { id: 'seed-german', name: 'German Dishes', sort_order: 4 },
+  { id: 'seed-pasta', name: 'Pasta', sort_order: 5 },
+  { id: 'seed-beef', name: 'Beef', sort_order: 6 },
+  { id: 'seed-burgers', name: 'Burgers', sort_order: 7 },
+  { id: 'seed-pizza', name: 'Pizza', sort_order: 8 },
+  { id: 'seed-pork', name: 'Pork', sort_order: 9 },
+  { id: 'seed-chicken', name: 'Chicken', sort_order: 10 },
+  { id: 'seed-desserts', name: 'Desserts', sort_order: 11 },
 ]
 
 function isMissingTableError(message: string) {
@@ -84,7 +83,6 @@ function mapCategory(row: Record<string, unknown>): Omit<MenuCategory, 'items'> 
   return {
     id: String(row.id),
     name: String(row.name),
-    image_url: row.image_url == null || row.image_url === '' ? null : String(row.image_url),
     sort_order: Number(row.sort_order ?? 0),
   }
 }
@@ -112,7 +110,7 @@ export async function listMenu(): Promise<MenuCategory[]> {
   try {
     const { data: cats, error: catErr } = await supabaseAdmin
       .from('restaurant_menu_categories')
-      .select('id, name, image_url, sort_order')
+      .select('id, name, sort_order')
       .order('name', { ascending: true })
 
     if (catErr) {
@@ -152,23 +150,13 @@ export async function listMenu(): Promise<MenuCategory[]> {
 
 function validateCategoryInput(input: {
   name?: unknown
-  image_url?: unknown
   sort_order?: unknown
 }) {
   const name = String(input.name ?? '').trim()
   if (!name || name.length < 2) throw new Error('Category name must be at least 2 characters.')
-  const imageRaw = String(input.image_url ?? '').trim()
-  const image_url = imageRaw || null
-  if (image_url) {
-    try {
-      new URL(image_url)
-    } catch {
-      throw new Error('Enter a valid image URL.')
-    }
-  }
   const sort_order = Number(input.sort_order ?? 0)
   if (!Number.isFinite(sort_order)) throw new Error('Sort order must be a number.')
-  return { name, image_url, sort_order: Math.round(sort_order) }
+  return { name, sort_order: Math.round(sort_order) }
 }
 
 function validateItemInput(input: {
@@ -216,7 +204,6 @@ function validateItemInput(input: {
 
 export async function createCategory(input: {
   name?: unknown
-  image_url?: unknown
   sort_order?: unknown
 }): Promise<Omit<MenuCategory, 'items'>> {
   const data = validateCategoryInput(input)
@@ -224,7 +211,7 @@ export async function createCategory(input: {
     const { data: row, error } = await supabaseAdmin
       .from('restaurant_menu_categories')
       .insert(data)
-      .select('id, name, image_url, sort_order')
+      .select('id, name, sort_order')
       .single()
     if (error) {
       if (isMissingTableError(error.message || '')) {
@@ -252,7 +239,7 @@ export async function createCategory(input: {
 
 export async function updateCategory(
   id: string,
-  input: { name?: unknown; image_url?: unknown; sort_order?: unknown },
+  input: { name?: unknown; sort_order?: unknown },
 ): Promise<Omit<MenuCategory, 'items'>> {
   const data = validateCategoryInput(input)
   try {
@@ -260,7 +247,7 @@ export async function updateCategory(
       .from('restaurant_menu_categories')
       .update(data)
       .eq('id', id)
-      .select('id, name, image_url, sort_order')
+      .select('id, name, sort_order')
       .single()
     if (error) {
       if (isMissingTableError(error.message || '')) {

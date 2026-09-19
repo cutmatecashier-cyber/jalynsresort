@@ -34,6 +34,10 @@ export const permissions = {
   canEditRestaurantMenu: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
 
+  /** Admin-only: restaurant page hero/content backgrounds and review replies */
+  canManageRestaurantPage: (role: UserRole | null, status: ApprovalStatus | null) =>
+    role === "admin" && status === "approved",
+
   /** Admin-only: home page hero background slides */
   canEditHomeBackground: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",

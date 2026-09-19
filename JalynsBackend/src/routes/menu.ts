@@ -29,6 +29,7 @@ const upload = multer({
       cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
     },
   }),
+  limits: { fileSize: 12 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
