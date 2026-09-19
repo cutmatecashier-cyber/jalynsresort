@@ -10,7 +10,7 @@ import {
 import { Link } from "react-router-dom";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
-import { StarIcon } from "../components/Icons";
+import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "../components/Icons";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { RestaurantMenuSection } from "../components/RestaurantMenuSection";
@@ -93,6 +93,98 @@ function formatReviewDate(value: string) {
   });
 }
 
+const REVIEWS_PER_PAGE = 4;
+
+function ReviewCard({
+  review,
+  canManage,
+  busy,
+  softText,
+  onViewMore,
+  onReply,
+  onDeleteReply,
+}: {
+  review: RestaurantReview;
+  canManage: boolean;
+  busy: boolean;
+  softText: string;
+  onViewMore: () => void;
+  onReply: () => void;
+  onDeleteReply: () => void;
+}) {
+  const hasReply = Boolean(review.admin_reply?.trim());
+
+  return (
+    <li
+      className={`flex h-[9rem] flex-col overflow-hidden rounded-xl border bg-white px-4 py-2.5 ${
+        hasReply ? "border-sky-deep/25 ring-1 ring-sky-deep/10" : "border-ink/10"
+      }`}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="min-w-0 truncate text-sm font-semibold text-ink">{review.guest_name}</p>
+          {hasReply ? (
+            <span className="shrink-0 rounded bg-sky-deep/10 px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-sky-deep uppercase">
+              Replied
+            </span>
+          ) : null}
+        </div>
+        <StarRating value={review.rating} size="h-3.5 w-3.5" />
+      </div>
+
+      <p
+        className={`mt-1 min-h-0 flex-1 text-sm leading-relaxed text-ink/90 ${
+          hasReply ? "line-clamp-1" : "line-clamp-2"
+        }`}
+      >
+        “{review.comment}”
+      </p>
+
+      {hasReply ? (
+        <p className="mt-0.5 truncate text-xs text-sky-deep/90">
+          Admin: “{review.admin_reply}”
+        </p>
+      ) : null}
+
+      <div className="mt-1.5 flex shrink-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className={`truncate text-[0.65rem] tracking-wide uppercase ${softText}`}>
+            {formatReviewDate(review.created_at)}
+          </p>
+          <button
+            type="button"
+            onClick={onViewMore}
+            className="btn-press shrink-0 text-xs font-semibold text-sky-deep hover:underline"
+          >
+            View more
+          </button>
+        </div>
+        {hasReply ? (
+          canManage ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onDeleteReply}
+              className="btn-press shrink-0 text-[0.65rem] font-semibold text-red-700 hover:underline disabled:opacity-60"
+            >
+              Delete
+            </button>
+          ) : null
+        ) : canManage ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onReply}
+            className="btn-press shrink-0 text-xs font-semibold text-sky-deep hover:underline disabled:opacity-60"
+          >
+            Reply
+          </button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 export function RestaurantPage() {
   const { role, approvalStatus, can, profile } = useAuth();
   const canManage = can.canManageRestaurantPage(role, approvalStatus);
@@ -113,6 +205,7 @@ export function RestaurantPage() {
 
   const [guestReviews, setGuestReviews] = useState<RestaurantReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsPage, setReviewsPage] = useState(0);
 
   const [name, setName] = useState("");
   const [rating, setRating] = useState(0);
@@ -126,6 +219,7 @@ export function RestaurantPage() {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
   const [deleteReplyTarget, setDeleteReplyTarget] = useState<RestaurantReview | null>(null);
+  const [viewReview, setViewReview] = useState<RestaurantReview | null>(null);
 
   const displayHero = heroUrl ?? (imagesReady ? DEFAULT_RESTAURANT_HERO : null);
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_RESTAURANT_CONTENT : null);
@@ -135,6 +229,31 @@ export function RestaurantPage() {
     const sum = guestReviews.reduce((acc, r) => acc + r.rating, 0);
     return Math.round((sum / guestReviews.length) * 10) / 10;
   }, [guestReviews]);
+
+  const reviewPageCount = Math.max(1, Math.ceil(guestReviews.length / REVIEWS_PER_PAGE));
+  const safeReviewsPage = Math.min(reviewsPage, reviewPageCount - 1);
+  const reviewCounterStart = guestReviews.length ? safeReviewsPage * REVIEWS_PER_PAGE + 1 : 0;
+  const reviewCounterEnd = guestReviews.length
+    ? Math.min(safeReviewsPage * REVIEWS_PER_PAGE + REVIEWS_PER_PAGE, guestReviews.length)
+    : 0;
+  const canReviewsPrev = safeReviewsPage > 0;
+  const canReviewsNext = safeReviewsPage < reviewPageCount - 1;
+  const visibleReviews = useMemo(
+    () =>
+      guestReviews.slice(
+        safeReviewsPage * REVIEWS_PER_PAGE,
+        safeReviewsPage * REVIEWS_PER_PAGE + REVIEWS_PER_PAGE,
+      ),
+    [guestReviews, safeReviewsPage],
+  );
+  const reviewCounterLabel =
+    reviewCounterStart === reviewCounterEnd
+      ? `${reviewCounterStart} / ${guestReviews.length}`
+      : `${reviewCounterStart}–${reviewCounterEnd} / ${guestReviews.length}`;
+
+  useEffect(() => {
+    setReviewsPage((current) => Math.min(current, Math.max(0, reviewPageCount - 1)));
+  }, [reviewPageCount]);
 
   const loadImages = useCallback(async () => {
     const [hero, content] = await Promise.all([
@@ -434,10 +553,10 @@ export function RestaurantPage() {
                   </div>
                 ) : null}
 
-                <div className="mt-8 grid gap-10 lg:grid-cols-12 lg:gap-12 xl:gap-16">
+                <div className="mt-8 grid gap-10 lg:grid-cols-12 lg:gap-10 xl:gap-12">
                   <form
                     onSubmit={onSubmitReview}
-                    className="space-y-6 lg:col-span-5 xl:col-span-4"
+                    className="space-y-6 lg:col-span-4"
                   >
                     <div>
                       <label htmlFor="review-name" className="text-sm font-semibold text-ink">
@@ -511,7 +630,7 @@ export function RestaurantPage() {
                     </button>
                   </form>
 
-                  <div className="flex flex-col gap-8 border-t border-ink/8 pt-10 lg:col-span-7 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-12 xl:col-span-8 xl:pl-16">
+                  <div className="flex flex-col gap-8 border-t border-ink/8 pt-10 lg:col-span-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-10 xl:pl-12">
                     <div>
                       <h3 className="font-display text-xl text-ink sm:text-2xl">Guest reviews</h3>
                       {reviewsLoading ? (
@@ -521,64 +640,54 @@ export function RestaurantPage() {
                           No reviews yet. Be the first to share your experience.
                         </p>
                       ) : (
-                        <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 xl:gap-5">
-                          {guestReviews.map((r, index) => (
-                            <Reveal key={r.id} delay={index * 70} variant="up">
-                              <li className="rounded-xl border border-ink/10 bg-white px-5 py-4">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-ink">{r.guest_name}</p>
-                                  <StarRating value={r.rating} size="h-3.5 w-3.5" />
-                                </div>
-                                <p className="mt-2.5 text-sm leading-relaxed text-ink/90">
-                                  “{r.comment}”
-                                </p>
-                                <p className={`mt-2.5 text-[0.65rem] tracking-wide uppercase ${softText}`}>
-                                  {formatReviewDate(r.created_at)}
-                                </p>
+                        <>
+                          <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+                            {visibleReviews.map((r) => (
+                              <ReviewCard
+                                key={r.id}
+                                review={r}
+                                canManage={canManage}
+                                busy={busy}
+                                softText={softText}
+                                onViewMore={() => setViewReview(r)}
+                                onReply={() => {
+                                  setReplyTarget(r);
+                                  setReplyText("");
+                                  setReplyError(null);
+                                }}
+                                onDeleteReply={() => setDeleteReplyTarget(r)}
+                              />
+                            ))}
+                          </ul>
 
-                                {r.admin_reply ? (
-                                  <div className="mt-4 rounded-lg border border-sky-deep/20 bg-sky-deep/8 px-3.5 py-3">
-                                    <p className="text-[0.65rem] font-semibold tracking-[0.16em] text-sky-deep uppercase">
-                                      Admin reply
-                                    </p>
-                                    <p className="mt-1.5 text-sm leading-relaxed text-ink/90">
-                                      “{r.admin_reply}”
-                                    </p>
-                                    <p className={`mt-2 text-xs ${softText}`}>
-                                      — {r.admin_reply_name?.trim() || "Admin"}
-                                      {r.admin_reply_at
-                                        ? ` · ${formatReviewDate(r.admin_reply_at)}`
-                                        : ""}
-                                    </p>
-                                    {canManage ? (
-                                      <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => setDeleteReplyTarget(r)}
-                                        className="btn-press mt-3 text-xs font-semibold text-red-700 hover:underline disabled:opacity-60"
-                                      >
-                                        Delete reply
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                ) : canManage ? (
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      setReplyTarget(r);
-                                      setReplyText("");
-                                      setReplyError(null);
-                                    }}
-                                    className="btn-press mt-3 text-xs font-semibold text-sky-deep hover:underline disabled:opacity-60"
-                                  >
-                                    Reply
-                                  </button>
-                                ) : null}
-                              </li>
-                            </Reveal>
-                          ))}
-                        </ul>
+                          {guestReviews.length > 0 ? (
+                            <div className="mt-5 flex items-center justify-between gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setReviewsPage((p) => Math.max(0, p - 1))}
+                                disabled={!canReviewsPrev}
+                                aria-label="Previous reviews"
+                                className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-sky-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                              >
+                                <ChevronLeftIcon className="h-5 w-5" />
+                              </button>
+                              <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-ink tabular-nums">
+                                {reviewCounterLabel}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReviewsPage((p) => Math.min(reviewPageCount - 1, p + 1))
+                                }
+                                disabled={!canReviewsNext}
+                                aria-label="Next reviews"
+                                className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-sky-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                              >
+                                <ChevronRightIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
                       )}
                     </div>
 
@@ -747,6 +856,74 @@ export function RestaurantPage() {
           </div>
         </Modal>
       ) : null}
+
+      {viewReview ? (
+        <Modal title="Guest review" onClose={() => setViewReview(null)} wide>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink">{viewReview.guest_name}</p>
+            <StarRating value={viewReview.rating} size="h-4 w-4" />
+          </div>
+          <p className={`mt-2 text-xs tracking-wide uppercase ${softText}`}>
+            {formatReviewDate(viewReview.created_at)}
+          </p>
+          <p className="mt-4 max-h-[min(50vh,22rem)] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-ink/90">
+            “{viewReview.comment}”
+          </p>
+          {viewReview.admin_reply ? (
+            <div className="mt-5 rounded-xl border border-sky-deep/20 bg-sky-deep/8 px-4 py-3">
+              <p className="text-[0.65rem] font-semibold tracking-[0.16em] text-sky-deep uppercase">
+                Admin reply
+              </p>
+              <p className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-ink/90">
+                “{viewReview.admin_reply}”
+              </p>
+              <p className={`mt-2 text-xs ${softText}`}>
+                — {viewReview.admin_reply_name?.trim() || "Admin"}
+                {viewReview.admin_reply_at
+                  ? ` · ${formatReviewDate(viewReview.admin_reply_at)}`
+                  : ""}
+              </p>
+            </div>
+          ) : null}
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            {canManage && !viewReview.admin_reply ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setReplyTarget(viewReview);
+                  setReplyText("");
+                  setReplyError(null);
+                  setViewReview(null);
+                }}
+                className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold text-sky-deep disabled:opacity-60"
+              >
+                Reply
+              </button>
+            ) : null}
+            {canManage && viewReview.admin_reply ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setDeleteReplyTarget(viewReview);
+                  setViewReview(null);
+                }}
+                className="btn-press rounded-full border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-60"
+              >
+                Delete reply
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setViewReview(null)}
+              className="btn-press rounded-full bg-sky-deep px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </main>
   );
 }
@@ -755,24 +932,30 @@ function Modal({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-2xl bg-white p-5 text-ink shadow-xl sm:p-6"
+        className={`w-full rounded-2xl bg-white p-5 text-ink shadow-xl sm:p-6 ${
+          wide ? "max-w-lg" : "max-w-md"
+        }`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="font-display text-2xl">{title}</h2>
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-ink/70">
-            Close
-          </button>
-        </div>
+        <h2 className="font-display text-2xl">{title}</h2>
         <div className="mt-4">{children}</div>
       </div>
     </div>

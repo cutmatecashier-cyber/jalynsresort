@@ -26,6 +26,7 @@ export function getApiUrl() {
 /**
  * Turn relative `/uploads/...` (or localhost absolute URLs) into a URL that works
  * on the current device — including phones on LAN.
+ * Absolute https URLs (e.g. Supabase Storage) are returned as-is.
  */
 export function resolveMediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -50,8 +51,13 @@ export function resolveMediaUrl(url: string | null | undefined): string | null {
     return trimmed;
   }
 
+  // Bare filename from older clients → assume local menu upload path
+  let path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (/^\/\d{10,}-[a-f0-9]+\.(jpe?g|png|webp|gif)$/i.test(path)) {
+    path = `/uploads/menu${path}`;
+  }
+
   const base = getApiUrl().replace(/\/$/, "");
-  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return `${base}${path}`;
 }
 

@@ -1,4 +1,5 @@
-import { Router, type Request, type Response } from 'express'
+import { Router } from 'express'
+import { requireApprovedAdmin, bearerFromRequest } from '../lib/requireAdmin.js'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
 import {
   clearRestaurantReviewReply,
@@ -9,66 +10,8 @@ import {
 
 export const reviewsRouter = Router()
 
-async function requireApprovedAdmin(
-  req: Request,
-  res: Response,
-): Promise<{ userId: string; name: string } | null> {
-  if (!isServiceRoleConfigured()) {
-    res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
-    return null
-  }
-
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Missing admin session.' })
-    return null
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !authData.user) {
-    res.status(401).json({
-      success: false,
-      message: authError?.message || 'Invalid admin session.',
-    })
-    return null
-  }
-
-  const { data: adminProfile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role, approval_status, name')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    res.status(500).json({
-      success: false,
-      message: `Could not verify admin profile: ${profileError.message}`,
-    })
-    return null
-  }
-
-  if (
-    !adminProfile ||
-    adminProfile.role !== 'admin' ||
-    adminProfile.approval_status !== 'approved'
-  ) {
-    res.status(403).json({
-      success: false,
-      message: 'Only approved admins can manage restaurant review replies.',
-    })
-    return null
-  }
-
-  return {
-    userId: authData.user.id,
-    name: String(adminProfile.name || 'Admin'),
-  }
-}
-
-async function optionalUserId(req: Request): Promise<string | null> {
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+async function optionalUserId(req: import('express').Request): Promise<string | null> {
+  const token = bearerFromRequest(req)
   if (!token || !isServiceRoleConfigured()) return null
   try {
     const { data, error } = await supabaseAdmin.auth.getUser(token)
@@ -116,7 +59,11 @@ reviewsRouter.post('/restaurant', async (req, res) => {
 
 reviewsRouter.put('/restaurant/:id/reply', async (req, res) => {
   try {
-    const admin = await requireApprovedAdmin(req, res)
+    const admin = await requireApprovedAdmin(
+      req,
+      res,
+      'Only approved admins can manage restaurant review replies.',
+    )
     if (!admin) return
 
     const reviewId = String(req.params.id || '')
@@ -143,7 +90,11 @@ reviewsRouter.put('/restaurant/:id/reply', async (req, res) => {
 
 reviewsRouter.delete('/restaurant/:id/reply', async (req, res) => {
   try {
-    const admin = await requireApprovedAdmin(req, res)
+    const admin = await requireApprovedAdmin(
+      req,
+      res,
+      'Only approved admins can manage restaurant review replies.',
+    )
     if (!admin) return
 
     const reviewId = String(req.params.id || '')

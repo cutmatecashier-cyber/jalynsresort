@@ -26,13 +26,13 @@ values (
   'restaurant-page',
   'restaurant-page',
   true,
-  8388608,
+  12582912,
   array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg']
 )
 on conflict (id) do update
 set
   public = true,
-  file_size_limit = 8388608,
+  file_size_limit = 12582912,
   allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
 
 drop policy if exists "Public can view restaurant page images" on storage.objects;

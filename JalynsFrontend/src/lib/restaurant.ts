@@ -43,24 +43,47 @@ function apiMessage(body: { message?: string } | null, fallback: string) {
   return body?.message?.trim() || fallback;
 }
 
-async function authHeaders(json = true): Promise<HeadersInit> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Admin session expired. Please log in again.");
+async function freshAccessToken(): Promise<string> {
+  // Prefer a refreshed JWT — stale access tokens often surface as "Auth session missing!".
+  const refreshed = await supabase.auth.refreshSession();
+  let token = refreshed.data.session?.access_token ?? null;
+
+  if (!token) {
+    const current = await supabase.auth.getSession();
+    token = current.data.session?.access_token ?? null;
+  }
+
+  if (!token) {
+    throw new Error("Admin session expired. Please sign in again, then retry.");
+  }
+  return token;
+}
+
+async function authHeaders(json = true): Promise<Record<string, string>> {
+  const token = await freshAccessToken();
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
+    // Survives Vite proxy cases that drop Authorization.
+    "x-access-token": token,
   };
   if (json) headers["Content-Type"] = "application/json";
   return headers;
 }
 
-async function optionalAuthHeaders(json = true): Promise<HeadersInit> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  if (json) headers["Content-Type"] = "application/json";
-  return headers;
+async function optionalAuthHeaders(json = true): Promise<Record<string, string>> {
+  try {
+    const token = await freshAccessToken();
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      "x-access-token": token,
+    };
+    if (json) headers["Content-Type"] = "application/json";
+    return headers;
+  } catch {
+    const headers: Record<string, string> = {};
+    if (json) headers["Content-Type"] = "application/json";
+    return headers;
+  }
 }
 
 async function readJson<T>(res: Response): Promise<T> {
@@ -199,10 +222,16 @@ export async function replyToRestaurantReview(
   reply: string,
 ): Promise<{ review: RestaurantReview | null; error: string | null }> {
   try {
+    const token = await freshAccessToken();
     const res = await fetch(`${getApiUrl()}/api/reviews/restaurant/${reviewId}/reply`, {
       method: "PUT",
-      headers: await authHeaders(true),
-      body: JSON.stringify({ reply }),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-access-token": token,
+        "Content-Type": "application/json",
+      },
+      // Body token survives proxies that drop Authorization.
+      body: JSON.stringify({ reply, access_token: token }),
     });
     const body = await readJson<{
       success?: boolean;
@@ -225,9 +254,15 @@ export async function deleteRestaurantReviewReply(
   reviewId: string,
 ): Promise<{ review: RestaurantReview | null; error: string | null }> {
   try {
+    const token = await freshAccessToken();
     const res = await fetch(`${getApiUrl()}/api/reviews/restaurant/${reviewId}/reply`, {
       method: "DELETE",
-      headers: await authHeaders(false),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-access-token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ access_token: token }),
     });
     const body = await readJson<{
       success?: boolean;

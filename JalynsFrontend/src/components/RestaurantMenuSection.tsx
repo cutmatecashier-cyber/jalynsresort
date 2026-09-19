@@ -6,7 +6,9 @@ import { supabase } from "../lib/supabase";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
 
-const DESKTOP_DISH_PER_PAGE = 3;
+const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
+const DESKTOP_DISH_COLS = 4;
+const DESKTOP_DISH_ROWS = 2;
 
 export type MenuItem = {
   id: string;
@@ -31,15 +33,87 @@ function mediaUrl(url: string | null | undefined) {
   return resolveMediaUrl(url);
 }
 
-async function authHeaders(json = true): Promise<HeadersInit> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Admin session expired. Please log in again.");
+function DishThumb({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <div className={`bg-mist ${className ?? ""}`} aria-hidden />;
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="eager"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+const MENU_IMAGE_BUCKET = "restaurant-page";
+
+async function freshAccessToken(): Promise<string> {
+  const current = await supabase.auth.getSession();
+  let token = current.data.session?.access_token ?? null;
+  const expiresAt = current.data.session?.expires_at;
+  const nearlyExpired =
+    typeof expiresAt === "number" && expiresAt * 1000 < Date.now() + 90_000;
+
+  if (!token || nearlyExpired) {
+    const refreshed = await supabase.auth.refreshSession();
+    token = refreshed.data.session?.access_token ?? token;
+  }
+
+  if (!token) {
+    throw new Error("Admin session expired. Please sign in again, then retry the upload.");
+  }
+  return token;
+}
+
+async function authHeaders(json = true): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${await freshAccessToken()}`,
   };
   if (json) headers["Content-Type"] = "application/json";
   return headers;
+}
+
+function menuImageExt(file: File) {
+  if (file.type === "image/webp") return "webp";
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/gif") return "gif";
+  return "jpg";
+}
+
+/** Upload to Supabase Storage from the browser (avoids Vite proxy 401 on multipart). */
+async function uploadMenuImageToSupabase(file: File): Promise<string> {
+  // Touch session so supabase-js uses a fresh JWT for Storage RLS.
+  await freshAccessToken();
+  const objectPath = `menu/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${menuImageExt(file)}`;
+  const { error } = await supabase.storage.from(MENU_IMAGE_BUCKET).upload(objectPath, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type || "image/jpeg",
+  });
+  if (error) {
+    const msg = error.message || "";
+    if (/bucket|not found|404|row-level security|policy/i.test(msg)) {
+      throw new Error(
+        "Restaurant image storage is not set up or you are not an approved admin. Run supabase/RESTAURANT_PAGE.sql in Supabase, sign out/in, then retry.",
+      );
+    }
+    throw new Error(msg || "Could not upload image to cloud storage.");
+  }
+  const { data } = supabase.storage.from(MENU_IMAGE_BUCKET).getPublicUrl(objectPath);
+  return `${data.publicUrl}${data.publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 }
 
 const inputClass =
@@ -219,23 +293,48 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   }
 
   async function uploadMenuImage(file: File): Promise<string> {
-    // Keep original quality — only downscale huge camera photos.
+    // Dish cards are small — compress aggressively so phone photos upload fast.
     const optimized = await optimizeImageFile(file, {
-      maxWidth: 4500,
-      maxHeight: 4500,
-      quality: 0.98,
-      maxBytes: 12_000_000,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      quality: 0.78,
+      maxBytes: 450_000,
+      strict: true,
     });
-    const headers = await authHeaders(false);
-    const body = new FormData();
-    body.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}/api/menu/upload`, {
-      method: "POST",
-      headers,
-      body,
-    });
-    const data = (await res.json()) as { message?: string; url?: string };
+
+    // Prefer direct Supabase upload — multipart through the Vite proxy often returns 401.
+    try {
+      return await uploadMenuImageToSupabase(optimized);
+    } catch (cloudErr) {
+      console.warn("[menu upload] Supabase client upload failed, trying API:", cloudErr);
+    }
+
+    const post = async () => {
+      const token = await freshAccessToken();
+      const body = new FormData();
+      // Token in the body survives proxies that drop Authorization on multipart.
+      body.append("access_token", token);
+      body.append("image", optimized);
+      return fetch(`${getApiUrl()}/api/menu/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+    };
+
+    let res = await post();
+    if (res.status === 401) {
+      await supabase.auth.refreshSession();
+      res = await post();
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { message?: string; url?: string };
     if (!res.ok || !data.url) {
+      if (res.status === 401) {
+        throw new Error(
+          data.message ?? "Session expired. Sign out, sign in again, then upload the picture.",
+        );
+      }
       throw new Error(data.message ?? "Could not upload image.");
     }
     return data.url;
@@ -445,14 +544,47 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
               })}
             </div>
 
-            <div className="mt-5 md:mt-6 md:grid md:grid-cols-[13.25rem_minmax(0,1fr)] md:items-start md:gap-0 lg:grid-cols-[14.5rem_minmax(0,1fr)]">
-              {/* Desktop — soft side rail */}
-              <aside className="sticky top-24 hidden self-start md:block md:pr-6 lg:pr-8">
-                <div className="rounded-2xl bg-mist/70 p-3 ring-1 ring-ink/6">
-                  <p className="px-2.5 pt-1 text-[0.62rem] font-semibold tracking-[0.22em] text-ink/70 uppercase">
+            {canEdit && active ? (
+              <div className="mt-5 mb-3 flex flex-wrap items-center justify-center gap-2 md:mt-6 md:justify-end">
+                <button
+                  type="button"
+                  onClick={openCreateItem}
+                  className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky"
+                >
+                  Add dish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openEditCategory(active)}
+                  className="btn-press rounded-full border border-ink/15 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:border-ink/30"
+                >
+                  Edit category
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget({ type: "category", category: active })}
+                  className="btn-press rounded-full border border-red-200 bg-red-50 px-3.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : null}
+
+            <div
+              className={`md:grid md:grid-cols-[11.5rem_minmax(0,1fr)] md:items-stretch md:gap-0 lg:grid-cols-[12.5rem_minmax(0,1fr)] ${
+                canEdit && active ? "" : "mt-5 md:mt-6"
+              }`}
+            >
+              {/* Desktop — categories rail (same height as 2×4 dish grid) */}
+              <aside className="hidden min-h-0 md:flex md:pr-5 lg:pr-6">
+                <div className="flex h-full min-h-[22rem] w-full flex-col rounded-2xl bg-mist/70 p-2.5 ring-1 ring-ink/6">
+                  <p className="shrink-0 px-2 pt-0.5 text-[0.58rem] font-semibold tracking-[0.2em] text-ink/70 uppercase">
                     Categories
                   </p>
-                  <nav className="mt-2.5 flex flex-col gap-0.5" aria-label="Menu categories">
+                  <nav
+                    className="mt-2 flex min-h-0 flex-1 flex-col gap-0.5"
+                    aria-label="Menu categories"
+                  >
                     {categories.map((cat) => {
                       const selected = cat.id === activeId;
                       return (
@@ -460,9 +592,9 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                           key={cat.id}
                           type="button"
                           onClick={() => setActiveId(cat.id)}
-                          className={`rounded-xl px-3 py-2.5 text-left text-[0.86rem] leading-snug transition ${
+                          className={`min-h-0 flex-1 rounded-lg px-2.5 py-1.5 text-left text-[0.78rem] leading-snug transition ${
                             selected
-                              ? "bg-sky-deep font-semibold text-white shadow-[0_6px_16px_rgba(3,105,161,0.28)]"
+                              ? "bg-sky-deep font-semibold text-white shadow-[0_4px_12px_rgba(3,105,161,0.28)]"
                               : "font-medium text-ink/65 hover:bg-white/80 hover:text-ink"
                           }`}
                         >
@@ -475,34 +607,8 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
               </aside>
 
               {active ? (
-              <div className="min-w-0 md:border-l md:border-ink/8 md:pl-6 lg:pl-8">
-                {canEdit ? (
-                  <div className="mb-4 flex flex-wrap items-center justify-center gap-2 md:justify-end">
-                    <button
-                      type="button"
-                      onClick={openCreateItem}
-                      className="btn-press rounded-full bg-sky-deep px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky"
-                    >
-                      Add dish
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEditCategory(active)}
-                      className="btn-press rounded-full border border-ink/15 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:border-ink/30"
-                    >
-                      Edit category
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget({ type: "category", category: active })}
-                      className="btn-press rounded-full border border-red-200 bg-red-50 px-3.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : null}
-
-                <div>
+              <div className="flex min-h-0 min-w-0 flex-col md:min-h-[22rem] md:border-l md:border-ink/8 md:pl-5 lg:pl-6">
+                <div className="flex min-h-0 flex-1 flex-col">
                   {active.items.length === 0 ? (
                     <p className="text-sm text-ink/70">
                       No dishes in this category yet
@@ -531,12 +637,10 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                                   onClick={() => setLightbox(mediaUrl(item.image_url)!)}
                                   aria-label={`View ${item.name}`}
                                 >
-                                  <img
+                                  <DishThumb
                                     src={mediaUrl(item.image_url)!}
                                     alt={item.name}
                                     className="h-full w-full object-cover object-center"
-                                    loading="eager"
-                                    decoding="async"
                                   />
                                 </button>
                               ) : (
@@ -580,87 +684,103 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                         ))}
                       </ul>
 
-                      {/* Desktop — 3 dishes per page + gallery pager */}
-                      <div className="hidden md:block">
-                        <ul className="grid grid-cols-3 gap-4 lg:gap-5">
-                          {desktopDishPage.map((item) => (
-                            <li
-                              key={item.id}
-                              className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_6px_20px_rgba(8,18,28,0.08)] ${
-                                item.available ? "" : "opacity-55"
-                              }`}
-                            >
-                              {item.image_url ? (
-                                <button
-                                  type="button"
-                                  className="relative isolate block aspect-[5/4] w-full overflow-hidden bg-mist"
-                                  onClick={() => setLightbox(mediaUrl(item.image_url)!)}
-                                  aria-label={`View ${item.name}`}
-                                >
-                                  <img
-                                    src={mediaUrl(item.image_url)!}
-                                    alt={item.name}
-                                    className="absolute inset-0 h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.03]"
-                                    loading="eager"
-                                    decoding="async"
-                                  />
-                                </button>
-                              ) : (
-                                <div className="aspect-[5/4] w-full bg-mist" />
-                              )}
+                      {/* Desktop — 2 rows × 4 cols, same height as categories */}
+                      <div className="hidden min-h-0 flex-1 flex-col md:flex">
+                        <ul
+                          className="grid min-h-0 flex-1 gap-2.5 lg:gap-3"
+                          style={{
+                            gridTemplateColumns: `repeat(${DESKTOP_DISH_COLS}, minmax(0, 1fr))`,
+                            gridTemplateRows: `repeat(${DESKTOP_DISH_ROWS}, minmax(0, 1fr))`,
+                          }}
+                        >
+                          {Array.from({ length: DESKTOP_DISH_PER_PAGE }, (_, slot) => {
+                            const item = desktopDishPage[slot] ?? null;
+                            if (!item) {
+                              return (
+                                <li
+                                  key={`empty-${slot}`}
+                                  className="min-h-0 rounded-xl border border-dashed border-ink/8 bg-white/40"
+                                  aria-hidden
+                                />
+                              );
+                            }
+                            return (
+                              <li
+                                key={item.id}
+                                className={`group flex min-h-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-[0_3px_10px_rgba(8,18,28,0.06)] ${
+                                  item.available ? "" : "opacity-55"
+                                }`}
+                              >
+                                {item.image_url ? (
+                                  <button
+                                    type="button"
+                                    className="relative isolate block h-[58%] min-h-[4.5rem] w-full shrink-0 overflow-hidden bg-mist"
+                                    onClick={() => setLightbox(mediaUrl(item.image_url)!)}
+                                    aria-label={`View ${item.name}`}
+                                  >
+                                    <DishThumb
+                                      src={mediaUrl(item.image_url)!}
+                                      alt={item.name}
+                                      className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 ease-out group-hover:scale-[1.03]"
+                                    />
+                                  </button>
+                                ) : (
+                                  <div className="h-[58%] min-h-[4.5rem] w-full shrink-0 bg-mist" />
+                                )}
 
-                              <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
-                                <h4 className="font-display text-[1.05rem] leading-snug text-ink">
-                                  {item.name}
-                                </h4>
+                                <div className="flex min-h-0 flex-1 flex-col px-2 py-1.5">
+                                  <h4 className="truncate font-display text-[0.82rem] leading-snug text-ink">
+                                    {item.name}
+                                  </h4>
 
-                                {!item.available ? (
-                                  <p className="mt-1 text-[0.6rem] font-semibold tracking-[0.14em] text-ink/55 uppercase">
-                                    Unavailable
-                                  </p>
-                                ) : null}
+                                  {!item.available ? (
+                                    <p className="text-[0.5rem] font-semibold tracking-[0.1em] text-ink/55 uppercase">
+                                      Unavailable
+                                    </p>
+                                  ) : null}
 
-                                {item.description ? (
-                                  <p className="mt-1.5 line-clamp-2 text-[0.8rem] leading-relaxed text-ink/70">
-                                    {item.description}
-                                  </p>
-                                ) : null}
+                                  {item.description ? (
+                                    <p className="mt-0.5 line-clamp-1 text-[0.68rem] leading-snug text-ink/65">
+                                      {item.description}
+                                    </p>
+                                  ) : null}
 
-                                {canEdit ? (
-                                  <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => openEditItem(item)}
-                                      className="rounded-full border border-ink/12 bg-white px-2.5 py-1 text-[0.7rem] font-semibold text-ink transition hover:border-ink/25 hover:bg-mist"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteTarget({ type: "item", item })}
-                                      className="rounded-full border border-red-200 bg-white px-2.5 py-1 text-[0.7rem] font-semibold text-red-700 transition hover:bg-red-50"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </li>
-                          ))}
+                                  {canEdit ? (
+                                    <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditItem(item)}
+                                        className="rounded-full border border-ink/12 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-ink transition hover:bg-mist"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteTarget({ type: "item", item })}
+                                        className="rounded-full border border-red-200 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-red-700 transition hover:bg-red-50"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </li>
+                            );
+                          })}
                         </ul>
 
                         {showDishPager ? (
-                          <div className="mt-5 flex items-center justify-between gap-3 sm:mt-6">
+                          <div className="mt-3 flex shrink-0 items-center justify-between gap-3">
                             <button
                               type="button"
                               onClick={() => setDishPage((p) => Math.max(0, p - 1))}
                               disabled={safeDishPage <= 0}
                               aria-label="Previous dishes"
-                              className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                              className="btn-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                             >
-                              <ChevronLeftIcon className="h-5 w-5" />
+                              <ChevronLeftIcon className="h-4 w-4" />
                             </button>
-                            <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-ink tabular-nums">
+                            <p className="min-w-[4.5rem] text-center text-xs font-semibold tracking-wide text-ink tabular-nums">
                               {dishCounterStart}–{dishCounterEnd} / {active?.items.length ?? 0}
                             </p>
                             <button
@@ -670,9 +790,9 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                               }
                               disabled={safeDishPage >= dishPageCount - 1}
                               aria-label="Next dishes"
-                              className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                              className="btn-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                             >
-                              <ChevronRightIcon className="h-5 w-5" />
+                              <ChevronRightIcon className="h-4 w-4" />
                             </button>
                           </div>
                         ) : null}
@@ -904,7 +1024,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                           onChange={(e) => onPickDishImage(e.target.files?.[0] ?? null)}
                         />
                         <p className="text-xs text-ink/70">
-                          JPG, PNG, or WEBP — original quality is kept when possible.
+                          JPG, PNG, or WEBP — photos are compressed automatically for faster upload.
                         </p>
                         {itemImage || itemFile ? (
                           <button

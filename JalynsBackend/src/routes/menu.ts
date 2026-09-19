@@ -1,7 +1,3 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
@@ -14,22 +10,13 @@ import {
   updateCategory,
   updateItem,
 } from '../services/restaurantMenu.js'
+import { uploadMenuDishImage } from '../services/restaurantMenuImages.js'
 
 export const menuRouter = Router()
 
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/menu')
-mkdirSync(uploadsRoot, { recursive: true })
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg'
-      const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg'
-      cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
-    },
-  }),
-  limits: { fileSize: 12 * 1024 * 1024, files: 1 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
@@ -39,16 +26,36 @@ const upload = multer({
   },
 })
 
+function bearerFromRequest(req: Request): string {
+  const authHeader =
+    (typeof req.headers.authorization === 'string' && req.headers.authorization) ||
+    (typeof req.headers['x-access-token'] === 'string' && req.headers['x-access-token']) ||
+    ''
+  if (authHeader.startsWith('Bearer ') || authHeader.startsWith('bearer ')) {
+    return authHeader.slice(7).trim()
+  }
+  if (authHeader.trim()) return authHeader.trim()
+
+  // Multipart uploads: token may arrive in the form body (Vite proxy often drops Authorization).
+  const body = req.body as { access_token?: unknown } | undefined
+  if (typeof body?.access_token === 'string' && body.access_token.trim()) {
+    return body.access_token.trim()
+  }
+  return ''
+}
+
 async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
   if (!isServiceRoleConfigured()) {
     res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
     return null
   }
 
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  const token = bearerFromRequest(req)
   if (!token) {
-    res.status(401).json({ success: false, message: 'Missing admin session.' })
+    res.status(401).json({
+      success: false,
+      message: 'Missing admin session. Sign out and sign in again, then retry.',
+    })
     return null
   }
 
@@ -56,7 +63,10 @@ async function requireApprovedAdmin(req: Request, res: Response): Promise<string
   if (authError || !authData.user) {
     res.status(401).json({
       success: false,
-      message: authError?.message || 'Invalid admin session.',
+      message:
+        authError?.message === 'invalid claim: missing sub'
+          ? 'Invalid admin session. Sign out and sign in again.'
+          : authError?.message || 'Invalid admin session. Sign out and sign in again.',
     })
     return null
   }
@@ -110,12 +120,11 @@ menuRouter.get('/', async (_req, res) => {
   }
 })
 
-menuRouter.post('/upload', async (req, res) => {
-  try {
-    if (!(await requireApprovedAdmin(req, res))) return
-
-    upload.single('image')(req, res, (err: unknown) => {
-      void (async () => {
+menuRouter.post('/upload', (req, res) => {
+  // Parse multipart FIRST so the proxy/body is not held during auth (avoids ERR_CONNECTION_RESET).
+  upload.single('image')(req, res, (err: unknown) => {
+    void (async () => {
+      try {
         if (err) {
           const message =
             err instanceof Error
@@ -124,18 +133,23 @@ menuRouter.post('/upload', async (req, res) => {
           res.status(400).json({ success: false, message })
           return
         }
+        if (!(await requireApprovedAdmin(req, res))) return
         if (!req.file) {
           res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
           return
         }
-        const url = `/uploads/menu/${req.file.filename}`
+        const url = await uploadMenuDishImage(req.file)
         res.status(201).json({ success: true, url })
-      })()
-    })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not upload image.'
-    return res.status(clientErrorStatus(message)).json({ success: false, message })
-  }
+      } catch (uploadErr) {
+        const message =
+          uploadErr instanceof Error ? uploadErr.message : 'Could not upload image.'
+        console.error('[menu upload]', message)
+        if (!res.headersSent) {
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      }
+    })()
+  })
 })
 
 menuRouter.post('/categories', async (req, res) => {

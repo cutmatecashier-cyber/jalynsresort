@@ -144,12 +144,21 @@ export async function optimizeImageFile(
     quality?: number;
     /** Re-encode only if larger than this (bytes), unless dimensions also exceed max. */
     maxBytes?: number;
+    /**
+     * Honor maxWidth/maxBytes strictly (no JPEG “keep original phone photo” floors).
+     * Use for small UI images (menu dishes, thumbs) so uploads stay fast.
+     */
+    strict?: boolean;
   },
 ): Promise<File> {
   const maxWidth = options?.maxWidth ?? 2560;
   const maxHeight = options?.maxHeight ?? 2560;
-  const quality = Math.min(1, Math.max(0.85, options?.quality ?? 0.93));
+  const quality =
+    options?.quality != null
+      ? Math.min(1, Math.max(0.55, options.quality))
+      : 0.93;
   const maxBytes = options?.maxBytes ?? 8_000_000;
+  const strict = Boolean(options?.strict);
 
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
 
@@ -160,11 +169,13 @@ export async function optimizeImageFile(
   try {
     let { width, height } = bitmap;
 
-    // JPEG: never re-encode through canvas unless the file is huge or absurdly large.
-    // Canvas JPEG re-encode is lossy and is why JPEG looked worse than PNG before.
+    // JPEG: preserve original bytes for large hero-style uploads unless oversized.
+    // `strict` (menu dishes, etc.) always respects caller maxWidth/maxBytes.
     if (isJpeg) {
-      const jpegMaxEdge = Math.max(maxWidth, maxHeight, 4500);
-      const jpegMaxBytes = Math.max(maxBytes, 12_000_000);
+      const jpegMaxEdge = strict
+        ? Math.max(maxWidth, maxHeight)
+        : Math.max(maxWidth, maxHeight, 4500);
+      const jpegMaxBytes = strict ? maxBytes : Math.max(maxBytes, 12_000_000);
       const scale = Math.min(1, jpegMaxEdge / width, jpegMaxEdge / height);
       if (scale >= 0.999 && file.size <= jpegMaxBytes) {
         return file; // keep original JPEG bytes
@@ -182,11 +193,11 @@ export async function optimizeImageFile(
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(bitmap, 0, 0, width, height);
 
-      const jpegQuality = Math.max(quality, 0.98);
+      const jpegQuality = strict ? quality : Math.max(quality, 0.98);
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob((value) => resolve(value), "image/jpeg", jpegQuality);
       });
-      if (!blob || blob.size >= file.size * 0.98) return file;
+      if (!blob || (!strict && blob.size >= file.size * 0.98)) return file;
 
       const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
       return new File([blob], `${base}.jpg`, {
@@ -215,7 +226,7 @@ export async function optimizeImageFile(
     ctx.drawImage(bitmap, 0, 0, width, height);
 
     // PNG stays lossless. Other formats → high-quality JPEG only when needed.
-    const keepPng = isPng && !needsShrink;
+    const keepPng = isPng && !needsShrink && !strict;
     const mime = keepPng ? "image/png" : "image/jpeg";
     const ext = keepPng ? "png" : "jpg";
 
@@ -223,13 +234,13 @@ export async function optimizeImageFile(
       if (keepPng) {
         canvas.toBlob((value) => resolve(value), mime);
       } else {
-        canvas.toBlob((value) => resolve(value), mime, Math.max(quality, 0.95));
+        canvas.toBlob((value) => resolve(value), mime, Math.max(quality, strict ? quality : 0.95));
       }
     });
     if (!blob) return file;
 
     // If re-encode didn't help and we only wanted a shrink, keep original.
-    if (!needsResize && blob.size >= file.size * 0.92) return file;
+    if (!needsResize && !strict && blob.size >= file.size * 0.92) return file;
 
     const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
     return new File([blob], `${base}.${ext}`, {
