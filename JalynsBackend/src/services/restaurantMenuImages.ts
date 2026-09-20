@@ -1,15 +1,10 @@
-import { mkdirSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
 
 export const MENU_IMAGE_BUCKET = 'restaurant-page'
 export const MENU_IMAGE_FOLDER = 'menu'
 
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/menu')
-mkdirSync(uploadsRoot, { recursive: true })
+let bucketReady = false
 
 function extFromMime(mime: string) {
   if (mime === 'image/webp') return 'webp'
@@ -25,20 +20,35 @@ function publicMenuImageUrl(objectPath: string, cacheKey?: string) {
   return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(cacheKey)}`
 }
 
-async function saveLocalMenuImage(file: Express.Multer.File): Promise<string> {
-  if (!file?.buffer?.length) {
-    throw new Error('Please choose an image to upload.')
+async function ensureBucket() {
+  if (bucketReady) return
+  const { data } = await supabaseAdmin.storage.getBucket(MENU_IMAGE_BUCKET)
+  if (!data) {
+    const { error } = await supabaseAdmin.storage.createBucket(MENU_IMAGE_BUCKET, {
+      public: true,
+      fileSizeLimit: 12582912,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'],
+    })
+    if (error && !/already exists|duplicate|exists/i.test(error.message)) {
+      throw new Error(
+        /bucket|not found/i.test(error.message)
+          ? 'Restaurant image storage is not set up. Run supabase/RESTAURANT_PAGE.sql in Supabase, then try again.'
+          : error.message || 'Could not create restaurant image bucket.',
+      )
+    }
   }
-  const ext = extFromMime(file.mimetype || 'image/jpeg')
-  const filename = `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`
-  await writeFile(path.join(uploadsRoot, filename), file.buffer)
-  return `/uploads/menu/${filename}`
+  bucketReady = true
 }
 
-async function saveSupabaseMenuImage(file: Express.Multer.File): Promise<string> {
+/**
+ * Store dish photos in Supabase Storage (public URL) so they work online.
+ */
+export async function uploadMenuDishImage(file: Express.Multer.File): Promise<string> {
   if (!file?.buffer?.length) {
     throw new Error('Please choose an image to upload.')
   }
+  await ensureBucket()
+
   const ext = extFromMime(file.mimetype || 'image/jpeg')
   const objectPath = `${MENU_IMAGE_FOLDER}/${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`
   const { error } = await supabaseAdmin.storage.from(MENU_IMAGE_BUCKET).upload(objectPath, file.buffer, {
@@ -56,21 +66,4 @@ async function saveSupabaseMenuImage(file: Express.Multer.File): Promise<string>
     throw new Error(msg || 'Could not upload image to cloud storage.')
   }
   return publicMenuImageUrl(objectPath, String(Date.now()))
-}
-
-/**
- * Prefer Supabase (works on every device). Always keep a local copy as fallback
- * so LAN uploads still succeed if Storage is unavailable.
- */
-export async function uploadMenuDishImage(file: Express.Multer.File): Promise<string> {
-  const localUrl = await saveLocalMenuImage(file)
-  try {
-    return await saveSupabaseMenuImage(file)
-  } catch (err) {
-    console.warn(
-      '[menu upload] Supabase failed, using local file:',
-      err instanceof Error ? err.message : err,
-    )
-    return localUrl
-  }
 }

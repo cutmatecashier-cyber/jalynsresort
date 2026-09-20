@@ -1,4 +1,5 @@
 import { getApiUrl, resolveMediaUrl } from "./api";
+import { optimizeImageFile } from "./scuba";
 import { supabase } from "./supabase";
 
 export type NewsKind = "news" | "offer" | "event";
@@ -32,10 +33,24 @@ export type NewsPost = {
   videoUrl?: string;
 };
 
+export type NewsBackground = {
+  url: string | null;
+  path: string | null;
+};
+
+export const DEFAULT_NEWS_HERO =
+  "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--01-pools-and-solar-1-b63856.jpg";
+
+export const NEWS_HERO_UPDATED_EVENT = "jalyns:news-hero-updated";
+
+export function notifyNewsHeroUpdated() {
+  window.dispatchEvent(new CustomEvent(NEWS_HERO_UPDATED_EVENT));
+}
+
 /** Fallback seed — from https://jalynsresort.com/resort-news-offers-events/ */
 export const DEFAULT_NEWS_POSTS: NewsPost[] = [
   {
-    id: "studio-apartments-long-term",
+    id: "studio-apartments-available-for-long-term-rental-at-jalyns-resort",
     category: "News",
     kind: "news",
     date: "2024-08-20",
@@ -47,7 +62,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/studio-apartments-available-for-long-term-rental-at-jalyns-resort/",
   },
   {
-    id: "phidex-2024",
+    id: "phidex-2024-dive-expo",
     category: "Events",
     kind: "event",
     date: "2024-03-20",
@@ -60,7 +75,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/phidex-2024-dive-expo/",
   },
   {
-    id: "ecotourism-mpa",
+    id: "our-commitment-to-responsible-ecotourism-in-marine-protected-areas",
     category: "News",
     kind: "news",
     date: "2023-12-06",
@@ -72,7 +87,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/our-commitment-to-responsible-ecotourism-in-marine-protected-areas/",
   },
   {
-    id: "padi-aow-review",
+    id: "padi-advanced-open-water-students-review",
     category: "News",
     kind: "news",
     date: "2023-11-30",
@@ -85,7 +100,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/padi-advanced-open-water-students-review/",
   },
   {
-    id: "canyons-jacks",
+    id: "scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site",
     category: "News",
     kind: "news",
     date: "2023-11-06",
@@ -98,7 +113,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site/",
   },
   {
-    id: "rooms-scuba-offer",
+    id: "rooms-scuba-diving-special-offer",
     category: "Special Offers",
     kind: "offer",
     date: "2023-09-17",
@@ -111,7 +126,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/rooms-scuba-diving-special-offer/",
   },
   {
-    id: "single-double-long-term",
+    id: "single-double-rooms-available-for-long-term-rental-at-jalyns-resort",
     category: "News",
     kind: "news",
     date: "2023-09-08",
@@ -136,7 +151,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/sabang-oktoberfest-2023/",
   },
   {
-    id: "apartments-long-term",
+    id: "apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera",
     category: "News",
     kind: "news",
     date: "2023-06-08",
@@ -149,7 +164,7 @@ export const DEFAULT_NEWS_POSTS: NewsPost[] = [
     href: "https://jalynsresort.com/apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera/",
   },
   {
-    id: "aldaw-kapiya-an-2023",
+    id: "puerto-galera-aldaw-kapiya-an-festival-2023",
     category: "Events",
     kind: "event",
     date: "2023-06-05",
@@ -215,12 +230,42 @@ export async function fetchNewsPosts(): Promise<NewsPost[]> {
       posts?: NewsPost[];
     };
     if (res.ok && Array.isArray(body.posts) && body.posts.length > 0) {
-      return body.posts;
+      return body.posts.map((p) => ({
+        ...p,
+        href: p.href?.startsWith("/") ? p.href : `/news/${p.id}`,
+        cta: p.cta || "Read more",
+      }));
     }
   } catch {
     // fallback
   }
-  return DEFAULT_NEWS_POSTS.map((p) => ({ ...p }));
+  return DEFAULT_NEWS_POSTS.map((p) => ({
+    ...p,
+    href: `/news/${p.id}`,
+  }));
+}
+
+export async function fetchNewsPost(id: string): Promise<NewsPost | null> {
+  const key = decodeURIComponent(String(id || "").trim());
+  if (!key) return null;
+  try {
+    const res = await fetch(`${getApiUrl()}/api/news/${encodeURIComponent(key)}`, {
+      cache: "no-store",
+    });
+    const body = (await res.json()) as {
+      success?: boolean;
+      post?: NewsPost;
+    };
+    if (res.ok && body.post) return body.post;
+  } catch {
+    // try list fallback below
+  }
+  const posts = await fetchNewsPosts();
+  return (
+    posts.find((p) => p.id === key) ??
+    posts.find((p) => p.id.startsWith(`${key}-`)) ??
+    null
+  );
 }
 
 async function authHeaders(json = true): Promise<HeadersInit> {
@@ -248,6 +293,74 @@ export async function uploadNewsImage(file: File) {
     throw new Error(data.message ?? "Could not upload image.");
   }
   return data.url;
+}
+
+export async function fetchNewsHero(): Promise<NewsBackground> {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/news/hero`, { cache: "no-store" });
+    const body = (await res.json()) as {
+      success?: boolean;
+      background?: NewsBackground;
+    };
+    if (!res.ok) return { url: null, path: null };
+    return body.background ?? { url: null, path: null };
+  } catch {
+    return { url: null, path: null };
+  }
+}
+
+export async function uploadNewsHeroWithResult(file: File) {
+  try {
+    const optimized = await optimizeImageFile(file, {
+      maxWidth: 3840,
+      maxHeight: 2560,
+      quality: 0.96,
+      maxBytes: 7_000_000,
+    });
+    const form = new FormData();
+    form.append("image", optimized);
+    const res = await fetch(`${getApiUrl()}/api/news/hero`, {
+      method: "POST",
+      headers: await authHeaders(false),
+      body: form,
+    });
+    const body = (await res.json()) as {
+      success?: boolean;
+      message?: string;
+      path?: string;
+      url?: string;
+    };
+    if (!res.ok || !body.url) {
+      return {
+        error: body.message?.trim() || "Could not upload image.",
+        path: null as string | null,
+        url: null as string | null,
+      };
+    }
+    notifyNewsHeroUpdated();
+    return { error: null as string | null, path: body.path ?? null, url: body.url };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Could not upload image.",
+      path: null as string | null,
+      url: null as string | null,
+    };
+  }
+}
+
+export async function removeNewsHero() {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/news/hero`, {
+      method: "DELETE",
+      headers: await authHeaders(false),
+    });
+    const body = (await res.json()) as { success?: boolean; message?: string };
+    if (!res.ok) return body.message?.trim() || "Could not remove image.";
+    notifyNewsHeroUpdated();
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : "Could not remove image.";
+  }
 }
 
 export type NewsInput = {

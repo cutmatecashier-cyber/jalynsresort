@@ -8,7 +8,6 @@ import { Reveal } from "./Reveal";
 
 const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
 const DESKTOP_DISH_COLS = 4;
-const DESKTOP_DISH_ROWS = 2;
 
 export type MenuItem = {
   id: string;
@@ -684,27 +683,15 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                         ))}
                       </ul>
 
-                      {/* Desktop — 2 rows × 4 cols, same height as categories */}
+                      {/* Desktop — up to 4 cols, only filled dishes (no empty placeholders) */}
                       <div className="hidden min-h-0 flex-1 flex-col md:flex">
                         <ul
-                          className="grid min-h-0 flex-1 gap-2.5 lg:gap-3"
+                          className="grid min-h-0 flex-1 auto-rows-fr gap-2.5 lg:gap-3"
                           style={{
                             gridTemplateColumns: `repeat(${DESKTOP_DISH_COLS}, minmax(0, 1fr))`,
-                            gridTemplateRows: `repeat(${DESKTOP_DISH_ROWS}, minmax(0, 1fr))`,
                           }}
                         >
-                          {Array.from({ length: DESKTOP_DISH_PER_PAGE }, (_, slot) => {
-                            const item = desktopDishPage[slot] ?? null;
-                            if (!item) {
-                              return (
-                                <li
-                                  key={`empty-${slot}`}
-                                  className="min-h-0 rounded-xl border border-dashed border-ink/8 bg-white/40"
-                                  aria-hidden
-                                />
-                              );
-                            }
-                            return (
+                          {desktopDishPage.map((item) => (
                               <li
                                 key={item.id}
                                 className={`group flex min-h-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-[0_3px_10px_rgba(8,18,28,0.06)] ${
@@ -765,8 +752,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                                   ) : null}
                                 </div>
                               </li>
-                            );
-                          })}
+                          ))}
                         </ul>
 
                         {showDishPager ? (

@@ -3,10 +3,9 @@ import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
-import { useAuth } from "../context/AuthContext";
-import { getApiUrl } from "../lib/api";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
+  fetchNewsPost,
   fetchNewsPosts,
   formatNewsDate,
   newsCategoryCounts,
@@ -144,8 +143,6 @@ function ArticleBody({ text }: { text: string }) {
 
 export function NewsDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { role, approvalStatus, can } = useAuth();
-  const isAdmin = can.canManageMembers(role, approvalStatus);
   const [post, setPost] = useState<NewsPost | null>(null);
   const [allPosts, setAllPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,22 +161,11 @@ export function NewsDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${getApiUrl()}/api/news/${encodeURIComponent(id)}`, {
-          cache: "no-store",
-        });
-        const body = (await res.json()) as {
-          success?: boolean;
-          message?: string;
-          post?: NewsPost;
-        };
-        const posts = await fetchNewsPosts();
+        const [found, posts] = await Promise.all([fetchNewsPost(id), fetchNewsPosts()]);
         if (!alive) return;
         setAllPosts(posts);
-
-        const found =
-          body.post ?? posts.find((p) => p.id === id) ?? null;
         if (!found) {
-          setError(body.message ?? "Post not found.");
+          setError("News post not found.");
           setPost(null);
           return;
         }
@@ -273,7 +259,11 @@ export function NewsDetailPage() {
     <main className="overflow-x-clip bg-[#f4f5f3] text-ink">
       <div className="bg-[#0a1210]">
         <Navbar />
-        <div className={`h-16 sm:h-[4.25rem] ${isAdmin ? "sm:h-[4.75rem]" : ""}`} aria-hidden />
+        <div
+          className="bg-[#0a1210]"
+          style={{ height: "var(--jalyns-header-height, 5.75rem)" }}
+          aria-hidden
+        />
       </div>
 
       <div className="px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 lg:py-10">

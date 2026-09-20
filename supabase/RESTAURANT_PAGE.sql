@@ -1,6 +1,6 @@
--- Restaurant page hero + content backgrounds (run in Supabase SQL Editor)
+-- Restaurant page hero + content backgrounds + menu dish photos (run in Supabase SQL Editor)
 -- Same storage pattern as scuba-diving / contact-page: public bucket, folders
--- hero/ and content/, stable file name current.{ext}. Safe to re-run.
+-- hero/, content/, and menu/, stable file name current.{ext} for backgrounds. Safe to re-run.
 
 create or replace function public.is_approved_admin()
 returns boolean

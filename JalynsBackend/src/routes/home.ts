@@ -1,7 +1,3 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
@@ -16,21 +12,12 @@ import {
   updateHomeHeroSlide,
   updateHomeSection,
 } from '../services/homeHero.js'
+import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 
 export const homeRouter = Router()
 
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/home')
-mkdirSync(uploadsRoot, { recursive: true })
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg'
-      const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg'
-      cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
@@ -125,9 +112,21 @@ homeRouter.post('/hero/upload', async (req, res) => {
           return
         }
 
-        const url = `/uploads/home/${req.file.filename}`
-        const slides = updateHomeHeroSlide(index, { image: url })
-        res.json({ success: true, url, slides })
+        try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.home,
+            folder: `hero/${index}`,
+            file: req.file,
+            stableName: 'current',
+            upsert: true,
+          })
+          const slides = updateHomeHeroSlide(index, { image: url })
+          res.json({ success: true, url, slides })
+        } catch (inner) {
+          const message = inner instanceof Error ? inner.message : 'Could not upload home background.'
+          const status = /bucket|storage|Please choose|Only JPG/i.test(message) ? 400 : 500
+          res.status(status).json({ success: false, message })
+        }
       })()
     })
   } catch (err) {
@@ -222,9 +221,22 @@ homeRouter.post('/sections/:key/upload', async (req, res) => {
           res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
           return
         }
-        const url = `/uploads/home/${req.file.filename}`
-        const sections = updateHomeSection(key, url)
-        res.json({ success: true, url, sections })
+        try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.home,
+            folder: `sections/${key}`,
+            file: req.file,
+            stableName: 'current',
+            upsert: true,
+          })
+          const sections = updateHomeSection(key, url)
+          res.json({ success: true, url, sections })
+        } catch (inner) {
+          const message =
+            inner instanceof Error ? inner.message : 'Could not upload section background.'
+          const status = /bucket|storage|Please choose|Only JPG/i.test(message) ? 400 : 500
+          res.status(status).json({ success: false, message })
+        }
       })()
     })
   } catch (err) {

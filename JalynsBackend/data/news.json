@@ -2,35 +2,34 @@
   "posts": [
     {
       "id": "studio-apartments-available-for-long-term-rental-at-jalyns-resort",
-      "category": "News",
       "title": "Studio Apartments available for long-term rental at Jalyn's Resort",
       "excerpt": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences,",
       "body": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences, and breathtaking views at Jalyn’s Resort!\n\nNotably, Jalyn’s Resort is equipped with Solar Power and Battery backups, ensuring uninterrupted access to essential services during power outages. Say goodbye to midnight surprises of your air-conditioning shutting off!\n\n**P18k/month including Electricity + 1 month deposit.**\n\nSee below for details.\n\n## Studio Apartments\n\n**P18k/month including Electricity + 1 month deposit.**\n\n- Solar/Battery Powered – no brownouts!\n- Use of swimming pools\n- King size bed\n- Airconditioned + ceiling fan\n- Hot Shower\n- Kitchenette with Refrigerator\n- Wifi\n- Cable TV\n- Terrace\n- Basic cooking facilities for the terrace can be arranged\n- Hotel Laundry Service available\n- Room service food from our restaurant available\n\n## Contact us for Inquiries\n\nIf you are interested in renting one of these apartment, or have any questions, please send us a message or contact us through our [Facebook Page](https://www.facebook.com/jalynsresortpuertogalera).",
-      "image": "/uploads/news/studio-apartments-available--01-pools-and-solar-1.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--01-pools-and-solar-1-b63856.jpg?v=1789880383771",
       "cta": "Read more",
-      "href": "/news/studio-apartments-available-for-long-term-rental-at-jalyns-resort",
       "kind": "news",
       "date": "2024-08-20",
+      "category": "News",
       "price": "P18k/month including Electricity + 1 month deposit",
       "gallery": [
-        "/uploads/news/studio-apartments-available--01-pools-and-solar-1.jpg",
-        "/uploads/news/studio-apartments-available--02-pools-and-solar.jpg",
-        "/uploads/news/studio-apartments-available--03-poolside-rooms.jpg",
-        "/uploads/news/studio-apartments-available--04-resto-2.jpg",
-        "/uploads/news/studio-apartments-available--05-resto.jpg",
-        "/uploads/news/studio-apartments-available--06-apartment-rental-puerto-galera-1.jpg",
-        "/uploads/news/studio-apartments-available--07-single-room-cr.jpg",
-        "/uploads/news/studio-apartments-available--08-single-room-pool-view.jpg",
-        "/uploads/news/studio-apartments-available--09-apartment-rental-puerto-galera-2.jpg",
-        "/uploads/news/studio-apartments-available--10-apartment-rental-puerto-galera-3.jpg",
-        "/uploads/news/studio-apartments-available--11-single-room-terrace.jpg",
-        "/uploads/news/studio-apartments-available--12-single-room-terrace-2.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--01-pools-and-solar-1-b63856.jpg?v=1789880383771",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--02-pools-and-solar-46db1e.jpg?v=1789880386222",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--03-poolside-rooms-f0b5d0.jpg?v=1789880385537",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--04-resto-2-033bd7.jpg?v=1789880384850",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--05-resto-debe92.jpg?v=1789880385660",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--06-apartment-rental-puerto-galera-1-4004bd.jpg?v=1789880385803",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--07-single-room-cr-c0b3f9.jpg?v=1789880385332",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--08-single-room-pool-view-9a58bf.jpg?v=1789880386222",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--09-apartment-rental-puerto-galera-2-aed2cd.jpg?v=1789880385803",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--10-apartment-rental-puerto-galera-3-496c18.jpg?v=1789880386189",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--11-single-room-terrace-91aed1.jpg?v=1789880385919",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--12-single-room-terrace-2-6f737a.jpg?v=1789880385749"
       ],
       "packages": [
         {
           "title": "Studio Apartments",
           "price": "P18k/month including Electricity + 1 month deposit",
-          "image": "/uploads/news/studio-apartments-available--02-pools-and-solar.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--02-pools-and-solar-46db1e.jpg?v=1789880386222",
           "amenities": [
             "Solar/Battery Powered – no brownouts!",
             "Use of swimming pools",
@@ -46,32 +45,34 @@
             "Room service food from our restaurant available"
           ]
         }
-      ]
+      ],
+      "href": "/news/studio-apartments-available-for-long-term-rental-at-jalyns-resort"
     },
     {
       "id": "phidex-2024-dive-expo",
+      "category": "Events",
       "title": "PHIDEX 2024 Dive Expo",
       "excerpt": "The 2024 Philippines International Dive Expo was a great a success, and we were proud",
       "body": "The 2024 Philippines International Dive Expo was a great a success, and we were proud to be involved, and see Puerto Galera so well represented by many dive operators and local officials.\n\nWe had the pleasure of meeting and talking with so many great people, and we hope the Expo will bring many more scuba diving enthusiasts to discover the incredible tropical reef diving in Puerto Galera.\n\nTo find out more about Scuba Diving and PADI Scuba Courses, visit our [Scuba Diving page](/scuba-diving).\n\nWe hope to see you here!",
-      "image": "/uploads/news/phidex-2024-dive-expo-01-429317172-1651854885631461-47893951982924994-n.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-01-429317172-1651854885631461-47893951982924994--eafbc3.jpg?v=1789880387337",
       "cta": "Read more",
+      "href": "/news/phidex-2024-dive-expo",
       "kind": "event",
       "date": "2024-03-20",
-      "category": "Events",
       "gallery": [
-        "/uploads/news/phidex-2024-dive-expo-01-429317172-1651854885631461-47893951982924994-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-02-429308384-404103022203061-522812350578682718-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-03-429812111-1084525539466156-5792509865995446954-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-04-429105255-362506626677418-1002527934336086461-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-05-429118681-1128962425222424-4104432130482669510-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-06-429106589-270645402789892-1535148921076647073-n.jpg",
-        "/uploads/news/phidex-2024-dive-expo-07-428615121-829230025883443-2102829564050524625-n.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-01-429317172-1651854885631461-47893951982924994--eafbc3.jpg?v=1789880387337",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-02-429308384-404103022203061-522812350578682718--ff83d3.jpg?v=1789880388372",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-03-429812111-1084525539466156-579250986599544695-eabbfe.jpg?v=1789880388697",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-04-429105255-362506626677418-1002527934336086461-ba2a4b.jpg?v=1789880389198",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-05-429118681-1128962425222424-410443213048266951-c0dec9.jpg?v=1789880388331",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-06-429106589-270645402789892-1535148921076647073-0eac2a.jpg?v=1789880388713",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-07-428615121-829230025883443-2102829564050524625-c45566.jpg?v=1789880389237"
       ],
       "packages": [
         {
           "title": "Dive with us in Puerto Galera",
           "price": "Fun dives & PADI courses available",
-          "image": "/uploads/news/phidex-2024-dive-expo-02-429308384-404103022203061-522812350578682718-n.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/phidex-2024-dive-expo-02-429308384-404103022203061-522812350578682718--ff83d3.jpg?v=1789880388372",
           "amenities": [
             "Daily fun dives",
             "Night dives",
@@ -80,8 +81,7 @@
             "Pool for confined water training"
           ]
         }
-      ],
-      "href": "/news/phidex-2024-dive-expo"
+      ]
     },
     {
       "id": "our-commitment-to-responsible-ecotourism-in-marine-protected-areas",
@@ -89,22 +89,22 @@
       "title": "Our Commitment to Responsible Ecotourism in Marine Protected Areas",
       "excerpt": "Jalyn's Resort and Jalyn's Resort Dive Center are proud to announce our commitment to promoting",
       "body": "Jalyn’s Resort and Jalyn’s Resort Dive Center are proud to announce our commitment to promoting responsible ecotourism in our precious Marine Protected Areas, and our ongoing support of [Blue Alliance Philippines](https://divemindoro.org/), an NGO committed to safeguarding marine ecosystems and improving the lives of coastal communities in North Oriental Mindoro, Philippines.\n\nAt Jalyn’s Resort Dive Center we instruct divers how to follow best practices to minimize any harm to marine life. These best practices include both obvious and subtle steps, but they’re all crucial for maintaining the health and beauty of the North Oriental Mindoro MPA network for future generations to enjoy. We will also be hosting guest speakers to explain more about Blue Alliance Philippines’ mission and motivations in protecting our most valuable resource.\n\n## Why following best practices is crucial in Oriental Mindoro\n\nCoral reefs in the area are highly vulnerable and can take years to recover from damage due to their slow growth rate. The diverse marine life, including fish, have specialized diets that do not include snacks from divers. Your actions while exploring the underwater world of Oriental Mindoro can have a tangible impact – from discarding litter to carelessly kicking with fins or leaving bubbles in tunnels and caves. It’s essential to take precautions to preserve the beauty and delicate balance of the region’s underwater ecosystems.\n\n## Fundraising\n\nJalyn’s Resort is committed to ongoing support of Blue Alliance Philippines, and encourage our guest divers to do the same. If each diver pledges just a small amount such as **P50 per dive**, these donations will help in bolstering enforcement, fostering community development, advancing scientific research, and empowering local communities. Together, we can create a sustainable ocean future for generations to come!\n\nAs someone who loves to explore the beauty of Marine Protected Areas, **YOU** have the power to contribute to its preservation through responsible marine ecotourism. We look forward to hosting you to enjoy some of the best scuba diving in the world in beautiful Puerto Galera, where you can do your part to support our communities and protect our oceans and wildlife.\n\nWe hope to see you soon!",
-      "image": "/uploads/news/our-commitment-to-responsibl-01-hawksbill-turtle-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/our-commitment-to-responsibl-01-hawksbill-turtle-puerto-galera-21473d.jpg?v=1789880389832",
       "cta": "Read more",
       "href": "/news/our-commitment-to-responsible-ecotourism-in-marine-protected-areas",
       "kind": "news",
       "date": "2023-12-06",
       "price": "P50 per dive pledge",
       "gallery": [
-        "/uploads/news/our-commitment-to-responsibl-01-hawksbill-turtle-puerto-galera.jpg",
-        "/uploads/news/our-commitment-to-responsibl-02-scuba-diving-puerto-galera-1.jpg",
-        "/uploads/news/our-commitment-to-responsibl-03-padi-open-water-diver-course-puerto-galera-jalyns-resort.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/our-commitment-to-responsibl-01-hawksbill-turtle-puerto-galera-21473d.jpg?v=1789880389832",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/our-commitment-to-responsibl-02-scuba-diving-puerto-galera-1-e368cc.jpg?v=1789880390403",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/our-commitment-to-responsibl-03-padi-open-water-diver-course-puerto-ga-cf29bc.jpg?v=1789880390597"
       ],
       "packages": [
         {
           "title": "Support Blue Alliance Philippines",
           "price": "P50 per dive pledge",
-          "image": "/uploads/news/our-commitment-to-responsibl-02-scuba-diving-puerto-galera-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/our-commitment-to-responsibl-02-scuba-diving-puerto-galera-1-e368cc.jpg?v=1789880390403",
           "amenities": [
             "Responsible dive practices",
             "Marine protected areas",
@@ -121,20 +121,20 @@
       "title": "PADI Advanced Open Water Students Review",
       "excerpt": "Jalyn’s Resort Scuba Diving Center offers everything from daily fun dives and exciting night dives,",
       "body": "Jalyn's Resort Scuba Diving Center offers everything from daily fun dives and exciting night dives, to trips to the amazing Verde Island. You can also become a PADI accredited scuba diver with our range of courses, including Discover Scuba Diving, Open Water, and Advanced Open Water.\n\nIf you've never dived before, the Discover Scuba course will have you diving in the open water in just a few short hours!\n\nWe've got all the experience, equipment, and local knowledge needed to make your Puerto Galera diving experience truly unforgettable. And competitive prices too!\n\nVisit our [Scuba Diving page](/scuba-diving) for all the details!",
-      "image": "/uploads/news/padi-advanced-open-water-stu-01-padi-advanced-open-water-students-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-stu-01-padi-advanced-open-water-students-puer-89d940.jpg?v=1789880391397",
       "cta": "Read more",
       "href": "/news/padi-advanced-open-water-students-review",
       "kind": "news",
       "date": "2023-11-30",
       "gallery": [
-        "/uploads/news/padi-advanced-open-water-stu-01-padi-advanced-open-water-students-puerto-galera.jpg",
-        "/uploads/news/padi-advanced-open-water-stu-02-dive-review-1.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-stu-01-padi-advanced-open-water-students-puer-89d940.jpg?v=1789880391397",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-stu-02-dive-review-1-2cb061.jpg?v=1789880391932"
       ],
       "packages": [
         {
           "title": "PADI courses at Jalyn's",
           "price": "See Scuba Diving page for rates",
-          "image": "/uploads/news/padi-advanced-open-water-stu-02-dive-review-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-stu-02-dive-review-1-2cb061.jpg?v=1789880391932",
           "amenities": [
             "Discover Scuba",
             "Open Water",
@@ -150,19 +150,19 @@
       "title": "Scuba Diving with a huge school of Jacks at Canyons dive site",
       "excerpt": "\"Canyons\" is Puerto Galera’s signature exhilarating drift dive, not for novice divers. Drop in at",
       "body": "\"Canyons\" is Puerto Galera's signature exhilarating drift dive, not for novice divers. Drop in at Hole-in-the-Wall, and let the current take you. After a small drift, three canyons are situated at 24,27 and 30m, that protect you from the current.\n\nHere you can kneel down, and watch the shoals of Snapper, Giant Trevallies, Sweetlips, Barracuda, Emperor fish play in the current. Sea snakes are commonly found here, along with an assortment of Nudibranch. A must-do dive for experienced divers looking for a thrilling dive!\n\nJalyn's Resort Dive Center offers PADI Scuba Diving courses for all levels of divers from beginners upwards! Visit the [Scuba Diving page](/scuba-diving) for more information.",
-      "image": "/uploads/news/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jac-f7f0e1.jpg?v=1789880392266",
       "cta": "Read more",
       "href": "/news/scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site",
       "kind": "news",
       "date": "2023-11-06",
       "gallery": [
-        "/uploads/news/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jac-f7f0e1.jpg?v=1789880392266"
       ],
       "packages": [
         {
           "title": "Dive Canyons and more",
           "price": "Fun dive rates on Scuba page",
-          "image": "/uploads/news/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/scuba-diving-with-a-huge-sch-01-scuba-diving-with-a-huge-school-of-jac-f7f0e1.jpg?v=1789880392266",
           "amenities": [
             "Signature Puerto Galera sites",
             "Experienced local guides",
@@ -179,34 +179,34 @@
       "title": "Rooms & Scuba Diving Special Offer!",
       "excerpt": "To mark the Sabang Okctoberfest celebration Jalyn's Resort is offering 5 days/4 nights accommodation and",
       "body": "To mark the Sabang Okctoberfest celebration Jalyn’s Resort is offering 5 days/4 nights accommodation and 10 scuba dives for the low price of **₱18,000 per person!**\n\nThis offer is available from September 15th – December 23rd 2023, and again from January 15th – March 24th 2024!\n\nExpect great service, modern and comfortable rooms and all the wonderful amenities Jalyn’s Resort has to offer! And Jalyn’s Resort has an independent Solar Power and battery system, so you’ll never have to experience the inconvenience of brownouts when staying with us.\n\nContact us now for inquiries or bookings!\n\n**Email:** info@jalynsresort.com\n\n**Telephone (Smart):** +63 947 619 7535\n\n**Social Media:** [Facebook](https://www.facebook.com/jalynsresortpuertogalera)",
-      "image": "/uploads/news/rooms-scuba-diving-special-o-01-rooms-diving-special-offer-jalyns-resort-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-01-rooms-diving-special-offer-jalyns-reso-0d17de.jpg?v=1789880392966",
       "cta": "Read more",
       "href": "/news/rooms-scuba-diving-special-offer",
       "kind": "offer",
       "date": "2023-09-17",
       "price": "₱18,000 per person",
       "gallery": [
-        "/uploads/news/rooms-scuba-diving-special-o-01-rooms-diving-special-offer-jalyns-resort-puerto-galera.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-02-pools-and-solar-1.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-03-jalyns-restauarant-sabang-puerto-galera-philippines.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-04-puerto-galera-resort-apartment-jalyns-resort.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-05-pool-3.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-06-padi-open-water-diver-course-puerto-galera-jalyns-resort.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-07-jalyns-resort-puerto-galera-island-hopping.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-08-double-room-3.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-09-scuba-diving-puerto-galera-jalyns-resort.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-10-scuba-diving-puerto-galera-1.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-11-hawksbill-turtle-puerto-galera.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-12-ocean.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-13-jalyns-resort-restaurant-puerto-galera-philippines-3.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-14-enjoy-diving-dive-centre-jalyns-resort-puerto-galera-9.jpg",
-        "/uploads/news/rooms-scuba-diving-special-o-15-enjoy-diving-dive-centre-jalyns-resort-puerto-galera-3.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-01-rooms-diving-special-offer-jalyns-reso-0d17de.jpg?v=1789880392966",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-02-pools-and-solar-1-255582.jpg?v=1789880396277",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-03-jalyns-restauarant-sabang-puerto-galer-8fc0d2.jpg?v=1789880396156",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-04-puerto-galera-resort-apartment-jalyns--503f49.jpg?v=1789880394612",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-05-pool-3-e9cb32.jpg?v=1789880394613",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-06-padi-open-water-diver-course-puerto-ga-85b449.jpg?v=1789880395423",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-07-jalyns-resort-puerto-galera-island-hop-02e2e6.jpg?v=1789880394614",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-08-double-room-3-7ce374.jpg?v=1789880394613",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-09-scuba-diving-puerto-galera-jalyns-reso-66cb51.jpg?v=1789880395434",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-10-scuba-diving-puerto-galera-1-c213e6.jpg?v=1789880394614",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-11-hawksbill-turtle-puerto-galera-95401e.jpg?v=1789880395198",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-12-ocean-611943.jpg?v=1789880396383",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-13-jalyns-resort-restaurant-puerto-galera-13c8f1.jpg?v=1789880395631",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-14-enjoy-diving-dive-centre-jalyns-resort-eb432c.jpg?v=1789880395346",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-15-enjoy-diving-dive-centre-jalyns-resort-e2aef8.jpg?v=1789880395144"
       ],
       "packages": [
         {
           "title": "5D/4N Rooms + 10 Scuba Dives",
           "price": "₱18,000 per person",
-          "image": "/uploads/news/rooms-scuba-diving-special-o-02-pools-and-solar-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/rooms-scuba-diving-special-o-02-pools-and-solar-1-255582.jpg?v=1789880396277",
           "amenities": [
             "5 days / 4 nights accommodation",
             "10 scuba dives",
@@ -223,40 +223,40 @@
       "title": "Single & Double Rooms available for long-term rental at Jalyn's Resort",
       "excerpt": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences,",
       "body": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences, and breathtaking views at Jalyn’s Resort!\n\nNotably, Jalyn’s Resort is equipped with Solar Power and Battery backups, ensuring uninterrupted access to essential services during power outages. Say goodbye to midnight surprises of your air-conditioning shutting off!\n\n## Single Rooms\n\n**P18k/month including Electricity + 1 month deposit.**\n\n- Solar/Battery Powered – no brownouts!\n- Use of swimming pools\n- King size bed\n- Airconditioned + ceiling fan\n- Hot Shower\n- Refrigerator\n- Wifi\n- Cable TV\n- Terrace\n- Basic cooking facilities for the terrace can be arranged\n- Hotel Laundry Service available\n- Room service food from our restaurant available\n\n## Double Rooms\n\n**P25k/month + 1 month deposit.**\n\n- Solar/Battery Powered – no brownouts!\n- Use of swimming pools\n- King size bed and Queen size bed in second bedroom\n- Airconditioned + ceiling fan\n- Hot Shower\n- Refrigerator\n- Wifi\n- Cable TV\n- Terrace\n- Basic cooking facilities for the terrace can be arranged\n- Hotel Laundry Service available\n- Room service food from our restaurant available\n\n## Contact us for Inquiries\n\nIf you are interested in renting one of these apartment, or have any questions, please send us a message or contact us through our [Facebook Page](https://www.facebook.com/jalynsresortpuertogalera).",
-      "image": "/uploads/news/single-double-rooms-availabl-01-pool1-1.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-01-pool1-1-b26b5e.jpg?v=1789880397066",
       "cta": "Read more",
       "href": "/news/single-double-rooms-available-for-long-term-rental-at-jalyns-resort",
       "kind": "news",
       "date": "2023-09-08",
       "price": "From P18k/month",
       "gallery": [
-        "/uploads/news/single-double-rooms-availabl-01-pool1-1.jpg",
-        "/uploads/news/single-double-rooms-availabl-02-pools-and-solar-1.jpg",
-        "/uploads/news/single-double-rooms-availabl-03-pools-and-solar.jpg",
-        "/uploads/news/single-double-rooms-availabl-04-poolside-rooms.jpg",
-        "/uploads/news/single-double-rooms-availabl-05-resto-2.jpg",
-        "/uploads/news/single-double-rooms-availabl-06-resto.jpg",
-        "/uploads/news/single-double-rooms-availabl-07-single-room.jpg",
-        "/uploads/news/single-double-rooms-availabl-08-single-room-2.jpg",
-        "/uploads/news/single-double-rooms-availabl-09-single-room-3.jpg",
-        "/uploads/news/single-double-rooms-availabl-10-single-room-cr.jpg",
-        "/uploads/news/single-double-rooms-availabl-11-single-room-kitchenette.jpg",
-        "/uploads/news/single-double-rooms-availabl-12-single-room-pool-view.jpg",
-        "/uploads/news/single-double-rooms-availabl-13-single-room-terrace.jpg",
-        "/uploads/news/single-double-rooms-availabl-14-single-room-terrace-2.jpg",
-        "/uploads/news/single-double-rooms-availabl-15-double-room-3.jpg",
-        "/uploads/news/single-double-rooms-availabl-16-double-room.jpg",
-        "/uploads/news/single-double-rooms-availabl-17-double-room-second-bedroom-2.jpg",
-        "/uploads/news/single-double-rooms-availabl-18-double-room-second-bedroom.jpg",
-        "/uploads/news/single-double-rooms-availabl-19-double-room-cr.jpg",
-        "/uploads/news/single-double-rooms-availabl-20-double-room-terrace.jpg",
-        "/uploads/news/single-double-rooms-availabl-21-double-room-terrace-pool-view.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-01-pool1-1-b26b5e.jpg?v=1789880397066",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-02-pools-and-solar-1-ebf9ef.jpg?v=1789880399781",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-03-pools-and-solar-d493f6.jpg?v=1789880399782",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-04-poolside-rooms-70e82d.jpg?v=1789880399780",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-05-resto-2-f85901.jpg?v=1789880399781",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-06-resto-b9bd6a.jpg?v=1789880399783",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-07-single-room-cc3210.jpg?v=1789880399783",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-08-single-room-2-b335a1.jpg?v=1789880399782",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-09-single-room-3-1ab072.jpg?v=1789880399782",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-10-single-room-cr-4f8cc6.jpg?v=1789880399784",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-11-single-room-kitchenette-d52702.jpg?v=1789880399783",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-12-single-room-pool-view-65e0de.jpg?v=1789880399786",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-13-single-room-terrace-06821d.jpg?v=1789880399861",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-14-single-room-terrace-2-ad9c3d.jpg?v=1789880399787",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-15-double-room-3-bb22e2.jpg?v=1789880399787",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-16-double-room-ee24c1.jpg?v=1789880399787",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-17-double-room-second-bedroom-2-12d755.jpg?v=1789880400018",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-18-double-room-second-bedroom-ae1ca5.jpg?v=1789880399926",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-19-double-room-cr-d30e4b.jpg?v=1789880400239",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-20-double-room-terrace-1bb4b7.jpg?v=1789880400589",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-21-double-room-terrace-pool-view-ae5174.jpg?v=1789880400660"
       ],
       "packages": [
         {
           "title": "Single Rooms",
           "price": "P18k/month including Electricity + 1 month deposit",
-          "image": "/uploads/news/single-double-rooms-availabl-02-pools-and-solar-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-02-pools-and-solar-1-ebf9ef.jpg?v=1789880399781",
           "amenities": [
             "Solar/Battery Powered – no brownouts!",
             "Use of swimming pools",
@@ -275,7 +275,7 @@
         {
           "title": "Double Rooms",
           "price": "P25k/month + 1 month deposit",
-          "image": "/uploads/news/single-double-rooms-availabl-03-pools-and-solar.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/single-double-rooms-availabl-03-pools-and-solar-d493f6.jpg?v=1789880399782",
           "amenities": [
             "Solar/Battery Powered – no brownouts!",
             "Use of swimming pools",
@@ -299,19 +299,19 @@
       "title": "Sabang Oktoberfest 2023",
       "excerpt": "If you are going to be in Puerto Galera this October, be sure to check",
       "body": "If you are going to be in Puerto Galera this October, be sure to check out the Sabang Oktoberfest!\n\nIt's the first event of its kind here in Puerto Galera, and is sure to be lots of fun!\n\nExpect to experience traditional Bavarian food, beer, music, dancing, as well as many other fun events and activities.\n\nThe Oktoberfest will be taking place between the **5th and 8th of October 2023**, so be sure to mark your calendar! We will keep you posted as more details become available.",
-      "image": "/uploads/news/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera-8426ab.jpg?v=1789880401600",
       "cta": "Read more",
       "href": "/news/sabang-oktoberfest-2023",
       "kind": "event",
       "date": "2023-07-31",
       "gallery": [
-        "/uploads/news/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera-8426ab.jpg?v=1789880401600"
       ],
       "packages": [
         {
           "title": "Stay for Sabang Oktoberfest",
           "price": "Ask for festival-season rates",
-          "image": "/uploads/news/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/sabang-oktoberfest-2023-01-sabang-oktoberfest-2023-puerto-galera-8426ab.jpg?v=1789880401600",
           "amenities": [
             "Close to Sabang beach strip",
             "Restaurant on site",
@@ -327,34 +327,34 @@
       "title": "Apartments Available for Long-Term Rental at Jalyn's Resort, Puerto Galera",
       "excerpt": "Jalyn's Resort is pleased to announce that we now have One and Two-Bedroom apartments available",
       "body": "Jalyn’s Resort is pleased to announce that we now have One and Two-Bedroom apartments available for longer stays in Puerto Galera.\n\nEnjoy solar/battery power, pools, wifi, and easy access to diving and dining — ideal for couples and families looking for an extended stay.\n\n## Apartments\n\n**Contact us for monthly rates.**\n\n- One & two-bedroom options\n- Solar / battery powered\n- Pool access\n- Kitchen facilities\n- Wifi & cable TV\n- Close to dive centre & restaurant\n\n## Contact us for Inquiries\n\nPlease send us a message or contact us through our [Facebook Page](https://www.facebook.com/jalynsresortpuertogalera).",
-      "image": "/uploads/news/apartments-available-for-lon-01-jalyns-resort-rooms-and-apartments-puerto-galera-philippines.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-01-jalyns-resort-rooms-and-apartments-pue-725b21.jpg?v=1789880402339",
       "cta": "Read more",
       "href": "/news/apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera",
       "kind": "news",
       "date": "2023-06-08",
       "price": "Long-term rates available",
       "gallery": [
-        "/uploads/news/apartments-available-for-lon-01-jalyns-resort-rooms-and-apartments-puerto-galera-philippines.jpg",
-        "/uploads/news/apartments-available-for-lon-02-jalyns-resort-puerto-galera-main-building.jpg",
-        "/uploads/news/apartments-available-for-lon-03-one-bedroom-apartment-rental-puerto-galera-1.jpg",
-        "/uploads/news/apartments-available-for-lon-04-one-bedroom-apartment-rental-puerto-galera-5.jpg",
-        "/uploads/news/apartments-available-for-lon-05-one-bedroom-apartment-rental-puerto-galera-3.jpg",
-        "/uploads/news/apartments-available-for-lon-06-one-bedroom-apartment-for-rent-puerto-galera-3.jpg",
-        "/uploads/news/apartments-available-for-lon-07-one-bedroom-apartment-rental-puerto-galera-4.jpg",
-        "/uploads/news/apartments-available-for-lon-08-two-bedroom-apartment-rental-puerto-galera-1.jpg",
-        "/uploads/news/apartments-available-for-lon-09-two-bedroom-apartment-rental-puerto-galera-7.jpg",
-        "/uploads/news/apartments-available-for-lon-10-two-bedroom-apartment-rental-puerto-galera-3.jpg",
-        "/uploads/news/apartments-available-for-lon-11-two-bedroom-apartment-rental-puerto-galera-4.jpg",
-        "/uploads/news/apartments-available-for-lon-12-two-bedroom-apartment-rental-puerto-galera-8.jpg",
-        "/uploads/news/apartments-available-for-lon-13-two-bedroom-apartment-rental-puerto-galera-2.jpg",
-        "/uploads/news/apartments-available-for-lon-14-two-bedroom-apartment-rental-puerto-galera-5.jpg",
-        "/uploads/news/apartments-available-for-lon-15-two-bedroom-apartment-rental-puerto-galera-6.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-01-jalyns-resort-rooms-and-apartments-pue-725b21.jpg?v=1789880402339",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-02-jalyns-resort-puerto-galera-main-build-bcf639.jpg?v=1789880403584",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-03-one-bedroom-apartment-rental-puerto-ga-f3ed99.jpg?v=1789880403583",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-04-one-bedroom-apartment-rental-puerto-ga-26224a.jpg?v=1789880403584",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-05-one-bedroom-apartment-rental-puerto-ga-0388e8.jpg?v=1789880403583",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-06-one-bedroom-apartment-for-rent-puerto--c35028.jpg?v=1789880403783",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-07-one-bedroom-apartment-rental-puerto-ga-bcfa58.jpg?v=1789880403584",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-08-two-bedroom-apartment-rental-puerto-ga-34bda3.jpg?v=1789880403584",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-09-two-bedroom-apartment-rental-puerto-ga-d6e09a.jpg?v=1789880403931",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-10-two-bedroom-apartment-rental-puerto-ga-aeb60a.jpg?v=1789880403585",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-11-two-bedroom-apartment-rental-puerto-ga-c164a2.jpg?v=1789880403585",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-12-two-bedroom-apartment-rental-puerto-ga-990e44.jpg?v=1789880403877",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-13-two-bedroom-apartment-rental-puerto-ga-807117.jpg?v=1789880404226",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-14-two-bedroom-apartment-rental-puerto-ga-8375ed.jpg?v=1789880403897",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-15-two-bedroom-apartment-rental-puerto-ga-d54f1f.jpg?v=1789880404083"
       ],
       "packages": [
         {
           "title": "One & Two-Bedroom Apartments",
           "price": "Contact us for monthly rates",
-          "image": "/uploads/news/apartments-available-for-lon-02-jalyns-resort-puerto-galera-main-building.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/apartments-available-for-lon-02-jalyns-resort-puerto-galera-main-build-bcf639.jpg?v=1789880403584",
           "amenities": [
             "Solar/Battery Powered – no brownouts!",
             "Use of swimming pools",
@@ -378,22 +378,22 @@
       "title": "Puerto Galera Aldaw Kapiya-An Festival 2023",
       "excerpt": "From June 5th - 12th 2023 , Puerto Galera will be hosting the Aldaw Kapiya-An",
       "body": "From June 5th – 12th 2023, Puerto Galera hosted the Aldaw Kapiya-An Festival — culture, community, and celebration across the municipality.\n\nJalyn’s Resort welcomes guests who want to experience local festivities while enjoying diving, dining, and a peaceful stay at Mangrove Cove.\n\n## Experience Puerto Galera\n\n- Cultural events & local celebrations\n- Scuba diving & reef exploration\n- Resort pools and restaurant\n- Comfortable rooms for longer stays\n\nBook with us and enjoy the best of Puerto Galera hospitality.",
-      "image": "/uploads/news/puerto-galera-aldaw-kapiya-a-01-puerto-galera-independence-day-festival-6.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-01-puerto-galera-independence-day-festiva-8c7e1d.jpg?v=1789880405453",
       "cta": "Read more",
       "href": "/news/puerto-galera-aldaw-kapiya-an-festival-2023",
       "kind": "event",
       "date": "2023-06-05",
       "gallery": [
-        "/uploads/news/puerto-galera-aldaw-kapiya-a-01-puerto-galera-independence-day-festival-6.jpg",
-        "/uploads/news/puerto-galera-aldaw-kapiya-a-02-puerto-galera-independence-day-festival-1.jpg",
-        "/uploads/news/puerto-galera-aldaw-kapiya-a-03-puerto-galera-independence-day-festival-2.jpg",
-        "/uploads/news/puerto-galera-aldaw-kapiya-a-04-puerto-galera-independence-day-festival-4.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-01-puerto-galera-independence-day-festiva-8c7e1d.jpg?v=1789880405453",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-02-puerto-galera-independence-day-festiva-633ac3.jpg?v=1789880406558",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-03-puerto-galera-independence-day-festiva-0c6be6.jpg?v=1789880406137",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-04-puerto-galera-independence-day-festiva-20fba3.jpg?v=1789880406037"
       ],
       "packages": [
         {
           "title": "Festival stay in Puerto Galera",
           "price": "Contact us for dates & rates",
-          "image": "/uploads/news/puerto-galera-aldaw-kapiya-a-02-puerto-galera-independence-day-festival-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/puerto-galera-aldaw-kapiya-a-02-puerto-galera-independence-day-festiva-633ac3.jpg?v=1789880406558",
           "amenities": [
             "Central location for festivities",
             "Dive centre on site",
@@ -409,28 +409,28 @@
       "title": "May Promo - Fun Dives only Php999 at Jalyn's Resort Dive Center!",
       "excerpt": "From May 5th until May 31st 2023 Jalyn's Resort Dive Center is offering Fun Dives",
       "body": "From May 5th until May 31st Jalyn’s Resort Dive Center is offering Fun Dives only **Php999**!\n\nPerfect for certified divers who want to explore Puerto Galera’s reefs without a full course commitment.\n\n## Fun Dive Promo\n\n- Special promotional fun dive rate\n- For certified divers\n- Jalyn’s Resort Dive Center\n- Puerto Galera dive sites\n\nContact us for current fun dive pricing and schedules.",
-      "image": "/uploads/news/may-promo-fun-dives-only-php-01-jalyns-resort-puerto-galera-may-2023-scuba-diving-promo.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-01-jalyns-resort-puerto-galera-may-2023-s-f3212f.jpg?v=1789880407414",
       "cta": "Read more",
       "href": "/news/may-promo-fun-dives-only-php999-at-jalyns-resort-dive-center",
       "kind": "news",
       "date": "2023-05-03",
       "price": "Php999 Fun Dives",
       "gallery": [
-        "/uploads/news/may-promo-fun-dives-only-php-01-jalyns-resort-puerto-galera-may-2023-scuba-diving-promo.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-02-colourful-nudibranch-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-03-hawksbill-turtle-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-04-mantis-shrimp-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-05-nudibranch-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-06-puffer-fish-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-07-white-stonefish-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-08-sea-horse-puerto-galera.jpg",
-        "/uploads/news/may-promo-fun-dives-only-php-09-bubble-coral-shrimp-puerto-galera.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-01-jalyns-resort-puerto-galera-may-2023-s-f3212f.jpg?v=1789880407414",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-02-colourful-nudibranch-puerto-galera-6819d3.jpg?v=1789880408579",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-03-hawksbill-turtle-puerto-galera-ed4401.jpg?v=1789880408378",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-04-mantis-shrimp-puerto-galera-aee677.jpg?v=1789880408893",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-05-nudibranch-puerto-galera-c182d0.jpg?v=1789880409068",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-06-puffer-fish-puerto-galera-69e01b.jpg?v=1789880408938",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-07-white-stonefish-puerto-galera-62a206.jpg?v=1789880408933",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-08-sea-horse-puerto-galera-b05633.jpg?v=1789880408981",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-09-bubble-coral-shrimp-puerto-galera-f3af2b.jpg?v=1789880409254"
       ],
       "packages": [
         {
           "title": "Fun Dive Promo",
           "price": "Php999 per fun dive",
-          "image": "/uploads/news/may-promo-fun-dives-only-php-02-colourful-nudibranch-puerto-galera.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/may-promo-fun-dives-only-php-02-colourful-nudibranch-puerto-galera-6819d3.jpg?v=1789880408579",
           "amenities": [
             "Certified divers",
             "Jalyn’s Resort Dive Center",
@@ -446,20 +446,20 @@
       "title": "Discover Scuba Diving in Beautiful Puerto Galera at Jalyn's Resort & Dive Center",
       "excerpt": "The PADI Discover Scuba Diving certification is available for kids age 10 and up! These",
       "body": "### The PADI Discover Scuba Diving certification is available for kids age 10 and up!\n\nThese two lucky Danish boys aged 10 and 11 recently did their PADI Discover Scuba Diving course with us and were introduced to the incredible marine life of Puerto Galera during their two dives in the ocean, and were lucky enough to see crocodile fish and a sea turtle!\n\nIf you have kids aged 10 or older and would like to introduce them to the wonderful world of Scuba Diving, Puerto Galera is the ideal place to do it. The warm, calm waters are teeming with an incredible amount and variety of sea life, and the experience will stay in their memories for ever!\n\n## About the PADI Discover Scuba Diving Course\n\nIf you’re interested in scuba diving, but unsure if you want to enroll in a scuba certification class, Discover Scuba Diving is the perfect way to test the waters. In a very short time, you’ll learn basic scuba skills and take your first breaths underwater.\n\n- Anyone aged 10 and up with with a minimum level of health and fitness can partake in the PADI DSD.\n- Chronic health conditions, certain medications and/or recent surgery may require you to get written approval from a physician before diving.\n\n### PADI eLearning\n\nPrepare for your Discover Scuba Diving experience with PADI DSD eLearning™. Use your computer or mobile device to learn diving safety fundamentals before you get in the water.\n\nTime commitment: 20-30 minutes\n\n### With Your Instructor\n\nYour PADI instructor will fit you with scuba gear and explain how to use it in the controlled environment of our swimming pool. You’ll practice basic diving skills followed by free time to play underwater before going on your first guided dive in the open water.\n\n## Discover Scuba Diving Course cost\n\n**Php 2,400 includes equipment, 1 pool session and 1 open water dive. Certification excluded.**\n\n## Get in Touch!\n\nContact us if you would like to inquire about getting your own PADI Discover Scuba Diving Course at Jalyn’s Resort!",
-      "image": "/uploads/news/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-pu-de1fd3.jpg?v=1789880409819",
       "cta": "Read more",
       "href": "/news/discover-scuba-diving-in-beautiful-puerto-galera-at-jalyns-resort-dive-center",
       "kind": "news",
       "date": "2023-04-24",
       "price": "Php 2,400",
       "gallery": [
-        "/uploads/news/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-puerto-galera.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-pu-de1fd3.jpg?v=1789880409819"
       ],
       "packages": [
         {
           "title": "PADI Discover Scuba Diving",
           "price": "Php 2,400 — equipment, 1 pool session & 1 open water dive",
-          "image": "/uploads/news/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-puerto-galera.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/discover-scuba-diving-in-bea-01-discover-scuba-diving-jalyns-resort-pu-de1fd3.jpg?v=1789880409819",
           "amenities": [
             "Ages 10 and up",
             "1 pool training session",
@@ -477,22 +477,22 @@
       "title": "PADI Advanced Open Water Course at Jalyn's Resort Dive Center",
       "excerpt": "What better place to do your PADI Advanced Open Water Course than beautiful Puerto Galera?",
       "body": "What better place to do your PADI Advanced Open Water Course than beautiful Puerto Galera?\n\n## About the PADI Advanced Open Water Course\n\nThe Advanced Open Water Diver course is all about advancing your skills. You’ll practice navigation and buoyancy, try deep diving and make three specialty dives of your choosing (it’s like a specialty sampler platter). For every specialty dive you complete, you can earn credit toward PADI specialty certifications.\n\nHere are a few of the many options: Deep, Digital Underwater Photography, Dive Against Debris, Dry Suit, Enriched Air Nitrox, Fish Identification, Night, Peak Performance Buoyancy, Search & Recovery, Underwater Naturalist, Underwater Navigation, and Wreck Diver.\n\n## How to Become an Advanced Open Water Diver\n\n### PADI eLearning\n\nAdvanced Open Water Diver eLearning includes interactive lessons on 13 popular specialty dives: altitude, boat, digital underwater imaging, drift, dry suit, fish ID, night, buoyancy, search and recovery, underwater naturalist and wreck diving. You’ll study deep and navigation diving plus three specialties of your choosing.\n\neLearning time commitment: 6-8 hours\n\n### With Your Instructor\n\nThe course includes 3 dives. Gain experience, build confidence and discover your diving abilities.\n\n- Prerequisites: Open Water Diver/Junior Open Water Diver (or qualifying certification)\n- Total time commitment: 2 days\n- Minimum age: 12 years or older\n- Depth: The maximum depth depends on your age, but maximum depth is up to 30 metres/100 feet\n\n## Advanced Open Water Diver Course cost\n\n**Php14,500 includes equipment and certification, and three open water dives over two days.**\n\n## Get in Touch!\n\nContact us if you would like to inquire about getting your own PADI Advanced Open Water Diver qualification at Jalyn’s Resort!\n\nVisit our [Scuba Diving page](/scuba-diving) for more information about fun diving and courses at Jalyn’s Resort Dive Center!",
-      "image": "/uploads/news/padi-advanced-open-water-cou-01-padi-advanced-open-water-scuba-course-puerto-galera-fb.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-cou-01-padi-advanced-open-water-scuba-course--149a74.jpg?v=1789880410246",
       "cta": "Read more",
       "href": "/news/padi-advanced-open-water-course-at-jalyns-resort-dive-center",
       "kind": "news",
       "date": "2023-04-05",
       "price": "Php14,500",
       "gallery": [
-        "/uploads/news/padi-advanced-open-water-cou-01-padi-advanced-open-water-scuba-course-puerto-galera-fb.jpg",
-        "/uploads/news/padi-advanced-open-water-cou-02-padi-advanced-open-water-scuba-course-puerto-galera.jpg",
-        "/uploads/news/padi-advanced-open-water-cou-03-scuba-diving-jalyns-resort.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-cou-01-padi-advanced-open-water-scuba-course--149a74.jpg?v=1789880410246",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-cou-02-padi-advanced-open-water-scuba-course--1cbb10.jpg?v=1789880410720",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-cou-03-scuba-diving-jalyns-resort-6bebb4.jpg?v=1789880411023"
       ],
       "packages": [
         {
           "title": "PADI Advanced Open Water Diver",
           "price": "Php14,500 including equipment & certification",
-          "image": "/uploads/news/padi-advanced-open-water-cou-02-padi-advanced-open-water-scuba-course-puerto-galera.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-advanced-open-water-cou-02-padi-advanced-open-water-scuba-course--1cbb10.jpg?v=1789880410720",
           "amenities": [
             "Deep + navigation + specialty dives",
             "Equipment included",
@@ -510,23 +510,23 @@
       "title": "Vegan & Vegetarian Dining Options Available at Jalyn's Resort Restaurant",
       "excerpt": "At Jalyn's Resort we are always striving to provide our guests with the best possible",
       "body": "At Jalyn's Resort we are always striving to provide our guests with the best possible experience, and as such we are delighted to accommodate our vegetarian and vegan guests' dietary needs.\n\nWhile our vegetarian and vegan dining options may not yet be extensive, we are more than happy to receive menu suggestions and our staff will do everything they can to ensure your dining experience at Jalyn's Resort is pleasant and memorable.\n\nWe were delighted to receive this review on happycow.net from one of our vegetarian guests! HappyCow is a website designed to help users find and review restaurants for vegans and vegetarians.\n\n## At Jalyn's Restaurant\n\n- Vegan Chow Mein\n- Vegan Pizza\n- Menu suggestions welcome\n- Staff happy to accommodate dietary needs",
-      "image": "/uploads/news/vegan-vegetarian-dining-opti-01-vegan-vegetarian-dining-options-available-at-jalyns-resort-restaurant-.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-01-vegan-vegetarian-dining-options-availa-8304ad.jpg?v=1789880412982",
       "cta": "Read more",
       "href": "/news/vegan-vegetarian-dining-options-available-at-jalyns-resort-restaurant",
       "kind": "news",
       "date": "2023-03-14",
       "gallery": [
-        "/uploads/news/vegan-vegetarian-dining-opti-01-vegan-vegetarian-dining-options-available-at-jalyns-resort-restaurant-.jpg",
-        "/uploads/news/vegan-vegetarian-dining-opti-02-jalyns-resort-vegetarian-food-review.jpg",
-        "/uploads/news/vegan-vegetarian-dining-opti-03-jalyns-resort-restaurant.jpg",
-        "/uploads/news/vegan-vegetarian-dining-opti-04-jalyns-resort-vegetarian-vegan-meals-1.jpg",
-        "/uploads/news/vegan-vegetarian-dining-opti-05-jalyns-resort-vegetarian-vegan-meals-2.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-01-vegan-vegetarian-dining-options-availa-8304ad.jpg?v=1789880412982",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-02-jalyns-resort-vegetarian-food-review-ad8cb0.jpg?v=1789880413613",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-03-jalyns-resort-restaurant-e74fc5.jpg?v=1789880414229",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-04-jalyns-resort-vegetarian-vegan-meals-1-c0601b.jpg?v=1789880413754",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-05-jalyns-resort-vegetarian-vegan-meals-2-d2bb6e.jpg?v=1789880414383"
       ],
       "packages": [
         {
           "title": "Vegan and Vegetarian Dining",
           "price": "Ask restaurant for today's options",
-          "image": "/uploads/news/vegan-vegetarian-dining-opti-02-jalyns-resort-vegetarian-food-review.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/vegan-vegetarian-dining-opti-02-jalyns-resort-vegetarian-food-review-ad8cb0.jpg?v=1789880413613",
           "amenities": [
             "Vegan Chow Mein",
             "Vegan Pizza",
@@ -542,22 +542,22 @@
       "title": "PADI Open Water Diver Courses at Jalyn's Resort",
       "excerpt": "Congratulations to our most recent PADI Open Water Diver student Joan, who completed her Open",
       "body": "Congratulations to our most recent PADI Open Water Diver student Joan, who completed her Open Water Diver course with flying colours, with her PADI instructor Volker.\n\nThe PADI Open Water Diver course can be completed in as little as 3 days, and costs **P18,000 including equipment and certification.**\n\n## About the PADI Open Water Diver Course\n\nPADI® Open Water Diver is the first scuba certification level. A highly-trained PADI Instructor will teach you how to scuba dive in a relaxed, supportive learning environment.\n\nBy the end of the course, you’ll have the skills and knowledge to dive at home or abroad and be an ambassador for the underwater world.\n\n### Theoretical Studies\n\nThe theoretical part of the Open Water Course can either be done at your dive center, or in your own time via PADI eLearning, makes it easy to fit scuba lessons into a busy schedule. Learn about scuba diving principles and terminology whenever, wherever it’s convenient for you.\n\nIt’s your course on your time. Study offline, or online using a computer or mobile device. Connect with your instructor whenever you have a question.\n\n- eLearning time commitment: 5-10 hours\n\n### Practical Skills\n\nPractice using scuba gear in a pool (or pool-like environment) until you’re comfortable. PADI training includes practice “mini dives” to help you build confidence in your new abilities before making four dives in open water.\n\n- Prerequisites: Able to swim; medically fit for diving\n- Total time commitment: 4-7 days\n- Minimum age: 10 years or older\n- Depth: expect shallow dives (12m/40ft), the maximum allowed depth is 18m/60ft\n\nContact us if you would like to inquire about getting your own PADI Open Water Diver qualification at Jalyn’s Resort!",
-      "image": "/uploads/news/padi-open-water-diver-course-01-padi-open-water-diver-course.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-open-water-diver-course-01-padi-open-water-diver-course-703737.jpg?v=1789880414942",
       "cta": "Read more",
       "href": "/news/padi-open-water-diver-courses-at-jalyns-resort",
       "kind": "news",
       "date": "2023-02-28",
       "price": "P18,000",
       "gallery": [
-        "/uploads/news/padi-open-water-diver-course-01-padi-open-water-diver-course.jpg",
-        "/uploads/news/padi-open-water-diver-course-02-padi-open-water-diver-course-jalyns-resort-puerto-galera.jpg",
-        "/uploads/news/padi-open-water-diver-course-03-padi-open-water-diver-course-puerto-galera-jalyns-resort.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-open-water-diver-course-01-padi-open-water-diver-course-703737.jpg?v=1789880414942",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-open-water-diver-course-02-padi-open-water-diver-course-jalyns-re-992071.jpg?v=1789880415804",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-open-water-diver-course-03-padi-open-water-diver-course-puerto-ga-46d40f.jpg?v=1789880415730"
       ],
       "packages": [
         {
           "title": "PADI Open Water Diver",
           "price": "P18,000 including equipment & certification",
-          "image": "/uploads/news/padi-open-water-diver-course-02-padi-open-water-diver-course-jalyns-resort-puerto-galera.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/padi-open-water-diver-course-02-padi-open-water-diver-course-jalyns-re-992071.jpg?v=1789880415804",
           "amenities": [
             "First scuba certification level",
             "Equipment included",
@@ -575,23 +575,23 @@
       "title": "No More Brownouts! Jalyn's Resort Goes Solar",
       "excerpt": "Jalyn's Resort is delighted to announce that we are no longer completely dependent on electricity",
       "body": "Jalyn’s Resort is delighted to announce that we are no longer completely dependent on electricity from the grid! Our Solar Power setup covers all our electrical and hot water needs, with a battery system for overnight coverage.\n\nFor our valued guests this means vital amenities will work without interruption. No waking up in the middle of the night to discover the air-conditioning has switched off!\n\nAt Jalyn’s Resort we are constantly striving to ensure our guests have the best possible experience while staying with us. We hope you will be joining us to enjoy a spectacular tropical adventure in Puerto Galera.\n\n## Background on the power situation in Puerto Galera\n\nPuerto Galera has faced frequent brownouts and problems with electricity supply since 2020, with a significant increase in brownouts during 2022. These power interruptions have not only affected the daily lives of residents, but have also disrupted the local tourism industry.\n\nThe root cause of the power interruptions is the inadequate generation capacity of the local power utility, which has struggled to keep up with the growing demand for electricity in the area. This has resulted in frequent brownouts, particularly during peak hours, when residents and tourists need electricity the most.\n\nThe situation has become so severe that local businesses, particularly those in the hospitality industry, have had to resort to using backup generators to ensure that they can continue to provide essential services to their customers. This has added an extra cost burden to these businesses, which are already struggling due to the impact of the COVID-19 pandemic on tourism.\n\nMoreover, the frequent power interruptions have also impacted the local economy as a whole, as many businesses have had to reduce their operating hours or even close down due to the lack of reliable electricity.",
-      "image": "/uploads/news/no-more-brownouts-jalyns-res-01-no-more-brownouts-jalyns-resort-goes-solar-fb.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-01-no-more-brownouts-jalyns-resort-goes-s-3337a3.jpg?v=1789880416696",
       "cta": "Read more",
       "href": "/news/no-more-brownouts-jalyns-resort-goes-solar",
       "kind": "news",
       "date": "2023-02-03",
       "price": "Solar + battery backup",
       "gallery": [
-        "/uploads/news/no-more-brownouts-jalyns-res-01-no-more-brownouts-jalyns-resort-goes-solar-fb.jpg",
-        "/uploads/news/no-more-brownouts-jalyns-res-02-no-more-brownouts-jalyns-resort-goes-solar.jpg",
-        "/uploads/news/no-more-brownouts-jalyns-res-03-solar-power-jalyns-reort-puerto-galera-01-min.jpg",
-        "/uploads/news/no-more-brownouts-jalyns-res-04-solar-power-hot-water-jalyns-reort-puerto-galera-03-min.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-01-no-more-brownouts-jalyns-resort-goes-s-3337a3.jpg?v=1789880416696",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-02-no-more-brownouts-jalyns-resort-goes-s-e48e93.jpg?v=1789880418000",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-03-solar-power-jalyns-reort-puerto-galera-983425.jpg?v=1789880417631",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-04-solar-power-hot-water-jalyns-reort-pue-0dbe05.jpg?v=1789880417950"
       ],
       "packages": [
         {
           "title": "Solar-powered comfort",
           "price": "No brownout interruptions",
-          "image": "/uploads/news/no-more-brownouts-jalyns-res-02-no-more-brownouts-jalyns-resort-goes-solar.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/no-more-brownouts-jalyns-res-02-no-more-brownouts-jalyns-resort-goes-s-e48e93.jpg?v=1789880418000",
           "amenities": [
             "Solar + battery backup",
             "AC stays on overnight",
@@ -607,20 +607,20 @@
       "title": "Travel Requirements for Tourists Visiting the Philippines in 2023",
       "excerpt": "After two years of strict travel restrictions during the Covid Pandemic, the Philippines is once",
       "body": "After two years of strict travel restrictions during the Covid Pandemic, the Philippines is once again welcoming tourists. Requirements can change, so always check official government sources before you travel.\n\n## Planning your trip to Puerto Galera\n\n- Check current entry requirements for the Philippines\n- Arrange transfer from Manila / Batangas to Puerto Galera\n- Book rooms and dive packages in advance in peak season\n- Contact Jalyn’s Resort for local advice and bookings\n\nWe’re happy to help you plan a smooth arrival and an unforgettable stay.",
-      "image": "/uploads/news/travel-requirements-for-tour-01-travel-requirements-for-tourists-visiting-puerto-galera-fb.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/travel-requirements-for-tour-01-travel-requirements-for-tourists-visit-a2c7e8.jpg?v=1789880418881",
       "cta": "Read more",
       "href": "/news/travel-requirements-for-tourists-visiting-philippine-2023",
       "kind": "news",
       "date": "2023-01-31",
       "gallery": [
-        "/uploads/news/travel-requirements-for-tour-01-travel-requirements-for-tourists-visiting-puerto-galera-fb.jpg",
-        "/uploads/news/travel-requirements-for-tour-02-travel-requirements-for-tourists-visiting-puerto-galera-1.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/travel-requirements-for-tour-01-travel-requirements-for-tourists-visit-a2c7e8.jpg?v=1789880418881",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/travel-requirements-for-tour-02-travel-requirements-for-tourists-visit-3c7b42.jpg?v=1789880420098"
       ],
       "packages": [
         {
           "title": "Plan your Puerto Galera trip",
           "price": "We’re here to help",
-          "image": "/uploads/news/travel-requirements-for-tour-02-travel-requirements-for-tourists-visiting-puerto-galera-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/travel-requirements-for-tour-02-travel-requirements-for-tourists-visit-3c7b42.jpg?v=1789880420098",
           "amenities": [
             "Local booking advice",
             "Rooms & dive packages",
@@ -636,26 +636,26 @@
       "title": "Jalyn's Resort is offering monthly accommodation rates, starting from April 2020.",
       "excerpt": "1 bedroom apartment well suited for couple or family with 1 child. Free access to",
       "body": "1 bedroom apartment well suited for couple or family with 1 child. Free access to swimming pools and other resort amenities.\n\nIdeal for longer stays in Puerto Galera with the comfort of home and resort facilities on site.\n\n## Monthly accommodation\n\n**Inquire for current monthly rates.**\n\n- 1-bedroom apartment\n- Suited for couple or family with 1 child\n- Free swimming pool access\n- Resort amenities included\n- Wifi available\n\n## Contact us for Inquiries\n\nPlease send us a message or contact us through our [Facebook Page](https://www.facebook.com/jalynsresortpuertogalera).",
-      "image": "/uploads/news/jalyns-resort-is-offering-mo-01-apartment-to-rent-puerto-galera.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-01-apartment-to-rent-puerto-galera-285380.jpg?v=1789880420515",
       "cta": "Read more",
       "href": "/news/jalyns-resort-is-offering-monthly-accommodation-rates-starting-from-april-2020",
       "kind": "news",
       "date": "2020-02-17",
       "price": "Monthly rates available",
       "gallery": [
-        "/uploads/news/jalyns-resort-is-offering-mo-01-apartment-to-rent-puerto-galera.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-02-apartment-rental-jalyns-resort-puerto-galera-1.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-03-apartment-rental-jalyns-resort-puerto-galera-4.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-04-apartment-rental-jalyns-resort-puerto-galera-6.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-05-apartment-rental-jalyns-resort-puerto-galera-5.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-06-apartment-rental-jalyns-resort-puerto-galera-2.jpg",
-        "/uploads/news/jalyns-resort-is-offering-mo-07-apartment-rental-jalyns-resort-puerto-galera-3.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-01-apartment-to-rent-puerto-galera-285380.jpg?v=1789880420515",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-02-apartment-rental-jalyns-resort-puerto--8d8a62.jpg?v=1789880420958",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-03-apartment-rental-jalyns-resort-puerto--7ae19e.jpg?v=1789880421315",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-04-apartment-rental-jalyns-resort-puerto--95bf07.jpg?v=1789880421362",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-05-apartment-rental-jalyns-resort-puerto--41b378.jpg?v=1789880421750",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-06-apartment-rental-jalyns-resort-puerto--e7c495.jpg?v=1789880421373",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-07-apartment-rental-jalyns-resort-puerto--fc8351.jpg?v=1789880421211"
       ],
       "packages": [
         {
           "title": "1-Bedroom Apartment",
           "price": "Monthly rate — inquire for pricing",
-          "image": "/uploads/news/jalyns-resort-is-offering-mo-02-apartment-rental-jalyns-resort-puerto-galera-1.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-resort-is-offering-mo-02-apartment-rental-jalyns-resort-puerto--8d8a62.jpg?v=1789880420958",
           "amenities": [
             "Suited for couple or family with 1 child",
             "Free swimming pool access",
@@ -671,20 +671,20 @@
       "title": "Kayaks now available to rent",
       "excerpt": "Jalyn's Resort now has two double-seater kayaks and (3) single-seater kayaks available for rental. A",
       "body": "Jalyn’s Resort now has two double-seater kayaks and (3) single-seater kayaks available for rental. A great way to explore Mangrove Cove and the calm waters around the resort.\n\n## Kayak rental\n\n- 2 double-seater kayaks\n- 3 single-seater kayaks\n- Explore Mangrove Cove\n- Life jackets available\n\nAsk front desk for hourly and daily rates.",
-      "image": "/uploads/news/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-resort.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-reso-03d666.jpg?v=1789880422415",
       "cta": "Read more",
       "href": "/news/kayaks-now-available-to-rent",
       "kind": "news",
       "date": "2020-02-10",
       "price": "Kayak rental available",
       "gallery": [
-        "/uploads/news/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-resort.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-reso-03d666.jpg?v=1789880422415"
       ],
       "packages": [
         {
           "title": "Kayak Rental",
           "price": "Ask front desk for rates",
-          "image": "/uploads/news/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-resort.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/kayaks-now-available-to-rent-01-kayak-rental-puerto-galera-jalyns-reso-03d666.jpg?v=1789880422415",
           "amenities": [
             "2 double-seater kayaks",
             "3 single-seater kayaks",
@@ -700,20 +700,20 @@
       "title": "A Romantic Valentine's Day Evening at Jalyn's Resort",
       "excerpt": "Join us at Jalyn's Resort this Valentine's Day for a romantic evening with your sweetheart.",
       "body": "Join us at Jalyn’s Resort this Valentine’s Day for a romantic evening with your sweetheart.\n\nEnjoy special dining, a beautiful cove setting, and the relaxed atmosphere of Mangrove Cove — perfect for couples celebrating together.\n\n## A romantic evening\n\n- Special Valentine’s dining\n- Resort ambience by the water\n- Comfortable rooms for overnight stays\n- Spa treatments available\n\nContact us to reserve your table or room.",
-      "image": "/uploads/news/a-romantic-valentines-day-ev-01-valentines-day-puerto-galera-resort.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/a-romantic-valentines-day-ev-01-valentines-day-puerto-galera-resort-40e147.jpg?v=1789880423012",
       "cta": "Read more",
       "href": "/news/a-romantic-valentines-day-evening-at-jalyns-resort",
       "kind": "event",
       "date": "2020-02-05",
       "gallery": [
-        "/uploads/news/a-romantic-valentines-day-ev-01-valentines-day-puerto-galera-resort.jpg",
-        "/uploads/news/a-romantic-valentines-day-ev-02-valentines-day.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/a-romantic-valentines-day-ev-01-valentines-day-puerto-galera-resort-40e147.jpg?v=1789880423012",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/a-romantic-valentines-day-ev-02-valentines-day-697cf3.jpg?v=1789880423571"
       ],
       "packages": [
         {
           "title": "Valentine’s evening at Jalyn’s",
           "price": "Reserve dining or stay",
-          "image": "/uploads/news/a-romantic-valentines-day-ev-02-valentines-day.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/a-romantic-valentines-day-ev-02-valentines-day-697cf3.jpg?v=1789880423571",
           "amenities": [
             "Romantic dining setting",
             "Overnight rooms available",
@@ -729,19 +729,19 @@
       "title": "Fun on the water at Jalyn's Resort",
       "excerpt": "Puerto Galera is famous for it's stunning ocean views, hidden coves and beaches, and of",
       "body": "There’s plenty of fun on the water at Jalyn’s Resort — from boat trips and diving to kayaking around Mangrove Cove.\n\nWhether you’re an experienced diver or a first-time visitor, our team can help you get out on the water safely and enjoy Puerto Galera’s coastline.\n\n## Water activities\n\n- Scuba diving & fun dives\n- Boat trips\n- Kayak rental\n- Swimming pools on site\n\nAsk the front desk what’s available during your stay.",
-      "image": "/uploads/news/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips-5f75e1.jpg?v=1789880424277",
       "cta": "Read more",
       "href": "/news/fun-on-the-water-at-jalyns-resort",
       "kind": "news",
       "date": "2020-02-05",
       "gallery": [
-        "/uploads/news/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips-5f75e1.jpg?v=1789880424277"
       ],
       "packages": [
         {
           "title": "Water activities",
           "price": "Ask front desk for rates",
-          "image": "/uploads/news/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/fun-on-the-water-at-jalyns-r-01-jalyns-resort-puerto-galera-boat-trips-5f75e1.jpg?v=1789880424277",
           "amenities": [
             "Boat trips",
             "Scuba diving",
@@ -757,25 +757,25 @@
       "title": "Enjoy Great Food & Daily Special Menus at Jalyn's Restaurant",
       "excerpt": "Join us at Jalyn's Restaurant for our daily special menus. Delicious international dishes with an",
       "body": "Jalyn’s Restaurant serves daily special menus alongside our regular selection of Filipino and international dishes.\n\nFresh ingredients, friendly service, and a relaxed setting by the cove make every meal part of your Puerto Galera holiday.\n\n## At the restaurant\n\n- Daily specials\n- Local & international dishes\n- Vegetarian options\n- Room service for resort guests\n\nAsk about today’s specials when you dine with us.",
-      "image": "/uploads/news/jalyns-restaurant-puerto-gal-01-jalyns-restaurant-puerto-galera-daily-special-menus.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-01-jalyns-restaurant-puerto-galera-daily--be28eb.jpg?v=1789880426775",
       "cta": "Read more",
       "href": "/news/jalyns-restaurant-puerto-galera-daily-special-menus",
       "kind": "offer",
       "date": "2020-01-30",
       "gallery": [
-        "/uploads/news/jalyns-restaurant-puerto-gal-01-jalyns-restaurant-puerto-galera-daily-special-menus.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-02-jalyns-restaurant-puerto-galera-daily-specials-2.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-03-jalyns-restaurant-puerto-galera-daily-specials-3.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-04-jalyns-restaurant-puerto-galera-daily-specials-4.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-05-jalyns-restaurant-puerto-galera-daily-specials-5.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-06-jalyns-restaurant-puerto-galera-daily-specials-6.jpg",
-        "/uploads/news/jalyns-restaurant-puerto-gal-07-jalyns-restaurant-puerto-galera-daily-specials-1.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-01-jalyns-restaurant-puerto-galera-daily--be28eb.jpg?v=1789880426775",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-02-jalyns-restaurant-puerto-galera-daily--15902d.jpg?v=1789880427403",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-03-jalyns-restaurant-puerto-galera-daily--5bb76f.jpg?v=1789880427752",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-04-jalyns-restaurant-puerto-galera-daily--2cf932.jpg?v=1789880427811",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-05-jalyns-restaurant-puerto-galera-daily--ac5ea6.jpg?v=1789880428108",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-06-jalyns-restaurant-puerto-galera-daily--3e2576.jpg?v=1789880427660",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-07-jalyns-restaurant-puerto-galera-daily--f9e6fc.jpg?v=1789880427890"
       ],
       "packages": [
         {
           "title": "Daily special menus",
           "price": "See today’s board",
-          "image": "/uploads/news/jalyns-restaurant-puerto-gal-02-jalyns-restaurant-puerto-galera-daily-specials-2.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/jalyns-restaurant-puerto-gal-02-jalyns-restaurant-puerto-galera-daily--15902d.jpg?v=1789880427403",
           "amenities": [
             "Changing daily specials",
             "Filipino & international",
@@ -791,23 +791,23 @@
       "title": "Classic Club Lunch at Jalyn's Resort",
       "excerpt": "We'd like to give a big \"Thank you\" to the gentlemen from the Classic Club,",
       "body": "Enjoy a classic club lunch at Jalyn’s Resort Restaurant — a satisfying midday meal after diving or exploring Puerto Galera.\n\nPair it with a cold drink by the water and make lunch part of your resort day.\n\n## Lunch at Jalyn’s\n\n- Classic club sandwich and more\n- Fresh sides\n- Resort restaurant setting\n- Ideal after a morning dive\n\nAsk our restaurant team for today’s lunch favourites.",
-      "image": "/uploads/news/classic-club-lunch-at-jalyns-01-puerto-galera-classic-club-jalyns-resort-restaurant.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-01-puerto-galera-classic-club-jalyns-reso-631d45.jpg?v=1789880429420",
       "cta": "Read more",
       "href": "/news/classic-club-lunch-at-jalyns-resort",
       "kind": "event",
       "date": "2020-01-15",
       "gallery": [
-        "/uploads/news/classic-club-lunch-at-jalyns-01-puerto-galera-classic-club-jalyns-resort-restaurant.jpg",
-        "/uploads/news/classic-club-lunch-at-jalyns-02-classic-club-menu.jpg",
-        "/uploads/news/classic-club-lunch-at-jalyns-03-jalyns-resort-puerto-galera-classic-club-lunch-3.jpg",
-        "/uploads/news/classic-club-lunch-at-jalyns-04-jalyns-resort-puerto-galera-classic-club-lunch-2.jpg",
-        "/uploads/news/classic-club-lunch-at-jalyns-05-jalyns-resort-puerto-galera-classic-club-lunch.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-01-puerto-galera-classic-club-jalyns-reso-631d45.jpg?v=1789880429420",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-02-classic-club-menu-e6b06d.jpg?v=1789880429779",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-03-jalyns-resort-puerto-galera-classic-cl-7e97ac.jpg?v=1789880429994",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-04-jalyns-resort-puerto-galera-classic-cl-f223dd.jpg?v=1789880430010",
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-05-jalyns-resort-puerto-galera-classic-cl-552d35.jpg?v=1789880430017"
       ],
       "packages": [
         {
           "title": "Classic Club Lunch",
           "price": "See restaurant menu",
-          "image": "/uploads/news/classic-club-lunch-at-jalyns-02-classic-club-menu.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/classic-club-lunch-at-jalyns-02-classic-club-menu-e6b06d.jpg?v=1789880429779",
           "amenities": [
             "Hearty midday meal",
             "Restaurant by the cove",
@@ -823,20 +823,20 @@
       "title": "Spa Services now available",
       "excerpt": "Jalyn's Resort is delighted to announce that a full range of spa treatments are now",
       "body": "Relax with spa services at Jalyn’s Resort — massages and treatments designed to unwind after a day of diving or exploring Puerto Galera.\n\n## Spa Services\n\n- Massage treatments\n- Ideal after diving\n- Book at the resort\n- Pair with a pool day or dinner\n\nVisit our Spa page for the full treatment menu, or ask reception to book.",
-      "image": "/uploads/news/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog.jpg",
+      "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog-240d98.jpg?v=1789880430499",
       "cta": "Read more",
       "href": "/news/spa-services-jalyns-resort",
       "kind": "news",
       "date": "2019-05-26",
       "price": "Spa treatments available",
       "gallery": [
-        "/uploads/news/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog.jpg"
+        "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog-240d98.jpg?v=1789880430499"
       ],
       "packages": [
         {
           "title": "Spa Services",
           "price": "See Spa page for full menu & rates",
-          "image": "/uploads/news/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog.jpg",
+          "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/spa-services-jalyns-resort-01-spa-service-jalyns-resort-blog-240d98.jpg?v=1789880430499",
           "amenities": [
             "Massage treatments",
             "Relax after diving",

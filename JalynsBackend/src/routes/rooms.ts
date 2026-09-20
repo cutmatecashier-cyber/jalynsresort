@@ -1,7 +1,3 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
@@ -12,21 +8,12 @@ import {
   resetRooms,
   updateRoom,
 } from '../services/rooms.js'
+import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 
 export const roomsRouter = Router()
 
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/rooms')
-mkdirSync(uploadsRoot, { recursive: true })
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg'
-      const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg'
-      cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
@@ -114,19 +101,22 @@ roomsRouter.post('/upload', async (req, res) => {
           return
         }
 
-        const url = `/uploads/rooms/${req.file.filename}`
-        const replaceId =
-          typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
-        const name = typeof req.body?.name === 'string' ? req.body.name : undefined
-
         try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.rooms,
+            folder: 'photos',
+            file: req.file,
+          })
+          const replaceId =
+            typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
+          const name = typeof req.body?.name === 'string' ? req.body.name : undefined
           const rooms = replaceId
             ? updateRoom(replaceId, { image: url, name })
             : addRoom({ image: url, name })
           res.json({ success: true, url, rooms })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not save room photo.'
-          const status = /not found|up to|required/i.test(message) ? 400 : 500
+          const status = /not found|up to|required|bucket|storage/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()

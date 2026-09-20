@@ -1,10 +1,7 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
+import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 import {
   createCategory,
   createService,
@@ -29,18 +26,8 @@ import {
 
 export const spaRouter = Router()
 
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/spa')
-mkdirSync(uploadsRoot, { recursive: true })
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg'
-      const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg'
-      cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 12 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
@@ -151,8 +138,18 @@ spaRouter.post('/upload', async (req, res) => {
           res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
           return
         }
-        const url = `/uploads/spa/${req.file.filename}`
-        res.status(201).json({ success: true, url })
+        try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.spa,
+            folder: 'treatments',
+            file: req.file,
+          })
+          res.status(201).json({ success: true, url })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error ? uploadErr.message : 'Could not upload image.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
       })()
     })
   } catch (err) {

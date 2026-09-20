@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
 
@@ -48,6 +48,7 @@ function NavAnchor({
 
 export function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -56,6 +57,10 @@ export function Navbar() {
   const headerBarRef = useRef<HTMLDivElement>(null);
   const { role, approvalStatus, can, signOut, profile } = useAuth();
   const showMember = can.canManageMembers(role, approvalStatus);
+
+  // News detail / members start on light backgrounds — keep a solid bar so white text stays readable.
+  const forceSolid =
+    /^\/news\/[^/]+/.test(location.pathname) || location.pathname.startsWith("/members");
 
   useEffect(() => {
     if (!open) return;
@@ -137,8 +142,15 @@ export function Navbar() {
     };
   }, []);
 
-  /** Solid bar when scrolled or mobile menu open — full-bleed, not a floating card */
-  const solid = scrolled || open;
+  /** Solid bar when scrolled, mobile menu open, or on light-top pages */
+  const solid = scrolled || open || forceSolid;
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--jalyns-header-height",
+      `${headerHeight}px`,
+    );
+  }, [headerHeight]);
 
   useEffect(() => {
     const node = headerBarRef.current;
@@ -157,7 +169,7 @@ export function Navbar() {
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [solid, showMember, open]);
+  }, [solid, showMember, open, forceSolid]);
 
   function requestSignOut() {
     setOpen(false);
@@ -219,15 +231,15 @@ export function Navbar() {
               </Link>
               {showMember ? (
                 <span
-                  className={`mt-1 inline-flex max-w-full items-center gap-1 truncate text-white/70 transition-[margin,font-size] duration-300 ${
+                  className={`mt-1 inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-black/45 px-2 py-0.5 text-white shadow-sm ring-1 ring-white/15 transition-[margin,font-size] duration-300 ${
                     solid ? "text-[0.6rem] sm:text-[0.62rem]" : "text-[0.62rem] sm:text-[0.68rem]"
                   }`}
                   title={`${profile?.name ?? ""} · ${roleLabel(role)}`}
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                  <span className="truncate font-medium text-white/90">{profile?.name}</span>
-                  <span className="shrink-0 text-white/30">·</span>
-                  <span className="shrink-0 text-white/60">{roleLabel(role)}</span>
+                  <span className="truncate font-medium text-white">{profile?.name}</span>
+                  <span className="shrink-0 text-white/40">·</span>
+                  <span className="shrink-0 text-white/80">{roleLabel(role)}</span>
                 </span>
               ) : null}
             </div>

@@ -1,9 +1,4 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
-import sharp from 'sharp'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
 import {
@@ -13,11 +8,14 @@ import {
   listNews,
   updateNewsPost,
 } from '../services/news.js'
+import {
+  getNewsHeroBackground,
+  removeNewsHeroBackground,
+  uploadNewsHeroBackground,
+} from '../services/newsBackgrounds.js'
+import { uploadNewsImage } from '../services/newsImages.js'
 
 export const newsRouter = Router()
-
-const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/news')
-mkdirSync(uploadsRoot, { recursive: true })
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,17 +28,6 @@ const upload = multer({
   },
   limits: { fileSize: 12 * 1024 * 1024 },
 })
-
-async function saveOptimizedNewsImage(file: Express.Multer.File) {
-  const filename = `${Date.now()}-${randomUUID().slice(0, 8)}.jpg`
-  const dest = path.join(uploadsRoot, filename)
-  await sharp(file.buffer)
-    .rotate()
-    .resize({ width: 1200, height: 900, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 72, mozjpeg: true })
-    .toFile(dest)
-  return `/uploads/news/${filename}`
-}
 
 async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
   if (!isServiceRoleConfigured()) {
@@ -109,6 +96,57 @@ newsRouter.get('/', (_req, res) => {
   }
 })
 
+newsRouter.get('/hero', async (_req, res) => {
+  try {
+    const background = await getNewsHeroBackground()
+    return res.json({ success: true, background })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load hero background.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+newsRouter.post('/hero', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    upload.single('image')(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        if (!req.file) {
+          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          return
+        }
+        try {
+          const background = await uploadNewsHeroBackground(req.file)
+          res.status(201).json({ success: true, ...background })
+        } catch (uploadErr) {
+          const message =
+            uploadErr instanceof Error ? uploadErr.message : 'Could not upload hero background.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not upload hero background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+newsRouter.delete('/hero', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res))) return
+    await removeNewsHeroBackground()
+    return res.json({ success: true, message: 'Hero background removed.' })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not remove hero background.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
 newsRouter.get('/:id', (req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
@@ -139,12 +177,12 @@ newsRouter.post('/upload', async (req, res) => {
           return
         }
         try {
-          const url = await saveOptimizedNewsImage(req.file)
+          const url = await uploadNewsImage(req.file)
           res.status(201).json({ success: true, url })
         } catch (processErr) {
           const message =
             processErr instanceof Error ? processErr.message : 'Could not process image.'
-          res.status(400).json({ success: false, message })
+          res.status(clientErrorStatus(message)).json({ success: false, message })
         }
       })()
     })

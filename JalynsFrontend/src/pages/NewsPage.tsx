@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { AdminEditButton } from "../components/AdminEditButton";
 import { broadcastContentChanged } from "../components/ContentSync";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
@@ -8,21 +9,24 @@ import { useAuth } from "../context/AuthContext";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
   createNewsPost,
+  DEFAULT_NEWS_HERO,
   DEFAULT_NEWS_POSTS,
   deleteNewsPost,
+  fetchNewsHero,
   fetchNewsPosts,
   formatNewsDate,
   newsCategoryCounts,
   newsMediaUrl,
+  NEWS_HERO_UPDATED_EVENT,
   NEWS_UPDATED_EVENT,
   notifyNewsUpdated,
+  removeNewsHero,
   updateNewsPost,
+  uploadNewsHeroWithResult,
   uploadNewsImage,
   type NewsKind,
   type NewsPost,
 } from "../lib/news";
-
-const HERO_IMG = "/uploads/news/pools-and-solar-1.jpg";
 
 const PAGE_SIZE = 10;
 
@@ -42,6 +46,16 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Short card blurb derived from the full article (no separate excerpt field). */
+function excerptFromBody(body: string, max = 180) {
+  const text = body.trim().replace(/\s+/g, " ");
+  if (!text) return "";
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}…`;
+}
+
 export function NewsPage() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditNews(role, approvalStatus);
@@ -59,11 +73,9 @@ export function NewsPage() {
   const [modalError, setModalError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
-  const [excerpt, setExcerpt] = useState("");
   const [body, setBody] = useState("");
   const [kind, setKind] = useState<NewsKind>("news");
   const [date, setDate] = useState(todayIso());
-  const [cta, setCta] = useState("Read more");
   const [price, setPrice] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
   const [image, setImage] = useState("");
@@ -72,6 +84,18 @@ export function NewsPage() {
   const [galleryUploading, setGalleryUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const galleryFileRef = useRef<HTMLInputElement>(null);
+  const heroInput = useRef<HTMLInputElement>(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
+
+  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [hasCustomHero, setHasCustomHero] = useState(false);
+  const [imagesReady, setImagesReady] = useState(false);
+  const [heroEditorOpen, setHeroEditorOpen] = useState(false);
+  const [heroBusy, setHeroBusy] = useState(false);
+  const [heroError, setHeroError] = useState<string | null>(null);
+
+  const displayHero = heroUrl ?? (imagesReady ? DEFAULT_NEWS_HERO : null);
+
   function scrollToPageTop() {
     // Match live WP archive (/page/2/): land at the top of the page, not mid-feed
     const lenis = (
@@ -103,8 +127,16 @@ export function NewsPage() {
     }
   }
 
+  async function loadHero() {
+    const hero = await fetchNewsHero();
+    setHeroUrl(hero.url);
+    setHasCustomHero(Boolean(hero.path));
+    setImagesReady(true);
+  }
+
   useEffect(() => {
     void load();
+    void loadHero();
   }, []);
 
   useEffect(() => {
@@ -119,6 +151,83 @@ export function NewsPage() {
     window.addEventListener(NEWS_UPDATED_EVENT, onUpdated);
     return () => window.removeEventListener(NEWS_UPDATED_EVENT, onUpdated);
   }, []);
+
+  useEffect(() => {
+    const onHero = () => {
+      void loadHero();
+    };
+    window.addEventListener(NEWS_HERO_UPDATED_EVENT, onHero);
+    return () => window.removeEventListener(NEWS_HERO_UPDATED_EVENT, onHero);
+  }, []);
+
+  // Lenis steals wheel events — pause it while any news dialog is open so the form can scroll.
+  useLayoutEffect(() => {
+    if (!modal && !heroEditorOpen && !deleteTarget) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const lenis = (window as Window & { __lenis?: { stop: () => void; start: () => void } })
+      .__lenis;
+    lenis?.stop();
+
+    const el = modalBodyRef.current;
+    const onWheel = (event: WheelEvent) => {
+      if (!el || el.scrollHeight <= el.clientHeight + 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      el.scrollTop += event.deltaY;
+    };
+    el?.addEventListener("wheel", onWheel, { passive: false });
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (saving || deleting || heroBusy) return;
+      setModal(null);
+      setHeroEditorOpen(false);
+      setDeleteTarget(null);
+    };
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      lenis?.start();
+      el?.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [modal, heroEditorOpen, deleteTarget, saving, deleting, heroBusy]);
+
+  async function onHeroFile(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setHeroBusy(true);
+    setHeroError(null);
+    const result = await uploadNewsHeroWithResult(file);
+    if (result.error) {
+      setHeroError(result.error);
+    } else {
+      setHeroUrl(result.url);
+      setHasCustomHero(Boolean(result.path));
+      setHeroEditorOpen(false);
+      broadcastContentChanged();
+    }
+    setHeroBusy(false);
+    if (heroInput.current) heroInput.current.value = "";
+  }
+
+  async function onRemoveHero() {
+    setHeroBusy(true);
+    setHeroError(null);
+    const error = await removeNewsHero();
+    if (error) {
+      setHeroError(error);
+    } else {
+      setHeroUrl(null);
+      setHasCustomHero(false);
+      setHeroEditorOpen(false);
+      broadcastContentChanged();
+    }
+    setHeroBusy(false);
+  }
 
   const counts = newsCategoryCounts(posts);
 
@@ -160,11 +269,9 @@ export function NewsPage() {
   function openCreate() {
     setModalError(null);
     setTitle("");
-    setExcerpt("");
     setBody("");
     setKind("news");
     setDate(todayIso());
-    setCta("Read more");
     setPrice("");
     setGallery([]);
     setImage("");
@@ -176,11 +283,9 @@ export function NewsPage() {
   function openEdit(post: NewsPost) {
     setModalError(null);
     setTitle(post.title);
-    setExcerpt(post.excerpt);
     setBody(post.body || post.excerpt);
     setKind(post.kind);
     setDate(post.date);
-    setCta(post.cta);
     setPrice(post.price || "");
     setGallery(post.gallery?.length ? [...post.gallery] : []);
     setImage(post.image);
@@ -227,14 +332,17 @@ export function NewsPage() {
       }
       if (!imageUrl) throw new Error("Please upload a picture.");
 
+      const article = body.trim();
+      if (article.length < 10) throw new Error("Full article must be at least 10 characters.");
+
       const payload = {
         title: title.trim(),
-        excerpt: excerpt.trim(),
-        body: body.trim() || excerpt.trim(),
+        excerpt: excerptFromBody(article),
+        body: article,
         image: imageUrl,
         kind,
         date,
-        cta: cta.trim() || "Read more",
+        cta: "Read more",
         price: price.trim(),
         gallery,
         ...(modal !== "create" && modal?.packages ? { packages: modal.packages } : {}),
@@ -280,20 +388,34 @@ export function NewsPage() {
   return (
     <main className="overflow-x-clip bg-[#0a1210] text-ink">
       <section className="relative min-h-[100svh] overflow-hidden text-white">
-        <div className="absolute inset-0">
-          <img
-            src={newsMediaUrl(HERO_IMG)}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center"
-            fetchPriority="high"
-            decoding="async"
-          />
+        <div className="absolute inset-0 bg-[#0a1210]">
+          {displayHero ? (
+            <img
+              src={newsMediaUrl(displayHero)}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover object-center animate-ken-burns"
+              fetchPriority="high"
+              decoding="async"
+            />
+          ) : null}
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#0a1210]/45 to-[#0a1210]" />
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => setHeroEditorOpen(true)}
+              className="absolute inset-0 z-[5] cursor-pointer border-0 bg-transparent"
+              aria-label="Change hero background image"
+            />
+          ) : null}
         </div>
 
         <Navbar />
 
-        <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12">
+        <div
+          className={`relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
+            canEdit ? "pointer-events-none" : ""
+          }`}
+        >
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-end justify-between gap-4">
             <div className="min-w-0 max-w-3xl">
               <p className="animate-fade-up text-[0.62rem] font-semibold tracking-[0.22em] text-white/75 uppercase sm:text-[0.72rem] sm:tracking-[0.28em]">
@@ -312,12 +434,23 @@ export function NewsPage() {
                 Updates from Jalyn&apos;s — long-term stays, dive stories, festivals, and special
                 offers in Puerto Galera.
               </p>
+              {canEdit ? (
+                <div className="pointer-events-auto mt-5">
+                  <AdminEditButton
+                    className="animate-fade-up"
+                    onClick={() => setHeroEditorOpen(true)}
+                    style={{ animationDelay: "0.22s" }}
+                  >
+                    Change hero background
+                  </AdminEditButton>
+                </div>
+              ) : null}
             </div>
             {canEdit ? (
               <button
                 type="button"
                 onClick={openCreate}
-                className="btn-press animate-fade-up shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-white/92"
+                className="pointer-events-auto btn-press animate-fade-up shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-white/92"
                 style={{ animationDelay: "0.22s" }}
               >
                 Add news
@@ -417,7 +550,7 @@ export function NewsPage() {
                             to={`/news/${post.id}`}
                             className="btn-press text-sm font-semibold text-sea transition hover:text-ink"
                           >
-                            {post.cta || "Read more"} →
+                            Read more →
                           </Link>
                           {canEdit ? (
                             <>
@@ -565,10 +698,78 @@ export function NewsPage() {
 
       <Footer />
 
+      {heroEditorOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Hero background image"
+              onClick={() => !heroBusy && setHeroEditorOpen(false)}
+            >
+              <div
+                className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl sm:p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-display text-xl text-ink">Hero background image</h3>
+                <img
+                  src={newsMediaUrl(displayHero ?? DEFAULT_NEWS_HERO)}
+                  alt="Current hero"
+                  className="mt-4 aspect-[16/7] w-full rounded-xl object-cover"
+                />
+                <p className="mt-3 text-sm text-ink/70">
+                  Upload a new image to replace the News page hero. Removing it restores the
+                  default photo.
+                </p>
+                {heroError ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                    {heroError}
+                  </p>
+                ) : null}
+                <input
+                  ref={heroInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(event) => void onHeroFile(event.target.files)}
+                />
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setHeroEditorOpen(false)}
+                    className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  {hasCustomHero ? (
+                    <button
+                      type="button"
+                      disabled={heroBusy}
+                      onClick={() => void onRemoveHero()}
+                      className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
+                    >
+                      Remove image
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={heroBusy}
+                    onClick={() => heroInput.current?.click()}
+                    className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
+                  >
+                    {heroBusy ? "Uploading…" : hasCustomHero ? "Replace image" : "Upload image"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
       {modal
         ? createPortal(
             <div
-              className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+              className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               aria-label={modal === "create" ? "Add news" : "Edit news"}
@@ -576,10 +777,13 @@ export function NewsPage() {
             >
               <form
                 onSubmit={(e) => void savePost(e)}
-                className="flex max-h-[min(92dvh,44rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+                className="flex max-h-[min(92dvh,48rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
+                <div
+                  ref={modalBodyRef}
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pt-6"
+                >
                   <h3 className="font-display text-xl text-ink">
                     {modal === "create" ? "Add news" : "Edit news"}
                   </h3>
@@ -598,28 +802,17 @@ export function NewsPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="news-excerpt">
-                        Excerpt
-                      </label>
-                      <textarea
-                        id="news-excerpt"
-                        className={`${inputClass} min-h-[4.5rem] resize-y`}
-                        value={excerpt}
-                        onChange={(e) => setExcerpt(e.target.value)}
-                        required
-                        minLength={10}
-                      />
-                    </div>
-                    <div>
                       <label className="text-sm font-semibold text-ink" htmlFor="news-body">
                         Full article
                       </label>
                       <textarea
                         id="news-body"
-                        className={`${inputClass} min-h-[8rem] resize-y`}
+                        className={`${inputClass} max-h-52 min-h-[10rem] resize-y overflow-y-auto`}
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
-                        placeholder="Full story shown on the Read more page"
+                        required
+                        minLength={10}
+                        placeholder="Full story — a short preview is taken from this automatically"
                       />
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -651,18 +844,6 @@ export function NewsPage() {
                           required
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold text-ink" htmlFor="news-cta">
-                        Button label
-                      </label>
-                      <input
-                        id="news-cta"
-                        className={inputClass}
-                        value={cta}
-                        onChange={(e) => setCta(e.target.value)}
-                        placeholder="Read more"
-                      />
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-ink" htmlFor="news-price">

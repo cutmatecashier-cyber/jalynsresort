@@ -34,9 +34,25 @@ export type NewsPost = {
 const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data')
 const DATA_FILE = path.join(DATA_DIR, 'news.json')
 
+/** Older short ids (frontend fallback / bookmarks) → current news.json slugs */
+const LEGACY_NEWS_IDS: Record<string, string> = {
+  'studio-apartments-long-term':
+    'studio-apartments-available-for-long-term-rental-at-jalyns-resort',
+  'phidex-2024': 'phidex-2024-dive-expo',
+  'ecotourism-mpa': 'our-commitment-to-responsible-ecotourism-in-marine-protected-areas',
+  'padi-aow-review': 'padi-advanced-open-water-students-review',
+  'canyons-jacks': 'scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site',
+  'rooms-scuba-offer': 'rooms-scuba-diving-special-offer',
+  'single-double-long-term':
+    'single-double-rooms-available-for-long-term-rental-at-jalyns-resort',
+  'apartments-long-term':
+    'apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera',
+  'aldaw-kapiya-an-2023': 'puerto-galera-aldaw-kapiya-an-festival-2023',
+}
+
 export const DEFAULT_NEWS: NewsPost[] = ([
   {
-    id: 'studio-apartments-long-term',
+    id: 'studio-apartments-available-for-long-term-rental-at-jalyns-resort',
     category: 'News',
     kind: 'news',
     date: '2024-08-20',
@@ -48,7 +64,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/studio-apartments-available-for-long-term-rental-at-jalyns-resort/',
   },
   {
-    id: 'phidex-2024',
+    id: 'phidex-2024-dive-expo',
     category: 'Events',
     kind: 'event',
     date: '2024-03-20',
@@ -61,7 +77,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/phidex-2024-dive-expo/',
   },
   {
-    id: 'ecotourism-mpa',
+    id: 'our-commitment-to-responsible-ecotourism-in-marine-protected-areas',
     category: 'News',
     kind: 'news',
     date: '2023-12-06',
@@ -73,7 +89,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/our-commitment-to-responsible-ecotourism-in-marine-protected-areas/',
   },
   {
-    id: 'padi-aow-review',
+    id: 'padi-advanced-open-water-students-review',
     category: 'News',
     kind: 'news',
     date: '2023-11-30',
@@ -86,7 +102,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/padi-advanced-open-water-students-review/',
   },
   {
-    id: 'canyons-jacks',
+    id: 'scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site',
     category: 'News',
     kind: 'news',
     date: '2023-11-06',
@@ -99,7 +115,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/scuba-diving-with-a-huge-school-of-jacks-at-canyons-dive-site/',
   },
   {
-    id: 'rooms-scuba-offer',
+    id: 'rooms-scuba-diving-special-offer',
     category: 'Special Offers',
     kind: 'offer',
     date: '2023-09-17',
@@ -112,7 +128,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/rooms-scuba-diving-special-offer/',
   },
   {
-    id: 'single-double-long-term',
+    id: 'single-double-rooms-available-for-long-term-rental-at-jalyns-resort',
     category: 'News',
     kind: 'news',
     date: '2023-09-08',
@@ -137,7 +153,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/sabang-oktoberfest-2023/',
   },
   {
-    id: 'apartments-long-term',
+    id: 'apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera',
     category: 'News',
     kind: 'news',
     date: '2023-06-08',
@@ -150,7 +166,7 @@ export const DEFAULT_NEWS: NewsPost[] = ([
     href: 'https://jalynsresort.com/apartments-available-for-long-term-rental-at-jalyns-resort-puerto-galera/',
   },
   {
-    id: 'aldaw-kapiya-an-2023',
+    id: 'puerto-galera-aldaw-kapiya-an-festival-2023',
     category: 'Events',
     kind: 'event',
     date: '2023-06-05',
@@ -319,9 +335,17 @@ export function validateNewsInput(input: {
 }) {
   const title = String(input.title ?? '').trim()
   if (title.length < 4) throw new Error('Title must be at least 4 characters.')
-  const excerpt = String(input.excerpt ?? '').trim()
-  if (excerpt.length < 10) throw new Error('Excerpt must be at least 10 characters.')
-  const body = String(input.body ?? '').trim() || excerpt
+  const bodyRaw = String(input.body ?? '').trim()
+  let excerpt = String(input.excerpt ?? '').trim()
+  if (!excerpt && bodyRaw) {
+    const flat = bodyRaw.replace(/\s+/g, ' ')
+    excerpt =
+      flat.length <= 180
+        ? flat
+        : `${flat.slice(0, 180).replace(/\s+\S*$/, '').trim() || flat.slice(0, 180).trim()}…`
+  }
+  if (excerpt.length < 10) throw new Error('Full article must be at least 10 characters.')
+  const body = bodyRaw || excerpt
   const image = String(input.image ?? '').trim()
   if (!image) throw new Error('Image is required.')
   if (!image.startsWith('/') && !/^https?:\/\//i.test(image) && !image.startsWith('data:')) {
@@ -395,7 +419,25 @@ export function updateNewsPost(
 }
 
 export function getNewsPost(id: string): NewsPost | null {
-  return readStore().posts.find((p) => p.id === id) ?? null
+  const raw = decodeURIComponent(String(id || '').trim()).replace(/^\/+|\/+$/g, '')
+  if (!raw) return null
+  const posts = readStore().posts
+  const direct = posts.find((p) => p.id === raw)
+  if (direct) return direct
+
+  const aliased = LEGACY_NEWS_IDS[raw]
+  if (aliased) {
+    const hit = posts.find((p) => p.id === aliased)
+    if (hit) return hit
+  }
+
+  // Short slug → unique longer slug (e.g. phidex-2024 → phidex-2024-dive-expo)
+  const prefixed = posts.filter(
+    (p) => p.id.startsWith(`${raw}-`) || p.id.startsWith(`${raw}/`) || p.id === raw,
+  )
+  if (prefixed.length === 1) return prefixed[0]
+
+  return null
 }
 
 export function deleteNewsPost(id: string): NewsPost[] {

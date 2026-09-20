@@ -1,7 +1,3 @@
-import { mkdirSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
@@ -12,24 +8,12 @@ import {
   resetGallery,
   updateGalleryPhoto,
 } from '../services/gallery.js'
+import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 
 export const galleryRouter = Router()
 
-const uploadsRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../uploads/gallery',
-)
-mkdirSync(uploadsRoot, { recursive: true })
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg'
-      const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg'
-      cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}${safeExt}`)
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
       cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
@@ -117,19 +101,22 @@ galleryRouter.post('/upload', async (req, res) => {
           return
         }
 
-        const url = `/uploads/gallery/${req.file.filename}`
-        const replaceId =
-          typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
-        const alt = typeof req.body?.alt === 'string' ? req.body.alt : undefined
-
         try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.gallery,
+            folder: 'photos',
+            file: req.file,
+          })
+          const replaceId =
+            typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
+          const alt = typeof req.body?.alt === 'string' ? req.body.alt : undefined
           const photos = replaceId
             ? updateGalleryPhoto(replaceId, { image: url, alt })
             : addGalleryPhoto({ image: url, alt })
           res.json({ success: true, url, photos })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not save gallery photo.'
-          const status = /not found|up to|required/i.test(message) ? 400 : 500
+          const status = /not found|up to|required|bucket|storage/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()

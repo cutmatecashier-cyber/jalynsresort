@@ -1,0 +1,15 @@
+{
+  "name": "jalynsresort",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Jalyn's Resort — frontend + backend",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev --prefix JalynsBackend\" \"npm run dev --prefix JalynsFrontend\"",
+    "dev:backend": "npm run dev --prefix JalynsBackend",
+    "dev:frontend": "npm run dev --prefix JalynsFrontend",
+    "install:all": "npm install --prefix JalynsBackend && npm install --prefix JalynsFrontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
