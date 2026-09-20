@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { fetchContactSettings, subscribeContactBackgrounds } from "../lib/contact";
+import { formatPhMobileForDisplay } from "../lib/resortLocation";
 import { Reveal } from "./Reveal";
 
 const shareLinks = [
@@ -152,7 +155,26 @@ function shareUrl(base: string) {
   return `${base}${page}`;
 }
 
+function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
 export function Footer() {
+  const [phone, setPhone] = useState("+639476197535");
+  const [email, setEmail] = useState("jalynsresort@gmail.com");
+
+  useEffect(() => {
+    async function load() {
+      const settings = await fetchContactSettings();
+      setPhone(settings.phone);
+      setEmail(settings.contact_email);
+    }
+    void load();
+    return subscribeContactBackgrounds(() => {
+      void load();
+    });
+  }, []);
+
   return (
     <footer id="contact" className="relative overflow-hidden bg-[#0a0c10] text-white">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.06),transparent_70%)]" />
@@ -224,7 +246,7 @@ export function Footer() {
             </li>
             <li className="border-x border-white/15 px-2 sm:px-4">
               <a
-                href="tel:+639476197535"
+                href={telHref(phone)}
                 className="group flex flex-col items-center gap-1.5 text-center"
               >
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
@@ -234,13 +256,13 @@ export function Footer() {
                   Call Us
                 </span>
                 <span className="text-[0.7rem] leading-snug text-white/85 sm:text-[0.75rem]">
-                  +63 947 619 7535
+                  {formatPhMobileForDisplay(phone)}
                 </span>
               </a>
             </li>
             <li className="px-2 sm:px-4">
               <a
-                href="mailto:info@jalynsresort.com"
+                href={`mailto:${email}`}
                 className="group flex flex-col items-center gap-1.5 text-center"
               >
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
@@ -250,7 +272,7 @@ export function Footer() {
                   Email
                 </span>
                 <span className="max-w-[7.5rem] break-words text-[0.7rem] leading-snug text-white/85 sm:max-w-none sm:text-[0.75rem]">
-                  info@jalynsresort.com
+                  {email}
                 </span>
               </a>
             </li>

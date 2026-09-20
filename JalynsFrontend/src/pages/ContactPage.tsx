@@ -21,6 +21,7 @@ import {
   fetchContactHero,
   removeContactContentBackground,
   removeContactHero,
+  notifyContactUpdated,
   subscribeContactBackgrounds,
   uploadContactContentBackgroundWithResult,
   uploadContactHeroWithResult,
@@ -375,6 +376,7 @@ export function ContactPage() {
         return;
       }
       if (body.settings) setSettings(body.settings);
+      notifyContactUpdated();
       setEditOpen(false);
     } catch {
       setEditError("Cannot reach the server. Make sure the backend is running.");

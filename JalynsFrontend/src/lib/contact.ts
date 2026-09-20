@@ -1,12 +1,19 @@
 import { getApiUrl } from "./api";
 import { optimizeImageFile } from "./scuba";
 import { supabase } from "./supabase";
+import type { ResortContactSettings } from "./resortLocation";
 
 export const DEFAULT_CONTACT_HERO =
   "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=2400&q=80";
 
 export const DEFAULT_CONTACT_CONTENT =
   "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=2400&q=80";
+
+export const DEFAULT_CONTACT_SETTINGS: ResortContactSettings = {
+  contact_email: "jalynsresort@gmail.com",
+  phone: "+639476197535",
+  facebook_url: "https://www.facebook.com/jalynsresortpuertogalera",
+};
 
 export type ContactBackground = {
   url: string | null;
@@ -23,6 +30,19 @@ export function subscribeContactBackgrounds(onChange: () => void) {
   const handler = () => onChange();
   window.addEventListener(CONTACT_UPDATED_EVENT, handler);
   return () => window.removeEventListener(CONTACT_UPDATED_EVENT, handler);
+}
+
+export async function fetchContactSettings(): Promise<ResortContactSettings> {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/contact/settings`, { cache: "no-store" });
+    const body = await readJson<{ success?: boolean; settings?: ResortContactSettings }>(res);
+    if (res.ok && body.settings?.contact_email && body.settings?.phone) {
+      return body.settings;
+    }
+  } catch {
+    // keep defaults
+  }
+  return DEFAULT_CONTACT_SETTINGS;
 }
 
 function apiMessage(body: { message?: string } | null, fallback: string) {
