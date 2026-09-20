@@ -26,7 +26,8 @@ async function userFromAccessToken(token: string) {
   const direct = await supabaseAdmin.auth.getUser(token)
   if (direct.data.user) return { user: direct.data.user, error: null as Error | null }
 
-  // Fallback: request-scoped anon client with the user JWT (avoids service-role header quirks).
+  // Service-role clients can ignore the JWT and report "Auth session missing!".
+  // Verify with an anon client that actually sends the user access token.
   const url = (process.env.SUPABASE_URL || '').trim()
   const anon = (
     process.env.SUPABASE_ANON_KEY ||
@@ -38,9 +39,8 @@ async function userFromAccessToken(token: string) {
   if (url && anon) {
     const userClient = createClient(url, anon, {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
     })
-    const scoped = await userClient.auth.getUser()
+    const scoped = await userClient.auth.getUser(token)
     if (scoped.data.user) return { user: scoped.data.user, error: null }
     return {
       user: null,

@@ -1,6 +1,6 @@
 import multer from 'multer'
-import { Router, type Request, type Response } from 'express'
-import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
+import { Router } from 'express'
+import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   createCategory,
   createItem,
@@ -26,79 +26,7 @@ const upload = multer({
   },
 })
 
-function bearerFromRequest(req: Request): string {
-  const authHeader =
-    (typeof req.headers.authorization === 'string' && req.headers.authorization) ||
-    (typeof req.headers['x-access-token'] === 'string' && req.headers['x-access-token']) ||
-    ''
-  if (authHeader.startsWith('Bearer ') || authHeader.startsWith('bearer ')) {
-    return authHeader.slice(7).trim()
-  }
-  if (authHeader.trim()) return authHeader.trim()
-
-  // Multipart uploads: token may arrive in the form body (Vite proxy often drops Authorization).
-  const body = req.body as { access_token?: unknown } | undefined
-  if (typeof body?.access_token === 'string' && body.access_token.trim()) {
-    return body.access_token.trim()
-  }
-  return ''
-}
-
-async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
-  if (!isServiceRoleConfigured()) {
-    res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
-    return null
-  }
-
-  const token = bearerFromRequest(req)
-  if (!token) {
-    res.status(401).json({
-      success: false,
-      message: 'Missing admin session. Sign out and sign in again, then retry.',
-    })
-    return null
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !authData.user) {
-    res.status(401).json({
-      success: false,
-      message:
-        authError?.message === 'invalid claim: missing sub'
-          ? 'Invalid admin session. Sign out and sign in again.'
-          : authError?.message || 'Invalid admin session. Sign out and sign in again.',
-    })
-    return null
-  }
-
-  const { data: adminProfile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role, approval_status')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    res.status(500).json({
-      success: false,
-      message: `Could not verify admin profile: ${profileError.message}`,
-    })
-    return null
-  }
-
-  if (
-    !adminProfile ||
-    adminProfile.role !== 'admin' ||
-    adminProfile.approval_status !== 'approved'
-  ) {
-    res.status(403).json({
-      success: false,
-      message: 'Only approved admins can manage the restaurant menu.',
-    })
-    return null
-  }
-
-  return authData.user.id
-}
+const MENU_ADMIN_MESSAGE = 'Only approved admins can manage the restaurant menu.'
 
 function clientErrorStatus(message: string) {
   return /must be|required|valid|not found|at least|Only JPG|File too large|image/i.test(message)
@@ -133,7 +61,7 @@ menuRouter.post('/upload', (req, res) => {
           res.status(400).json({ success: false, message })
           return
         }
-        if (!(await requireApprovedAdmin(req, res))) return
+        if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
         if (!req.file) {
           res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
           return
@@ -154,7 +82,7 @@ menuRouter.post('/upload', (req, res) => {
 
 menuRouter.post('/categories', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     const category = await createCategory(req.body)
     return res.status(201).json({ success: true, category })
   } catch (err) {
@@ -165,7 +93,7 @@ menuRouter.post('/categories', async (req, res) => {
 
 menuRouter.put('/categories/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     const category = await updateCategory(String(req.params.id), req.body)
     return res.json({ success: true, category })
   } catch (err) {
@@ -176,7 +104,7 @@ menuRouter.put('/categories/:id', async (req, res) => {
 
 menuRouter.delete('/categories/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     await deleteCategory(String(req.params.id))
     return res.json({ success: true, message: 'Category deleted.' })
   } catch (err) {
@@ -187,7 +115,7 @@ menuRouter.delete('/categories/:id', async (req, res) => {
 
 menuRouter.post('/items', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     const item = await createItem(req.body)
     return res.status(201).json({ success: true, item })
   } catch (err) {
@@ -198,7 +126,7 @@ menuRouter.post('/items', async (req, res) => {
 
 menuRouter.put('/items/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     const item = await updateItem(String(req.params.id), req.body)
     return res.json({ success: true, item })
   } catch (err) {
@@ -209,7 +137,7 @@ menuRouter.put('/items/:id', async (req, res) => {
 
 menuRouter.delete('/items/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, MENU_ADMIN_MESSAGE))) return
     await deleteItem(String(req.params.id))
     return res.json({ success: true, message: 'Menu item deleted.' })
   } catch (err) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { getApiUrl, resolveMediaUrl } from "../lib/api";
 import { optimizeImageFile } from "../lib/scuba";
@@ -6,8 +6,8 @@ import { supabase } from "../lib/supabase";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
 
-const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
 const DESKTOP_DISH_COLS = 4;
+const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
 
 export type MenuItem = {
   id: string;
@@ -57,29 +57,171 @@ function DishThumb({
   );
 }
 
+function SeeMoreText({
+  text,
+  onSeeMore,
+}: {
+  text: string;
+  onSeeMore: () => void;
+}) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const trimmed = text.trim();
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !trimmed) {
+      setOverflows(false);
+      return;
+    }
+    const update = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [trimmed]);
+
+  return (
+    <div className="relative min-h-[2.05rem]">
+      <p ref={ref} className="line-clamp-2 text-[0.68rem] leading-snug text-ink/65">
+        {trimmed || "\u00A0"}
+      </p>
+      {overflows ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSeeMore();
+          }}
+          className="absolute right-0 bottom-0 bg-linear-to-l from-white from-45% via-white to-transparent pl-6 text-[0.62rem] font-semibold text-sky-deep hover:underline"
+        >
+          See more
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DesktopDishCard({
+  item,
+  canEdit,
+  compact,
+  short,
+  onView,
+  onEdit,
+  onDelete,
+  onSeeMore,
+}: {
+  item: MenuItem;
+  canEdit: boolean;
+  compact: boolean;
+  short?: boolean;
+  onView: (url: string) => void;
+  onEdit: (item: MenuItem) => void;
+  onDelete: (item: MenuItem) => void;
+  onSeeMore: (item: MenuItem) => void;
+}) {
+  const src = item.image_url ? mediaUrl(item.image_url) : null;
+  const mediaClass = compact
+    ? "relative isolate min-h-0 w-full flex-1 overflow-hidden bg-mist"
+    : short
+      ? "relative isolate aspect-4/3 w-full overflow-hidden bg-mist"
+      : "relative isolate aspect-4/5 w-full overflow-hidden bg-mist";
+
+  return (
+    <li
+      className={`group flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-[0_3px_10px_rgba(8,18,28,0.06)] ${
+        item.available ? "" : "opacity-55"
+      }`}
+    >
+      {src ? (
+        <button
+          type="button"
+          className={mediaClass}
+          onClick={() => onView(src)}
+          aria-label={`View ${item.name}`}
+        >
+          <DishThumb
+            src={src}
+            alt={item.name}
+            className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 ease-out group-hover:scale-[1.03]"
+          />
+          {!item.available ? (
+            <span className="absolute top-2 left-2 rounded bg-white/90 px-1.5 py-0.5 text-[0.5rem] font-semibold tracking-wide text-ink/70 uppercase">
+              Unavailable
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <div className={mediaClass}>
+          {!item.available ? (
+            <span className="absolute top-2 left-2 rounded bg-white/90 px-1.5 py-0.5 text-[0.5rem] font-semibold tracking-wide text-ink/70 uppercase">
+              Unavailable
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      <div
+        className={`flex shrink-0 flex-col px-2.5 py-1.5 ${
+          canEdit ? (compact ? "h-[6.15rem]" : "h-[6.5rem]") : compact ? "h-[4.9rem]" : "h-[5.2rem]"
+        }`}
+      >
+        <h4
+          className="min-h-[2.05rem] line-clamp-2 break-words font-display text-[0.82rem] leading-snug text-ink"
+          title={item.name}
+        >
+          {item.name}
+        </h4>
+        <SeeMoreText text={item.description ?? ""} onSeeMore={() => onSeeMore(item)} />
+        {canEdit ? (
+          <div className="mt-auto flex flex-nowrap gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              className="rounded-full border border-ink/12 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-ink transition hover:bg-mist"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(item)}
+              className="rounded-full border border-red-200 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-red-700 transition hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 const MENU_IMAGE_BUCKET = "restaurant-page";
 
 async function freshAccessToken(): Promise<string> {
-  const current = await supabase.auth.getSession();
-  let token = current.data.session?.access_token ?? null;
-  const expiresAt = current.data.session?.expires_at;
-  const nearlyExpired =
-    typeof expiresAt === "number" && expiresAt * 1000 < Date.now() + 90_000;
+  // Prefer a refreshed JWT — stale tokens often surface as "Auth session missing!".
+  const refreshed = await supabase.auth.refreshSession();
+  let token = refreshed.data.session?.access_token ?? null;
 
-  if (!token || nearlyExpired) {
-    const refreshed = await supabase.auth.refreshSession();
-    token = refreshed.data.session?.access_token ?? token;
+  if (!token) {
+    const current = await supabase.auth.getSession();
+    token = current.data.session?.access_token ?? null;
   }
 
   if (!token) {
-    throw new Error("Admin session expired. Please sign in again, then retry the upload.");
+    throw new Error("Admin session expired. Please sign in again, then retry.");
   }
   return token;
 }
 
 async function authHeaders(json = true): Promise<Record<string, string>> {
+  const token = await freshAccessToken();
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${await freshAccessToken()}`,
+    Authorization: `Bearer ${token}`,
+    // Vite proxy can drop Authorization on DELETE; this header is forwarded.
+    "x-access-token": token,
   };
   if (json) headers["Content-Type"] = "application/json";
   return headers;
@@ -151,6 +293,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [itemAvailable, setItemAvailable] = useState(true);
   const [dishPage, setDishPage] = useState(0);
+  const [descItem, setDescItem] = useState<MenuItem | null>(null);
 
   async function loadMenu() {
     setLoading(true);
@@ -197,10 +340,11 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
   }, [activeId]);
 
   useEffect(() => {
-    if (!lightbox && !catModal && !itemModal && !deleteTarget) return;
+    if (!lightbox && !catModal && !itemModal && !deleteTarget && !descItem) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setLightbox(null);
+      setDescItem(null);
       if (!saving && !deleting) {
         setCatModal(null);
         setItemModal(null);
@@ -217,34 +361,34 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
       lenis?.start();
       window.removeEventListener("keydown", onKey);
     };
-  }, [lightbox, catModal, itemModal, deleteTarget, saving, deleting]);
+  }, [lightbox, catModal, itemModal, deleteTarget, descItem, saving, deleting]);
 
   const active = categories.find((c) => c.id === activeId) ?? null;
-
-  const dishPageCount = useMemo(() => {
-    const total = active?.items.length ?? 0;
-    return Math.max(1, Math.ceil(total / DESKTOP_DISH_PER_PAGE));
-  }, [active?.items.length]);
-
-  useEffect(() => {
-    setDishPage((p) => Math.min(p, Math.max(0, dishPageCount - 1)));
-  }, [dishPageCount]);
-
+  const dishTotal = active?.items.length ?? 0;
+  const dishPageCount = Math.max(1, Math.ceil(dishTotal / DESKTOP_DISH_PER_PAGE));
   const safeDishPage = Math.min(dishPage, dishPageCount - 1);
 
-  const desktopDishPage = useMemo(() => {
+  const desktopDishes = useMemo(() => {
     const items = active?.items ?? [];
     const start = safeDishPage * DESKTOP_DISH_PER_PAGE;
     return items.slice(start, start + DESKTOP_DISH_PER_PAGE);
   }, [active?.items, safeDishPage]);
 
-  const showDishPager = (active?.items.length ?? 0) > DESKTOP_DISH_PER_PAGE;
-  const dishCounterStart =
-    (active?.items.length ?? 0) > 0 ? safeDishPage * DESKTOP_DISH_PER_PAGE + 1 : 0;
+  useEffect(() => {
+    setDishPage((p) => Math.min(p, Math.max(0, dishPageCount - 1)));
+  }, [dishPageCount]);
+
+  const dishCounterStart = dishTotal > 0 ? safeDishPage * DESKTOP_DISH_PER_PAGE + 1 : 0;
   const dishCounterEnd = Math.min(
     safeDishPage * DESKTOP_DISH_PER_PAGE + DESKTOP_DISH_PER_PAGE,
-    active?.items.length ?? 0,
+    dishTotal,
   );
+  const dishCounterLabel =
+    dishCounterStart === dishCounterEnd
+      ? `${dishCounterStart} / ${dishTotal}`
+      : `${dishCounterStart}–${dishCounterEnd} / ${dishTotal}`;
+  const showDishPager = dishTotal > DESKTOP_DISH_PER_PAGE;
+  const fillSidebar = dishTotal > DESKTOP_DISH_COLS;
 
   function openCreateCategory() {
     setCatName("");
@@ -570,13 +714,19 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
             ) : null}
 
             <div
-              className={`md:grid md:grid-cols-[11.5rem_minmax(0,1fr)] md:items-stretch md:gap-0 lg:grid-cols-[12.5rem_minmax(0,1fr)] ${
-                canEdit && active ? "" : "mt-5 md:mt-6"
-              }`}
+              className={`md:grid md:grid-cols-[11.5rem_minmax(0,1fr)] md:gap-0 lg:grid-cols-[12.5rem_minmax(0,1fr)] ${
+                fillSidebar
+                  ? "md:grid-rows-[minmax(22rem,auto)_auto] md:items-stretch"
+                  : "md:items-stretch"
+              } ${canEdit && active ? "" : "mt-5 md:mt-6"}`}
             >
-              {/* Desktop — categories rail (same height as 2×4 dish grid) */}
-              <aside className="hidden min-h-0 md:flex md:pr-5 lg:pr-6">
-                <div className="flex h-full min-h-[22rem] w-full flex-col rounded-2xl bg-mist/70 p-2.5 ring-1 ring-ink/6">
+              {/* Desktop — categories rail; when 5–8 dishes, this height drives the 2×4 grid */}
+              <aside className="hidden min-h-0 md:flex md:row-start-1 md:pr-5 lg:pr-6">
+                <div
+                  className={`flex h-full w-full flex-col rounded-2xl bg-mist/70 p-2.5 ring-1 ring-ink/6 ${
+                    fillSidebar ? "min-h-[22rem]" : "min-h-[12.5rem]"
+                  }`}
+                >
                   <p className="shrink-0 px-2 pt-0.5 text-[0.58rem] font-semibold tracking-[0.2em] text-ink/70 uppercase">
                     Categories
                   </p>
@@ -606,8 +756,12 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
               </aside>
 
               {active ? (
-              <div className="flex min-h-0 min-w-0 flex-col md:min-h-[22rem] md:border-l md:border-ink/8 md:pl-5 lg:pl-6">
-                <div className="flex min-h-0 flex-1 flex-col">
+              <div
+                className={`flex min-h-0 min-w-0 flex-col md:row-start-1 md:border-l md:border-ink/8 md:pl-5 lg:pl-6 ${
+                  fillSidebar ? "md:h-full" : ""
+                }`}
+              >
+                <div className={`flex min-h-0 flex-col ${fillSidebar ? "h-full" : ""}`}>
                   {active.items.length === 0 ? (
                     <p className="text-sm text-ink/70">
                       No dishes in this category yet
@@ -683,105 +837,34 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                         ))}
                       </ul>
 
-                      {/* Desktop — up to 4 cols, only filled dishes (no empty placeholders) */}
-                      <div className="hidden min-h-0 flex-1 flex-col md:flex">
+                      {/* Desktop — 1–4: large cards; 5–8: compact 2×4 matching category height */}
+                      <div
+                        className={`hidden md:flex md:flex-col ${fillSidebar ? "h-full min-h-0" : ""}`}
+                      >
                         <ul
-                          className="grid min-h-0 flex-1 auto-rows-fr gap-2.5 lg:gap-3"
+                          className={`grid gap-2.5 lg:gap-3 ${
+                            fillSidebar ? "min-h-0 flex-1 grid-rows-2" : ""
+                          }`}
                           style={{
                             gridTemplateColumns: `repeat(${DESKTOP_DISH_COLS}, minmax(0, 1fr))`,
+                            ...(fillSidebar
+                              ? { gridTemplateRows: "repeat(2, minmax(0, 1fr))" }
+                              : {}),
                           }}
                         >
-                          {desktopDishPage.map((item) => (
-                              <li
-                                key={item.id}
-                                className={`group flex min-h-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-[0_3px_10px_rgba(8,18,28,0.06)] ${
-                                  item.available ? "" : "opacity-55"
-                                }`}
-                              >
-                                {item.image_url ? (
-                                  <button
-                                    type="button"
-                                    className="relative isolate block h-[58%] min-h-[4.5rem] w-full shrink-0 overflow-hidden bg-mist"
-                                    onClick={() => setLightbox(mediaUrl(item.image_url)!)}
-                                    aria-label={`View ${item.name}`}
-                                  >
-                                    <DishThumb
-                                      src={mediaUrl(item.image_url)!}
-                                      alt={item.name}
-                                      className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 ease-out group-hover:scale-[1.03]"
-                                    />
-                                  </button>
-                                ) : (
-                                  <div className="h-[58%] min-h-[4.5rem] w-full shrink-0 bg-mist" />
-                                )}
-
-                                <div className="flex min-h-0 flex-1 flex-col px-2 py-1.5">
-                                  <h4 className="truncate font-display text-[0.82rem] leading-snug text-ink">
-                                    {item.name}
-                                  </h4>
-
-                                  {!item.available ? (
-                                    <p className="text-[0.5rem] font-semibold tracking-[0.1em] text-ink/55 uppercase">
-                                      Unavailable
-                                    </p>
-                                  ) : null}
-
-                                  {item.description ? (
-                                    <p className="mt-0.5 line-clamp-1 text-[0.68rem] leading-snug text-ink/65">
-                                      {item.description}
-                                    </p>
-                                  ) : null}
-
-                                  {canEdit ? (
-                                    <div className="mt-auto flex flex-wrap gap-1 pt-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => openEditItem(item)}
-                                        className="rounded-full border border-ink/12 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-ink transition hover:bg-mist"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeleteTarget({ type: "item", item })}
-                                        className="rounded-full border border-red-200 bg-white px-1.5 py-0.5 text-[0.6rem] font-semibold text-red-700 transition hover:bg-red-50"
-                                      >
-                                        Delete
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </li>
+                          {desktopDishes.map((item) => (
+                            <DesktopDishCard
+                              key={item.id}
+                              item={item}
+                              canEdit={canEdit}
+                              compact={fillSidebar}
+                              onView={(url) => setLightbox(url)}
+                              onEdit={openEditItem}
+                              onDelete={(dish) => setDeleteTarget({ type: "item", item: dish })}
+                              onSeeMore={setDescItem}
+                            />
                           ))}
                         </ul>
-
-                        {showDishPager ? (
-                          <div className="mt-3 flex shrink-0 items-center justify-between gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setDishPage((p) => Math.max(0, p - 1))}
-                              disabled={safeDishPage <= 0}
-                              aria-label="Previous dishes"
-                              className="btn-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                            >
-                              <ChevronLeftIcon className="h-4 w-4" />
-                            </button>
-                            <p className="min-w-[4.5rem] text-center text-xs font-semibold tracking-wide text-ink tabular-nums">
-                              {dishCounterStart}–{dishCounterEnd} / {active?.items.length ?? 0}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDishPage((p) => Math.min(dishPageCount - 1, p + 1))
-                              }
-                              disabled={safeDishPage >= dishPageCount - 1}
-                              aria-label="Next dishes"
-                              className="btn-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                            >
-                              <ChevronRightIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : null}
                       </div>
                     </>
                   ) : (
@@ -833,6 +916,31 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                 </div>
               </div>
             ) : null}
+            {showDishPager ? (
+              <div className="mt-5 hidden items-center justify-between gap-3 md:col-start-2 md:row-start-2 md:flex sm:mt-6">
+                <button
+                  type="button"
+                  onClick={() => setDishPage((p) => Math.max(0, p - 1))}
+                  disabled={safeDishPage <= 0}
+                  aria-label="Previous dishes"
+                  className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
+                >
+                  <ChevronLeftIcon className="h-5 w-5" />
+                </button>
+                <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-ink tabular-nums">
+                  {dishCounterLabel}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDishPage((p) => Math.min(dishPageCount - 1, p + 1))}
+                  disabled={safeDishPage >= dishPageCount - 1}
+                  aria-label="Next dishes"
+                  className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
+                >
+                  <ChevronRightIcon className="h-5 w-5" />
+                </button>
+              </div>
+            ) : null}
             </div>
           </>
         )}
@@ -876,6 +984,38 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                 className="max-h-[min(58svh,420px)] max-w-[min(82vw,420px)] rounded-lg object-contain shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               />
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {descItem
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label={descItem.name}
+              onClick={() => setDescItem(null)}
+            >
+              <div
+                className="max-h-[min(80dvh,28rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-display text-xl text-ink">{descItem.name}</h3>
+                <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-ink/80">
+                  {descItem.description.trim()}
+                </p>
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDescItem(null)}
+                    className="btn-press rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>,
             document.body,
           )

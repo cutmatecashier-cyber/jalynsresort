@@ -2,14 +2,15 @@
   "posts": [
     {
       "id": "studio-apartments-available-for-long-term-rental-at-jalyns-resort",
+      "category": "News",
       "title": "Studio Apartments available for long-term rental at Jalyn's Resort",
       "excerpt": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences,",
       "body": "Take advantage of our extended-stay room rentals and experience the full array of amenities, conveniences, and breathtaking views at Jalyn’s Resort!\n\nNotably, Jalyn’s Resort is equipped with Solar Power and Battery backups, ensuring uninterrupted access to essential services during power outages. Say goodbye to midnight surprises of your air-conditioning shutting off!\n\n**P18k/month including Electricity + 1 month deposit.**\n\nSee below for details.\n\n## Studio Apartments\n\n**P18k/month including Electricity + 1 month deposit.**\n\n- Solar/Battery Powered – no brownouts!\n- Use of swimming pools\n- King size bed\n- Airconditioned + ceiling fan\n- Hot Shower\n- Kitchenette with Refrigerator\n- Wifi\n- Cable TV\n- Terrace\n- Basic cooking facilities for the terrace can be arranged\n- Hotel Laundry Service available\n- Room service food from our restaurant available\n\n## Contact us for Inquiries\n\nIf you are interested in renting one of these apartment, or have any questions, please send us a message or contact us through our [Facebook Page](https://www.facebook.com/jalynsresortpuertogalera).",
       "image": "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--01-pools-and-solar-1-b63856.jpg?v=1789880383771",
       "cta": "Read more",
+      "href": "/news/studio-apartments-available-for-long-term-rental-at-jalyns-resort",
       "kind": "news",
       "date": "2024-08-20",
-      "category": "News",
       "price": "P18k/month including Electricity + 1 month deposit",
       "gallery": [
         "https://svxqrxduopqwggqbamhh.supabase.co/storage/v1/object/public/news-page/posts/studio-apartments-available--01-pools-and-solar-1-b63856.jpg?v=1789880383771",
@@ -45,8 +46,7 @@
             "Room service food from our restaurant available"
           ]
         }
-      ],
-      "href": "/news/studio-apartments-available-for-long-term-rental-at-jalyns-resort"
+      ]
     },
     {
       "id": "phidex-2024-dive-expo",
