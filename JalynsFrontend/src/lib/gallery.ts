@@ -1,4 +1,5 @@
 import { getApiUrl } from "./api";
+import { adminAuthHeaders } from "./adminAuth";
 
 export type GalleryPhoto = {
   id: string;
@@ -58,23 +59,26 @@ export function notifyGalleryUpdated(photos?: GalleryPhoto[]) {
 
 export async function fetchGallery(): Promise<GalleryPhoto[]> {
   try {
-    const res = await fetch(`${getApiUrl()}/api/gallery`, { cache: "no-store" });
+    const res = await fetch(`${getApiUrl()}/api/gallery?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
     const body = (await res.json()) as {
       success?: boolean;
       photos?: GalleryPhoto[];
     };
-    if (res.ok && Array.isArray(body.photos) && body.photos.length > 0) {
+    // Trust API list even when shorter after deletes (do not fall back to defaults).
+    if (res.ok && Array.isArray(body.photos)) {
       return body.photos;
     }
   } catch {
-    // keep defaults
+    // keep defaults only on network failure
   }
   return DEFAULT_GALLERY.map((p) => ({ ...p }));
 }
 
 export async function uploadGalleryPhoto(
   file: File,
-  token: string,
   options?: { alt?: string; replaceId?: string },
 ) {
   const body = new FormData();
@@ -83,7 +87,7 @@ export async function uploadGalleryPhoto(
   if (options?.replaceId) body.append("replaceId", options.replaceId);
   const res = await fetch(`${getApiUrl()}/api/gallery/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
     body,
   });
   const data = (await res.json()) as {
@@ -98,10 +102,10 @@ export async function uploadGalleryPhoto(
   return data;
 }
 
-export async function deleteGalleryPhoto(id: string, token: string) {
+export async function deleteGalleryPhoto(id: string) {
   const res = await fetch(`${getApiUrl()}/api/gallery/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;
@@ -114,10 +118,10 @@ export async function deleteGalleryPhoto(id: string, token: string) {
   return data;
 }
 
-export async function resetGalleryPhotos(token: string) {
+export async function resetGalleryPhotos() {
   const res = await fetch(`${getApiUrl()}/api/gallery/reset`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;

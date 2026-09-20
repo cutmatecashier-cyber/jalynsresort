@@ -1,6 +1,6 @@
 import multer from 'multer'
-import { Router, type Request, type Response } from 'express'
-import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
+import { Router } from 'express'
+import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   addGalleryPhoto,
   deleteGalleryPhoto,
@@ -24,61 +24,11 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
 })
 
-async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
-  if (!isServiceRoleConfigured()) {
-    res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
-    return null
-  }
-
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Missing admin session.' })
-    return null
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !authData.user) {
-    res.status(401).json({
-      success: false,
-      message: authError?.message || 'Invalid admin session.',
-    })
-    return null
-  }
-
-  const { data: adminProfile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role, approval_status')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    res.status(500).json({
-      success: false,
-      message: `Could not verify admin profile: ${profileError.message}`,
-    })
-    return null
-  }
-
-  if (
-    !adminProfile ||
-    adminProfile.role !== 'admin' ||
-    adminProfile.approval_status !== 'approved'
-  ) {
-    res.status(403).json({
-      success: false,
-      message: 'Only approved admins can edit gallery photos.',
-    })
-    return null
-  }
-
-  return authData.user.id
-}
-
-galleryRouter.get('/', (_req, res) => {
+galleryRouter.get('/', async (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    return res.json({ success: true, photos: listGallery() })
+    const photos = await listGallery()
+    return res.json({ success: true, photos })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load gallery.'
     return res.status(500).json({ success: false, message })
@@ -87,7 +37,11 @@ galleryRouter.get('/', (_req, res) => {
 
 galleryRouter.post('/upload', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (
+      !(await requireApprovedAdmin(req, res, 'Only approved admins can edit gallery photos.'))
+    ) {
+      return
+    }
 
     upload.single('image')(req, res, (err: unknown) => {
       void (async () => {
@@ -111,12 +65,12 @@ galleryRouter.post('/upload', async (req, res) => {
             typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
           const alt = typeof req.body?.alt === 'string' ? req.body.alt : undefined
           const photos = replaceId
-            ? updateGalleryPhoto(replaceId, { image: url, alt })
-            : addGalleryPhoto({ image: url, alt })
+            ? await updateGalleryPhoto(replaceId, { image: url, alt })
+            : await addGalleryPhoto({ image: url, alt })
           res.json({ success: true, url, photos })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not save gallery photo.'
-          const status = /not found|up to|required|bucket|storage/i.test(message) ? 400 : 500
+          const status = /not found|up to|required|bucket|storage|sync/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -129,8 +83,12 @@ galleryRouter.post('/upload', async (req, res) => {
 
 galleryRouter.delete('/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
-    const photos = deleteGalleryPhoto(req.params.id)
+    if (
+      !(await requireApprovedAdmin(req, res, 'Only approved admins can edit gallery photos.'))
+    ) {
+      return
+    }
+    const photos = await deleteGalleryPhoto(req.params.id)
     return res.json({ success: true, photos })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not delete gallery photo.'
@@ -141,8 +99,12 @@ galleryRouter.delete('/:id', async (req, res) => {
 
 galleryRouter.post('/reset', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
-    const photos = resetGallery()
+    if (
+      !(await requireApprovedAdmin(req, res, 'Only approved admins can edit gallery photos.'))
+    ) {
+      return
+    }
+    const photos = await resetGallery()
     return res.json({ success: true, photos })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not reset gallery.'

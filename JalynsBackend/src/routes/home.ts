@@ -1,6 +1,6 @@
 import multer from 'multer'
-import { Router, type Request, type Response } from 'express'
-import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
+import { Router } from 'express'
+import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   getHomeSection,
   isHomeSectionKey,
@@ -28,61 +28,13 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
 })
 
-async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
-  if (!isServiceRoleConfigured()) {
-    res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
-    return null
-  }
+const adminMsg = 'Only approved admins can edit the home background.'
 
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Missing admin session.' })
-    return null
-  }
 
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !authData.user) {
-    res.status(401).json({
-      success: false,
-      message: authError?.message || 'Invalid admin session.',
-    })
-    return null
-  }
-
-  const { data: adminProfile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role, approval_status')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    res.status(500).json({
-      success: false,
-      message: `Could not verify admin profile: ${profileError.message}`,
-    })
-    return null
-  }
-
-  if (
-    !adminProfile ||
-    adminProfile.role !== 'admin' ||
-    adminProfile.approval_status !== 'approved'
-  ) {
-    res.status(403).json({
-      success: false,
-      message: 'Only approved admins can edit the home background.',
-    })
-    return null
-  }
-
-  return authData.user.id
-}
-
-homeRouter.get('/hero', (_req, res) => {
+homeRouter.get('/hero', async (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    const slides = listHomeHeroSlides()
+    const slides = await listHomeHeroSlides()
     return res.json({ success: true, slides })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load home hero slides.'
@@ -92,7 +44,7 @@ homeRouter.get('/hero', (_req, res) => {
 
 homeRouter.post('/hero/upload', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
 
     upload.single('image')(req, res, (err: unknown) => {
       void (async () => {
@@ -120,11 +72,11 @@ homeRouter.post('/hero/upload', async (req, res) => {
             stableName: 'current',
             upsert: true,
           })
-          const slides = updateHomeHeroSlide(index, { image: url })
+          const slides = await updateHomeHeroSlide(index, { image: url })
           res.json({ success: true, url, slides })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not upload home background.'
-          const status = /bucket|storage|Please choose|Only JPG/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -137,14 +89,14 @@ homeRouter.post('/hero/upload', async (req, res) => {
 
 homeRouter.put('/hero/:index', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
     const index = Number(req.params.index)
     const image = typeof req.body?.image === 'string' ? req.body.image : undefined
     const alt = typeof req.body?.alt === 'string' ? req.body.alt : undefined
     if (!image && !alt) {
       return res.status(400).json({ success: false, message: 'Provide an image URL and/or alt text.' })
     }
-    const slides = updateHomeHeroSlide(index, { image, alt })
+    const slides = await updateHomeHeroSlide(index, { image, alt })
     return res.json({ success: true, slides })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not update slide.'
@@ -155,9 +107,9 @@ homeRouter.put('/hero/:index', async (req, res) => {
 
 homeRouter.post('/hero/:index/reset', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
     const index = Number(req.params.index)
-    const slides = resetHomeHeroSlide(index)
+    const slides = await resetHomeHeroSlide(index)
     return res.json({ success: true, slides })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not reset slide.'
@@ -168,8 +120,8 @@ homeRouter.post('/hero/:index/reset', async (req, res) => {
 
 homeRouter.post('/hero/reset-all', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
-    const slides = resetAllHomeHeroSlides()
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
+    const slides = await resetAllHomeHeroSlides()
     return res.json({ success: true, slides })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not reset backgrounds.'
@@ -177,10 +129,10 @@ homeRouter.post('/hero/reset-all', async (req, res) => {
   }
 })
 
-homeRouter.get('/sections', (_req, res) => {
+homeRouter.get('/sections', async (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    const sections = listHomeSections()
+    const sections = await listHomeSections()
     return res.json({ success: true, sections })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load section backgrounds.'
@@ -188,14 +140,18 @@ homeRouter.get('/sections', (_req, res) => {
   }
 })
 
-homeRouter.get('/sections/:key', (req, res) => {
+homeRouter.get('/sections/:key', async (req, res) => {
   try {
     const key = req.params.key
     if (!isHomeSectionKey(key)) {
       return res.status(400).json({ success: false, message: 'Unknown section key.' })
     }
     res.setHeader('Cache-Control', 'no-store')
-    return res.json({ success: true, url: getHomeSection(key), sections: listHomeSections() })
+    return res.json({
+      success: true,
+      url: await getHomeSection(key),
+      sections: await listHomeSections(),
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load section background.'
     return res.status(500).json({ success: false, message })
@@ -204,7 +160,7 @@ homeRouter.get('/sections/:key', (req, res) => {
 
 homeRouter.post('/sections/:key/upload', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
     const key = req.params.key
     if (!isHomeSectionKey(key)) {
       return res.status(400).json({ success: false, message: 'Unknown section key.' })
@@ -229,12 +185,12 @@ homeRouter.post('/sections/:key/upload', async (req, res) => {
             stableName: 'current',
             upsert: true,
           })
-          const sections = updateHomeSection(key, url)
+          const sections = await updateHomeSection(key, url)
           res.json({ success: true, url, sections })
         } catch (inner) {
           const message =
             inner instanceof Error ? inner.message : 'Could not upload section background.'
-          const status = /bucket|storage|Please choose|Only JPG/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -247,12 +203,12 @@ homeRouter.post('/sections/:key/upload', async (req, res) => {
 
 homeRouter.post('/sections/:key/reset', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
     const key = req.params.key
     if (!isHomeSectionKey(key)) {
       return res.status(400).json({ success: false, message: 'Unknown section key.' })
     }
-    const sections = resetHomeSection(key)
+    const sections = await resetHomeSection(key)
     return res.json({ success: true, url: sections[key], sections })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not reset section background.'

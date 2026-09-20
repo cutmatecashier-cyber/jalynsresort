@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { getApiUrl } from "../lib/api";
 import { notifyHomeHeroUpdated, notifyHomeSectionUpdated } from "../lib/homeHero";
-import { notifyGalleryUpdated } from "../lib/gallery";
+import { fetchGallery, notifyGalleryUpdated } from "../lib/gallery";
 import { fetchNewsPosts, notifyNewsUpdated } from "../lib/news";
-import { notifyRoomsUpdated } from "../lib/rooms";
+import { fetchRooms, notifyRoomsUpdated } from "../lib/rooms";
 
 export const CONTENT_CHANGED_EVENT = "jalyns:content-changed";
 export const CONTENT_SYNC_CHANNEL = "jalyns-content-sync";
@@ -16,8 +16,8 @@ export function refreshLocalContent() {
   notifyHomeHeroUpdated();
   notifyHomeSectionUpdated("whystay");
   notifyHomeSectionUpdated("news");
-  notifyRoomsUpdated();
-  notifyGalleryUpdated();
+  void fetchRooms().then((rooms) => notifyRoomsUpdated(rooms));
+  void fetchGallery().then((photos) => notifyGalleryUpdated(photos));
   void fetchNewsPosts().then((posts) => notifyNewsUpdated(posts));
 }
 

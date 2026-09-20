@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 type NavItem =
   | { label: string; shortLabel: string; kind: "hash"; hash: string }
@@ -406,51 +407,28 @@ export function Navbar() {
           )
         : null}
 
-      {confirmSignOut
-        ? createPortal(
-            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="sign-out-title"
-                className="w-full max-w-md rounded-2xl border border-ink/8 bg-white p-5 text-ink shadow-xl sm:p-6"
-              >
-                <h2 id="sign-out-title" className="font-display text-2xl">
-                  Sign out?
-                </h2>
-                <p className="mt-2 text-sm text-stone">
-                  Are you sure you want to sign out
-                  {profile?.name ? (
-                    <>
-                      {" "}
-                      as <strong className="text-ink">{profile.name}</strong>
-                    </>
-                  ) : null}
-                  ?
-                </p>
-                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    disabled={signingOut}
-                    onClick={() => setConfirmSignOut(false)}
-                    className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={signingOut}
-                    onClick={() => void handleConfirmSignOut()}
-                    className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-bright disabled:opacity-60"
-                  >
-                    {signingOut ? "Signing out…" : "Sign out"}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <ConfirmDialog
+        open={confirmSignOut}
+        title="Sign out?"
+        message={
+          <>
+            Are you sure you want to sign out
+            {profile?.name ? (
+              <>
+                {" "}
+                as <strong className="text-ink">{profile.name}</strong>
+              </>
+            ) : null}
+            ?
+          </>
+        }
+        confirmLabel="Sign out"
+        busyLabel="Signing out…"
+        busy={signingOut}
+        danger={false}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => void handleConfirmSignOut()}
+      />
     </>
   );
 }

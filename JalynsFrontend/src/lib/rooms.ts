@@ -1,4 +1,5 @@
 import { getApiUrl } from "./api";
+import { adminAuthHeaders } from "./adminAuth";
 
 export type RoomPhoto = {
   id: string;
@@ -52,23 +53,25 @@ export function notifyRoomsUpdated(rooms?: RoomPhoto[]) {
 
 export async function fetchRooms(): Promise<RoomPhoto[]> {
   try {
-    const res = await fetch(`${getApiUrl()}/api/rooms`, { cache: "no-store" });
+    const res = await fetch(`${getApiUrl()}/api/rooms?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
     const body = (await res.json()) as {
       success?: boolean;
       rooms?: RoomPhoto[];
     };
-    if (res.ok && Array.isArray(body.rooms) && body.rooms.length > 0) {
+    if (res.ok && Array.isArray(body.rooms)) {
       return body.rooms;
     }
   } catch {
-    // keep defaults
+    // keep defaults only on network failure
   }
   return DEFAULT_ROOMS.map((r) => ({ ...r }));
 }
 
 export async function uploadRoomPhoto(
   file: File,
-  token: string,
   options?: { name?: string; replaceId?: string },
 ) {
   const body = new FormData();
@@ -77,7 +80,7 @@ export async function uploadRoomPhoto(
   if (options?.replaceId) body.append("replaceId", options.replaceId);
   const res = await fetch(`${getApiUrl()}/api/rooms/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
     body,
   });
   const data = (await res.json()) as {
@@ -92,10 +95,10 @@ export async function uploadRoomPhoto(
   return data;
 }
 
-export async function deleteRoomPhoto(id: string, token: string) {
+export async function deleteRoomPhoto(id: string) {
   const res = await fetch(`${getApiUrl()}/api/rooms/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;
@@ -108,10 +111,10 @@ export async function deleteRoomPhoto(id: string, token: string) {
   return data;
 }
 
-export async function resetRoomPhotos(token: string) {
+export async function resetRoomPhotos() {
   const res = await fetch(`${getApiUrl()}/api/rooms/reset`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;

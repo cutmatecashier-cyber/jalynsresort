@@ -12,9 +12,10 @@ import {
   uploadHomeHeroSlide,
   type HomeHeroSlide,
 } from "../lib/homeHero";
-import { supabase } from "../lib/supabase";
+import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { BookingBar } from "./BookingBar";
 import { AdminEditButton } from "./AdminEditButton";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { MapPinIcon } from "./Icons";
 import { Navbar } from "./Navbar";
@@ -78,7 +79,9 @@ export function Hero() {
   const [selected, setSelected] = useState(0);
   const [bgBusy, setBgBusy] = useState(false);
   const [bgError, setBgError] = useState<string | null>(null);
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useWheelScrollContain<HTMLDivElement>(bgOpen);
 
   useEffect(() => {
     let alive = true;
@@ -162,20 +165,12 @@ export function Hero() {
     }
   }
 
-  async function authToken() {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error("Admin session expired. Please log in again.");
-    return token;
-  }
-
   async function onUploadFile(file: File | null) {
     if (!file) return;
     setBgBusy(true);
     setBgError(null);
     try {
-      const token = await authToken();
-      const data = await uploadHomeHeroSlide(selected, file, token);
+      const data = await uploadHomeHeroSlide(selected, file);
       if (data.slides?.length) {
         setEditorSlides(data.slides);
         setSlides(data.slides);
@@ -196,8 +191,7 @@ export function Hero() {
     setBgBusy(true);
     setBgError(null);
     try {
-      const token = await authToken();
-      const data = await resetHomeHeroSlide(selected, token);
+      const data = await resetHomeHeroSlide(selected);
       if (data.slides?.length) {
         setEditorSlides(data.slides);
         setSlides(data.slides);
@@ -214,12 +208,15 @@ export function Hero() {
   }
 
   async function onResetAll() {
-    if (!window.confirm("Reset all home backgrounds to the default photos?")) return;
+    setConfirmResetAll(true);
+  }
+
+  async function runResetAll() {
+    setConfirmResetAll(false);
     setBgBusy(true);
     setBgError(null);
     try {
-      const token = await authToken();
-      const data = await resetAllHomeHeroSlides(token);
+      const data = await resetAllHomeHeroSlides();
       if (data.slides?.length) {
         setEditorSlides(data.slides);
         setSlides(data.slides);
@@ -371,10 +368,13 @@ export function Hero() {
               onClick={() => !bgBusy && setBgOpen(false)}
             >
               <div
-                className="flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-ink shadow-xl sm:rounded-2xl"
+                className="flex h-[min(92dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-ink shadow-xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
+                <div
+                  ref={scrollRef}
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pt-6"
+                >
                   <h2 className="font-display text-2xl">Home background</h2>
                   <p className="mt-1.5 text-sm text-stone">
                     Choose a slide, then upload a new photo. Guests will see it on the home hero.
@@ -464,6 +464,16 @@ export function Hero() {
             document.body,
           )
         : null}
+
+      <ConfirmDialog
+        open={confirmResetAll}
+        title="Reset all backgrounds?"
+        message="All home hero photos will be restored to the defaults. This cannot be undone."
+        confirmLabel="Reset all"
+        busy={bgBusy}
+        onCancel={() => setConfirmResetAll(false)}
+        onConfirm={() => void runResetAll()}
+      />
     </section>
   );
 }

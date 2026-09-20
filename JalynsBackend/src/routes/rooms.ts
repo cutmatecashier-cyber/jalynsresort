@@ -1,6 +1,6 @@
 import multer from 'multer'
-import { Router, type Request, type Response } from 'express'
-import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
+import { Router } from 'express'
+import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   addRoom,
   deleteRoom,
@@ -24,61 +24,10 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
 })
 
-async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
-  if (!isServiceRoleConfigured()) {
-    res.status(500).json({ success: false, message: 'Backend service_role key is not configured.' })
-    return null
-  }
-
-  const authHeader = req.headers.authorization || ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Missing admin session.' })
-    return null
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
-  if (authError || !authData.user) {
-    res.status(401).json({
-      success: false,
-      message: authError?.message || 'Invalid admin session.',
-    })
-    return null
-  }
-
-  const { data: adminProfile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role, approval_status')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    res.status(500).json({
-      success: false,
-      message: `Could not verify admin profile: ${profileError.message}`,
-    })
-    return null
-  }
-
-  if (
-    !adminProfile ||
-    adminProfile.role !== 'admin' ||
-    adminProfile.approval_status !== 'approved'
-  ) {
-    res.status(403).json({
-      success: false,
-      message: 'Only approved admins can edit room photos.',
-    })
-    return null
-  }
-
-  return authData.user.id
-}
-
-roomsRouter.get('/', (_req, res) => {
+roomsRouter.get('/', async (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    return res.json({ success: true, rooms: listRooms() })
+    return res.json({ success: true, rooms: await listRooms() })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load rooms.'
     return res.status(500).json({ success: false, message })
@@ -87,7 +36,9 @@ roomsRouter.get('/', (_req, res) => {
 
 roomsRouter.post('/upload', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit room photos.'))) {
+      return
+    }
 
     upload.single('image')(req, res, (err: unknown) => {
       void (async () => {
@@ -111,12 +62,12 @@ roomsRouter.post('/upload', async (req, res) => {
             typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
           const name = typeof req.body?.name === 'string' ? req.body.name : undefined
           const rooms = replaceId
-            ? updateRoom(replaceId, { image: url, name })
-            : addRoom({ image: url, name })
+            ? await updateRoom(replaceId, { image: url, name })
+            : await addRoom({ image: url, name })
           res.json({ success: true, url, rooms })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not save room photo.'
-          const status = /not found|up to|required|bucket|storage/i.test(message) ? 400 : 500
+          const status = /not found|up to|required|bucket|storage|sync/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -129,8 +80,10 @@ roomsRouter.post('/upload', async (req, res) => {
 
 roomsRouter.delete('/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
-    const rooms = deleteRoom(req.params.id)
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit room photos.'))) {
+      return
+    }
+    const rooms = await deleteRoom(req.params.id)
     return res.json({ success: true, rooms })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not delete room photo.'
@@ -141,8 +94,10 @@ roomsRouter.delete('/:id', async (req, res) => {
 
 roomsRouter.post('/reset', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res))) return
-    const rooms = resetRooms()
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit room photos.'))) {
+      return
+    }
+    const rooms = await resetRooms()
     return res.json({ success: true, rooms })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not reset rooms.'

@@ -9,7 +9,6 @@ import {
   uploadHomeSectionBackground,
   type HomeSectionKey,
 } from "../lib/homeHero";
-import { supabase } from "../lib/supabase";
 import { AdminEditButton } from "./AdminEditButton";
 import { broadcastContentChanged } from "./ContentSync";
 
@@ -65,20 +64,12 @@ export function HomeSectionBgEditButton({
     }
   }
 
-  async function authToken() {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error("Admin session expired. Please log in again.");
-    return token;
-  }
-
   async function onUpload(file: File | null) {
     if (!file) return;
     setBusy(true);
     setError(null);
     try {
-      const token = await authToken();
-      const data = await uploadHomeSectionBackground(section, file, token);
+      const data = await uploadHomeSectionBackground(section, file);
       const next = data.url || data.sections?.[section] || defaultUrl;
       setPreview(next);
       notifyHomeSectionUpdated(section, next);
@@ -95,8 +86,7 @@ export function HomeSectionBgEditButton({
     setBusy(true);
     setError(null);
     try {
-      const token = await authToken();
-      const data = await resetHomeSectionBackground(section, token);
+      const data = await resetHomeSectionBackground(section);
       const next = data.url || data.sections?.[section] || defaultUrl;
       setPreview(next);
       notifyHomeSectionUpdated(section, next);

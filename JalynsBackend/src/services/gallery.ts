@@ -1,16 +1,11 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import { createJsonCloudStore } from './jsonCloudStore.js'
 
 export type GalleryPhoto = {
   id: string
   alt: string
   image: string
 }
-
-const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data')
-const DATA_FILE = path.join(DATA_DIR, 'gallery.json')
 
 export const DEFAULT_GALLERY: GalleryPhoto[] = [
   {
@@ -51,17 +46,8 @@ type StoreShape = {
   photos: GalleryPhoto[]
 }
 
-function ensureStore() {
-  mkdirSync(DATA_DIR, { recursive: true })
-  if (!existsSync(DATA_FILE)) {
-    writeFileSync(DATA_FILE, JSON.stringify({ photos: DEFAULT_GALLERY }, null, 2), 'utf8')
-  }
-}
-
 function normalizePhotos(raw: unknown): GalleryPhoto[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return DEFAULT_GALLERY.map((p) => ({ ...p }))
-  }
+  if (!Array.isArray(raw) || raw.length === 0) return []
   const photos = raw
     .map((row) => {
       const item = (row && typeof row === 'object' ? row : {}) as Partial<GalleryPhoto>
@@ -76,77 +62,84 @@ function normalizePhotos(raw: unknown): GalleryPhoto[] {
       return { id, alt, image } satisfies GalleryPhoto
     })
     .filter((p): p is GalleryPhoto => Boolean(p))
-  return photos.length > 0 ? photos.slice(0, MAX_PHOTOS) : DEFAULT_GALLERY.map((p) => ({ ...p }))
+  return photos.slice(0, MAX_PHOTOS)
 }
 
-function readStore(): StoreShape {
-  ensureStore()
-  try {
-    const parsed = JSON.parse(readFileSync(DATA_FILE, 'utf8')) as Partial<StoreShape>
-    return { photos: normalizePhotos(parsed.photos) }
-  } catch {
-    return { photos: DEFAULT_GALLERY.map((p) => ({ ...p })) }
-  }
+const store = createJsonCloudStore<StoreShape>({
+  cloudObject: 'gallery.json',
+  parse: (raw) => {
+    const row = (raw && typeof raw === 'object' ? raw : {}) as Partial<StoreShape>
+    return { photos: normalizePhotos(row.photos) }
+  },
+  serialize: (value) => value,
+  defaultValue: () => ({ photos: DEFAULT_GALLERY.map((p) => ({ ...p })) }),
+  emptyValue: () => ({ photos: [] }),
+  hasContent: (value) => value.photos.length > 0,
+})
+
+export async function listGallery(): Promise<GalleryPhoto[]> {
+  return (await store.load()).photos
 }
 
-function writeStore(store: StoreShape) {
-  ensureStore()
-  writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8')
-}
-
-export function listGallery(): GalleryPhoto[] {
-  return readStore().photos
-}
-
-export function addGalleryPhoto(input: { alt?: string; image: string }): GalleryPhoto[] {
+export async function addGalleryPhoto(input: {
+  alt?: string
+  image: string
+}): Promise<GalleryPhoto[]> {
   const image = input.image.trim()
   if (!image) throw new Error('Image URL is required.')
-  const store = readStore()
-  if (store.photos.length >= MAX_PHOTOS) {
+  const current = await store.load()
+  if (current.photos.length >= MAX_PHOTOS) {
     throw new Error(`You can add up to ${MAX_PHOTOS} gallery photos.`)
   }
-  store.photos.push({
-    id: `gallery-${randomUUID().slice(0, 8)}`,
-    alt: (input.alt || '').trim() || `Photo ${store.photos.length + 1}`,
-    image,
-  })
-  writeStore(store)
-  return store.photos
+  const next: StoreShape = {
+    photos: [
+      ...current.photos,
+      {
+        id: `gallery-${randomUUID().slice(0, 8)}`,
+        alt: (input.alt || '').trim() || `Photo ${current.photos.length + 1}`,
+        image,
+      },
+    ],
+  }
+  await store.save(next)
+  return next.photos
 }
 
-export function updateGalleryPhoto(
+export async function updateGalleryPhoto(
   id: string,
   patch: { alt?: string; image?: string },
-): GalleryPhoto[] {
-  const store = readStore()
-  const index = store.photos.findIndex((p) => p.id === id)
+): Promise<GalleryPhoto[]> {
+  const current = await store.load()
+  const index = current.photos.findIndex((p) => p.id === id)
   if (index < 0) throw new Error('Gallery photo not found.')
+  const photos = current.photos.map((p) => ({ ...p }))
   if (typeof patch.alt === 'string' && patch.alt.trim()) {
-    store.photos[index] = { ...store.photos[index], alt: patch.alt.trim() }
+    photos[index] = { ...photos[index], alt: patch.alt.trim() }
   }
   if (typeof patch.image === 'string' && patch.image.trim()) {
-    store.photos[index] = { ...store.photos[index], image: patch.image.trim() }
+    photos[index] = { ...photos[index], image: patch.image.trim() }
   }
-  writeStore(store)
-  return store.photos
+  const next = { photos }
+  await store.save(next)
+  return next.photos
 }
 
-export function deleteGalleryPhoto(id: string): GalleryPhoto[] {
-  const store = readStore()
-  if (store.photos.length <= 1) {
+export async function deleteGalleryPhoto(id: string): Promise<GalleryPhoto[]> {
+  const current = await store.load()
+  if (current.photos.length <= 1) {
     throw new Error('Keep at least one gallery photo.')
   }
-  const next = store.photos.filter((p) => p.id !== id)
-  if (next.length === store.photos.length) {
+  const photos = current.photos.filter((p) => p.id !== id)
+  if (photos.length === current.photos.length) {
     throw new Error('Gallery photo not found.')
   }
-  store.photos = next
-  writeStore(store)
-  return store.photos
+  const next = { photos }
+  await store.save(next)
+  return next.photos
 }
 
-export function resetGallery(): GalleryPhoto[] {
-  const store = { photos: DEFAULT_GALLERY.map((p) => ({ ...p })) }
-  writeStore(store)
-  return store.photos
+export async function resetGallery(): Promise<GalleryPhoto[]> {
+  const next = { photos: DEFAULT_GALLERY.map((p) => ({ ...p })) }
+  await store.save(next)
+  return next.photos
 }

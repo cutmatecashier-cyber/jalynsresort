@@ -1,6 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { createJsonCloudStore } from './jsonCloudStore.js'
 
 export type HomeHeroSlide = {
   id: string
@@ -11,9 +9,6 @@ export type HomeHeroSlide = {
 export type HomeSectionKey = 'whystay' | 'news'
 
 export type HomeSections = Record<HomeSectionKey, string>
-
-const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data')
-const DATA_FILE = path.join(DATA_DIR, 'home-hero.json')
 
 export const DEFAULT_HOME_SLIDES: HomeHeroSlide[] = [
   {
@@ -55,21 +50,6 @@ type StoreShape = {
   sections: HomeSections
 }
 
-function ensureStore() {
-  mkdirSync(DATA_DIR, { recursive: true })
-  if (!existsSync(DATA_FILE)) {
-    writeFileSync(
-      DATA_FILE,
-      JSON.stringify(
-        { slides: DEFAULT_HOME_SLIDES, sections: DEFAULT_HOME_SECTIONS },
-        null,
-        2,
-      ),
-      'utf8',
-    )
-  }
-}
-
 function normalizeSections(raw: unknown): HomeSections {
   const input = (raw && typeof raw === 'object' ? raw : {}) as Partial<HomeSections>
   return {
@@ -104,88 +84,113 @@ function normalizeSlides(raw: unknown): HomeHeroSlide[] {
   })
 }
 
-function readStore(): StoreShape {
-  ensureStore()
-  try {
-    const parsed = JSON.parse(readFileSync(DATA_FILE, 'utf8')) as Partial<StoreShape>
-    return {
-      slides: normalizeSlides(parsed.slides),
-      sections: normalizeSections(parsed.sections),
+const store = createJsonCloudStore<StoreShape>({
+  cloudObject: 'home-hero.json',
+  parse: (raw) => {
+    const row = (raw && typeof raw === 'object' ? raw : {}) as Partial<StoreShape>
+    if (!Array.isArray(row.slides) && !row.sections) {
+      return {
+        slides: [],
+        sections: { whystay: '', news: '' },
+      }
     }
-  } catch {
     return {
-      slides: DEFAULT_HOME_SLIDES.map((s) => ({ ...s })),
-      sections: { ...DEFAULT_HOME_SECTIONS },
+      slides: normalizeSlides(row.slides),
+      sections: normalizeSections(row.sections),
     }
-  }
-}
-
-function writeStore(store: StoreShape) {
-  ensureStore()
-  writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8')
-}
+  },
+  serialize: (value) => value,
+  defaultValue: () => ({
+    slides: DEFAULT_HOME_SLIDES.map((s) => ({ ...s })),
+    sections: { ...DEFAULT_HOME_SECTIONS },
+  }),
+  emptyValue: () => ({
+    slides: [],
+    sections: { whystay: '', news: '' },
+  }),
+  hasContent: (value) =>
+    Array.isArray(value.slides) &&
+    value.slides.length > 0 &&
+    Boolean(value.sections?.whystay || value.sections?.news),
+})
 
 export function isHomeSectionKey(value: string): value is HomeSectionKey {
   return SECTION_KEYS.includes(value as HomeSectionKey)
 }
 
-export function listHomeHeroSlides(): HomeHeroSlide[] {
-  return readStore().slides
+export async function listHomeHeroSlides(): Promise<HomeHeroSlide[]> {
+  return (await store.load()).slides
 }
 
-export function listHomeSections(): HomeSections {
-  return readStore().sections
+export async function listHomeSections(): Promise<HomeSections> {
+  return (await store.load()).sections
 }
 
-export function getHomeSection(key: HomeSectionKey): string {
-  return readStore().sections[key]
+export async function getHomeSection(key: HomeSectionKey): Promise<string> {
+  return (await store.load()).sections[key]
 }
 
-export function updateHomeHeroSlide(
+export async function updateHomeHeroSlide(
   index: number,
   patch: { image?: string; alt?: string },
-): HomeHeroSlide[] {
+): Promise<HomeHeroSlide[]> {
   if (!Number.isInteger(index) || index < 0 || index >= DEFAULT_HOME_SLIDES.length) {
     throw new Error('Invalid slide index.')
   }
-  const store = readStore()
+  const current = await store.load()
+  const slides = current.slides.map((s) => ({ ...s }))
   if (typeof patch.image === 'string' && patch.image.trim()) {
-    store.slides[index] = { ...store.slides[index], image: patch.image.trim() }
+    slides[index] = { ...slides[index], image: patch.image.trim() }
   }
   if (typeof patch.alt === 'string' && patch.alt.trim()) {
-    store.slides[index] = { ...store.slides[index], alt: patch.alt.trim() }
+    slides[index] = { ...slides[index], alt: patch.alt.trim() }
   }
-  writeStore(store)
-  return store.slides
+  const next = { ...current, slides }
+  await store.save(next)
+  return next.slides
 }
 
-export function resetHomeHeroSlide(index: number): HomeHeroSlide[] {
+export async function resetHomeHeroSlide(index: number): Promise<HomeHeroSlide[]> {
   if (!Number.isInteger(index) || index < 0 || index >= DEFAULT_HOME_SLIDES.length) {
     throw new Error('Invalid slide index.')
   }
-  const store = readStore()
-  store.slides[index] = { ...DEFAULT_HOME_SLIDES[index] }
-  writeStore(store)
-  return store.slides
+  const current = await store.load()
+  const slides = current.slides.map((s) => ({ ...s }))
+  slides[index] = { ...DEFAULT_HOME_SLIDES[index] }
+  const next = { ...current, slides }
+  await store.save(next)
+  return next.slides
 }
 
-export function resetAllHomeHeroSlides(): HomeHeroSlide[] {
-  const store = readStore()
-  store.slides = DEFAULT_HOME_SLIDES.map((s) => ({ ...s }))
-  writeStore(store)
-  return store.slides
+export async function resetAllHomeHeroSlides(): Promise<HomeHeroSlide[]> {
+  const current = await store.load()
+  const next = {
+    ...current,
+    slides: DEFAULT_HOME_SLIDES.map((s) => ({ ...s })),
+  }
+  await store.save(next)
+  return next.slides
 }
 
-export function updateHomeSection(key: HomeSectionKey, image: string): HomeSections {
-  const store = readStore()
-  store.sections[key] = image.trim()
-  writeStore(store)
-  return store.sections
+export async function updateHomeSection(
+  key: HomeSectionKey,
+  image: string,
+): Promise<HomeSections> {
+  const current = await store.load()
+  const next = {
+    ...current,
+    sections: { ...current.sections, [key]: image.trim() },
+  }
+  await store.save(next)
+  return next.sections
 }
 
-export function resetHomeSection(key: HomeSectionKey): HomeSections {
-  const store = readStore()
-  store.sections[key] = DEFAULT_HOME_SECTIONS[key]
-  writeStore(store)
-  return store.sections
+export async function resetHomeSection(key: HomeSectionKey): Promise<HomeSections> {
+  const current = await store.load()
+  const next = {
+    ...current,
+    sections: { ...current.sections, [key]: DEFAULT_HOME_SECTIONS[key] },
+  }
+  await store.save(next)
+  return next.sections
 }

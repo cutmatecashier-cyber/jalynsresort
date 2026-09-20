@@ -1,6 +1,6 @@
 import { getApiUrl, resolveMediaUrl } from "./api";
+import { adminAuthHeaders } from "./adminAuth";
 import { optimizeImageFile } from "./scuba";
-import { supabase } from "./supabase";
 
 export type NewsKind = "news" | "offer" | "event";
 
@@ -269,14 +269,7 @@ export async function fetchNewsPost(id: string): Promise<NewsPost | null> {
 }
 
 async function authHeaders(json = true): Promise<HeadersInit> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Admin session expired. Please log in again.");
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-  };
-  if (json) headers["Content-Type"] = "application/json";
-  return headers;
+  return adminAuthHeaders(json);
 }
 
 export async function uploadNewsImage(file: File) {

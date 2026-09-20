@@ -86,10 +86,10 @@ function clientErrorStatus(message: string) {
     : 500
 }
 
-newsRouter.get('/', (_req, res) => {
+newsRouter.get('/', async (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    return res.json({ success: true, posts: listNews() })
+    return res.json({ success: true, posts: await listNews() })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load news.'
     return res.status(500).json({ success: false, message })
@@ -147,10 +147,10 @@ newsRouter.delete('/hero', async (req, res) => {
   }
 })
 
-newsRouter.get('/:id', (req, res) => {
+newsRouter.get('/:id', async (req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store')
-    const post = getNewsPost(String(req.params.id))
+    const post = await getNewsPost(String(req.params.id))
     if (!post) {
       return res.status(404).json({ success: false, message: 'News post not found.' })
     }
@@ -195,7 +195,7 @@ newsRouter.post('/upload', async (req, res) => {
 newsRouter.post('/', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res))) return
-    const posts = createNewsPost(req.body)
+    const posts = await createNewsPost(req.body)
     return res.status(201).json({ success: true, posts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not create news post.'
@@ -206,7 +206,7 @@ newsRouter.post('/', async (req, res) => {
 newsRouter.put('/:id', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res))) return
-    const posts = updateNewsPost(String(req.params.id), req.body)
+    const posts = await updateNewsPost(String(req.params.id), req.body)
     return res.json({ success: true, posts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not update news post.'
@@ -217,7 +217,7 @@ newsRouter.put('/:id', async (req, res) => {
 newsRouter.delete('/:id', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res))) return
-    const posts = deleteNewsPost(String(req.params.id))
+    const posts = await deleteNewsPost(String(req.params.id))
     return res.json({ success: true, posts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not delete news post.'

@@ -12,8 +12,9 @@ import {
   uploadGalleryPhoto,
   type GalleryPhoto,
 } from "../lib/gallery";
-import { supabase } from "../lib/supabase";
+import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { Reveal } from "./Reveal";
 
@@ -38,8 +39,10 @@ export function Gallery() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newAlt, setNewAlt] = useState("");
+  const [confirmAction, setConfirmAction] = useState<"delete" | "reset" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useWheelScrollContain<HTMLDivElement>(open);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +51,8 @@ export function Gallery() {
     });
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ photos?: GalleryPhoto[] }>).detail;
-      if (detail?.photos?.length) {
+      // Prefer explicit list from a successful save/delete (including shorter lists).
+      if (detail && Array.isArray(detail.photos)) {
         setPhotos(detail.photos);
         return;
       }
@@ -79,13 +83,6 @@ export function Gallery() {
       window.removeEventListener("keydown", onKey);
     };
   }, [open, busy]);
-
-  async function authToken() {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error("Admin session expired. Please log in again.");
-    return token;
-  }
 
   async function openEditor() {
     setError(null);
@@ -121,8 +118,7 @@ export function Gallery() {
     setBusy(true);
     setError(null);
     try {
-      const token = await authToken();
-      const data = await uploadGalleryPhoto(file, token, {
+      const data = await uploadGalleryPhoto(file, {
         alt: newAlt.trim() || undefined,
       });
       applyPhotos(data.photos);
@@ -143,8 +139,7 @@ export function Gallery() {
     setBusy(true);
     setError(null);
     try {
-      const token = await authToken();
-      const data = await uploadGalleryPhoto(file, token, { replaceId: selectedId });
+      const data = await uploadGalleryPhoto(file, { replaceId: selectedId });
       applyPhotos(data.photos);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not replace photo.");
@@ -160,12 +155,16 @@ export function Gallery() {
       setError("Keep at least one gallery photo.");
       return;
     }
-    if (!window.confirm("Delete this gallery photo?")) return;
+    setConfirmAction("delete");
+  }
+
+  async function confirmDelete() {
+    if (!selectedId) return;
     setBusy(true);
     setError(null);
+    setConfirmAction(null);
     try {
-      const token = await authToken();
-      const data = await deleteGalleryPhoto(selectedId, token);
+      const data = await deleteGalleryPhoto(selectedId);
       applyPhotos(data.photos);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete photo.");
@@ -175,12 +174,15 @@ export function Gallery() {
   }
 
   async function onResetAll() {
-    if (!window.confirm("Reset gallery photos to the defaults?")) return;
+    setConfirmAction("reset");
+  }
+
+  async function confirmReset() {
     setBusy(true);
     setError(null);
+    setConfirmAction(null);
     try {
-      const token = await authToken();
-      const data = await resetGalleryPhotos(token);
+      const data = await resetGalleryPhotos();
       applyPhotos(data.photos);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reset photos.");
@@ -246,10 +248,13 @@ export function Gallery() {
               onClick={() => !busy && setOpen(false)}
             >
               <div
-                className="flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-ink shadow-xl sm:rounded-2xl"
+                className="flex h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-ink shadow-xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
+                <div
+                  ref={scrollRef}
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pt-6"
+                >
                   <h2 className="font-display text-2xl">Gallery photos</h2>
                   <p className="mt-1.5 text-sm text-stone">
                     Add new pictures or delete ones from Moments by the water.
@@ -368,6 +373,25 @@ export function Gallery() {
             document.body,
           )
         : null}
+
+      <ConfirmDialog
+        open={confirmAction === "delete"}
+        title="Delete photo?"
+        message="This photo will be removed from Moments by the water. This cannot be undone."
+        confirmLabel="Delete"
+        busy={busy}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => void confirmDelete()}
+      />
+      <ConfirmDialog
+        open={confirmAction === "reset"}
+        title="Reset gallery?"
+        message="All gallery photos will be restored to the defaults. This cannot be undone."
+        confirmLabel="Reset all"
+        busy={busy}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => void confirmReset()}
+      />
     </section>
   );
 }

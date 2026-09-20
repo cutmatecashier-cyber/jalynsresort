@@ -1,7 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import { createJsonCloudStore } from './jsonCloudStore.js'
 
 export type NewsKind = 'news' | 'offer' | 'event'
 
@@ -30,9 +28,6 @@ export type NewsPost = {
   /** YouTube embed URL when the live article includes a video */
   videoUrl?: string
 }
-
-const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data')
-const DATA_FILE = path.join(DATA_DIR, 'news.json')
 
 /** Older short ids (frontend fallback / bookmarks) → current news.json slugs */
 const LEGACY_NEWS_IDS: Record<string, string> = {
@@ -186,17 +181,12 @@ export const DEFAULT_NEWS: NewsPost[] = ([
 
 const MAX_POSTS = 60
 
+type StoreShape = { posts: NewsPost[] }
+
 function categoryForKind(kind: NewsKind) {
   if (kind === 'event') return 'Events'
   if (kind === 'offer') return 'Special Offers'
   return 'News'
-}
-
-function ensureStore() {
-  mkdirSync(DATA_DIR, { recursive: true })
-  if (!existsSync(DATA_FILE)) {
-    writeFileSync(DATA_FILE, JSON.stringify({ posts: DEFAULT_NEWS }, null, 2), 'utf8')
-  }
 }
 
 function normalizeKind(raw: unknown): NewsKind {
@@ -247,7 +237,7 @@ function normalizePackages(raw: unknown): NewsPackage[] | undefined {
 
 function normalizePosts(raw: unknown): NewsPost[] {
   if (!Array.isArray(raw) || raw.length === 0) {
-    return DEFAULT_NEWS.map((p) => ({ ...p }))
+    return []
   }
   const posts = raw
     .map((row) => {
@@ -296,26 +286,24 @@ function normalizePosts(raw: unknown): NewsPost[] {
     .filter((p): p is NewsPost => Boolean(p))
   return posts.length > 0
     ? posts.slice(0, MAX_POSTS).sort((a, b) => b.date.localeCompare(a.date))
-    : DEFAULT_NEWS.map((p) => ({ ...p }))
+    : []
 }
 
-function readStore(): { posts: NewsPost[] } {
-  ensureStore()
-  try {
-    const parsed = JSON.parse(readFileSync(DATA_FILE, 'utf8')) as { posts?: unknown }
-    return { posts: normalizePosts(parsed.posts) }
-  } catch {
-    return { posts: DEFAULT_NEWS.map((p) => ({ ...p })) }
-  }
-}
+const cloudStore = createJsonCloudStore<StoreShape>({
+  cloudObject: 'news.json',
+  parse: (raw) => {
+    const row = (raw && typeof raw === 'object' ? raw : {}) as { posts?: unknown }
+    return { posts: normalizePosts(row.posts) }
+  },
+  serialize: (value) => value,
+  defaultValue: () => ({ posts: DEFAULT_NEWS.map((p) => ({ ...p })) }),
+  emptyValue: () => ({ posts: [] }),
+  hasContent: (value) => value.posts.length > 0,
+})
 
-function writeStore(posts: NewsPost[]) {
-  ensureStore()
-  writeFileSync(DATA_FILE, JSON.stringify({ posts }, null, 2), 'utf8')
-}
-
-export function listNews(): NewsPost[] {
-  return readStore().posts
+export async function listNews(): Promise<NewsPost[]> {
+  const loaded = await cloudStore.load()
+  return loaded.posts.length > 0 ? loaded.posts : DEFAULT_NEWS.map((p) => ({ ...p }))
 }
 
 export function validateNewsInput(input: {
@@ -377,34 +365,39 @@ export function validateNewsInput(input: {
   }
 }
 
-export function createNewsPost(input: Parameters<typeof validateNewsInput>[0]): NewsPost[] {
+export async function createNewsPost(
+  input: Parameters<typeof validateNewsInput>[0],
+): Promise<NewsPost[]> {
   const data = validateNewsInput(input)
-  const store = readStore()
-  if (store.posts.length >= MAX_POSTS) {
+  const current = await cloudStore.load()
+  const base = current.posts.length > 0 ? current.posts : DEFAULT_NEWS.map((p) => ({ ...p }))
+  if (base.length >= MAX_POSTS) {
     throw new Error(`You can publish up to ${MAX_POSTS} news posts.`)
   }
   const id = randomUUID()
   const post: NewsPost = { id, ...data, href: `/news/${id}` }
-  const posts = [post, ...store.posts].slice(0, MAX_POSTS)
-  writeStore(posts)
+  const posts = [post, ...base].slice(0, MAX_POSTS)
+  await cloudStore.save({ posts })
   return posts
 }
 
-export function updateNewsPost(
+export async function updateNewsPost(
   id: string,
   input: Parameters<typeof validateNewsInput>[0],
-): NewsPost[] {
+): Promise<NewsPost[]> {
   const data = validateNewsInput(input)
-  const store = readStore()
-  const idx = store.posts.findIndex((p) => p.id === id)
+  const current = await cloudStore.load()
+  const base = current.posts.length > 0 ? current.posts : DEFAULT_NEWS.map((p) => ({ ...p }))
+  const idx = base.findIndex((p) => p.id === id)
   if (idx < 0) throw new Error('News post not found.')
   // Preserve packages/video when client omits them; allow clearing gallery/price when sent
-  const prev = store.posts[idx]
+  const prev = base[idx]
   const hasGallery = Array.isArray(input.gallery)
   const hasPrice = Object.prototype.hasOwnProperty.call(input, 'price')
   const hasPackages = Array.isArray(input.packages)
   const hasVideo = Object.prototype.hasOwnProperty.call(input, 'videoUrl')
-  store.posts[idx] = {
+  const nextPosts = [...base]
+  nextPosts[idx] = {
     id,
     ...data,
     href: `/news/${id}`,
@@ -413,15 +406,15 @@ export function updateNewsPost(
     packages: hasPackages ? data.packages : prev.packages,
     videoUrl: hasVideo ? data.videoUrl : prev.videoUrl,
   }
-  const posts = [...store.posts].sort((a, b) => b.date.localeCompare(a.date))
-  writeStore(posts)
+  const posts = nextPosts.sort((a, b) => b.date.localeCompare(a.date))
+  await cloudStore.save({ posts })
   return posts
 }
 
-export function getNewsPost(id: string): NewsPost | null {
+export async function getNewsPost(id: string): Promise<NewsPost | null> {
   const raw = decodeURIComponent(String(id || '').trim()).replace(/^\/+|\/+$/g, '')
   if (!raw) return null
-  const posts = readStore().posts
+  const posts = await listNews()
   const direct = posts.find((p) => p.id === raw)
   if (direct) return direct
 
@@ -440,10 +433,11 @@ export function getNewsPost(id: string): NewsPost | null {
   return null
 }
 
-export function deleteNewsPost(id: string): NewsPost[] {
-  const store = readStore()
-  const next = store.posts.filter((p) => p.id !== id)
-  if (next.length === store.posts.length) throw new Error('News post not found.')
-  writeStore(next)
+export async function deleteNewsPost(id: string): Promise<NewsPost[]> {
+  const current = await cloudStore.load()
+  const base = current.posts.length > 0 ? current.posts : DEFAULT_NEWS.map((p) => ({ ...p }))
+  const next = base.filter((p) => p.id !== id)
+  if (next.length === base.length) throw new Error('News post not found.')
+  await cloudStore.save({ posts: next })
   return next
 }

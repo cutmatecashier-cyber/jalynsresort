@@ -1,4 +1,5 @@
 import { getApiUrl } from "./api";
+import { adminAuthHeaders } from "./adminAuth";
 
 export type HomeHeroSlide = {
   id: string;
@@ -75,13 +76,13 @@ export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[]> {
   return DEFAULT_HOME_SLIDES.map((s) => ({ ...s }));
 }
 
-export async function uploadHomeHeroSlide(index: number, file: File, token: string) {
+export async function uploadHomeHeroSlide(index: number, file: File) {
   const body = new FormData();
   body.append("image", file);
   body.append("index", String(index));
   const res = await fetch(`${getApiUrl()}/api/home/hero/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
     body,
   });
   const data = (await res.json()) as {
@@ -96,10 +97,10 @@ export async function uploadHomeHeroSlide(index: number, file: File, token: stri
   return data;
 }
 
-export async function resetHomeHeroSlide(index: number, token: string) {
+export async function resetHomeHeroSlide(index: number) {
   const res = await fetch(`${getApiUrl()}/api/home/hero/${index}/reset`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;
@@ -112,10 +113,10 @@ export async function resetHomeHeroSlide(index: number, token: string) {
   return data;
 }
 
-export async function resetAllHomeHeroSlides(token: string) {
+export async function resetAllHomeHeroSlides() {
   const res = await fetch(`${getApiUrl()}/api/home/hero/reset-all`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;
@@ -152,16 +153,12 @@ export async function fetchHomeSectionBackground(section: HomeSectionKey): Promi
   return DEFAULT_HOME_SECTIONS[section];
 }
 
-export async function uploadHomeSectionBackground(
-  section: HomeSectionKey,
-  file: File,
-  token: string,
-) {
+export async function uploadHomeSectionBackground(section: HomeSectionKey, file: File) {
   const body = new FormData();
   body.append("image", file);
   const res = await fetch(`${getApiUrl()}/api/home/sections/${section}/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
     body,
   });
   const data = (await res.json()) as {
@@ -176,10 +173,10 @@ export async function uploadHomeSectionBackground(
   return data;
 }
 
-export async function resetHomeSectionBackground(section: HomeSectionKey, token: string) {
+export async function resetHomeSectionBackground(section: HomeSectionKey) {
   const res = await fetch(`${getApiUrl()}/api/home/sections/${section}/reset`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(false),
   });
   const data = (await res.json()) as {
     success?: boolean;

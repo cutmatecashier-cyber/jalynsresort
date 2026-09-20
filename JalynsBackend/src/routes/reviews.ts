@@ -7,6 +7,7 @@ import {
   listRestaurantReviews,
   setRestaurantReviewReply,
 } from '../services/restaurantReviews.js'
+import { createSiteReview, listSiteReviews } from '../services/siteReviews.js'
 
 export const reviewsRouter = Router()
 
@@ -21,6 +22,41 @@ async function optionalUserId(req: import('express').Request): Promise<string | 
     return null
   }
 }
+
+reviewsRouter.get('/site', async (_req, res) => {
+  try {
+    const reviews = await listSiteReviews()
+    return res.json({ success: true, reviews })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load reviews.'
+    const hint =
+      /relation .* does not exist|Could not find the table/i.test(message)
+        ? ' Run supabase/SITE_REVIEWS.sql in the Supabase SQL Editor.'
+        : ''
+    return res.status(500).json({ success: false, message: `${message}${hint}` })
+  }
+})
+
+reviewsRouter.post('/site', async (req, res) => {
+  try {
+    const guest_name = String(req.body.guest_name ?? '')
+    const comment = String(req.body.comment ?? '')
+    const rating = Number(req.body.rating)
+    const user_id = await optionalUserId(req)
+
+    const review = await createSiteReview({ guest_name, rating, comment, user_id })
+    return res.status(201).json({
+      success: true,
+      message: 'Thank you! Your review has been posted.',
+      review,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not save your review.'
+    const status =
+      /Please enter|Please write|Please choose|at least/i.test(message) ? 400 : 500
+    return res.status(status).json({ success: false, message })
+  }
+})
 
 reviewsRouter.get('/restaurant', async (_req, res) => {
   try {
