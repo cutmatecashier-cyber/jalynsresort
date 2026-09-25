@@ -42,7 +42,7 @@ export const permissions = {
   canEditHomeBackground: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
 
-  /** Admin-only: Our Rooms and Apartments photos */
+  /** Admin-only: Rooms & Apartments catalog, images, and page backgrounds */
   canEditRooms: (role: UserRole | null, status: ApprovalStatus | null) =>
     role === "admin" && status === "approved",
 

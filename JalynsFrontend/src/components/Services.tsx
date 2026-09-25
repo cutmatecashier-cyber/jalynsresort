@@ -13,7 +13,7 @@ const services = [
     id: "rooms",
     title: "Rooms and Apartments",
     description: "Comfortable rooms with sea or garden views for restful nights.",
-    href: "#rooms",
+    href: "/rooms",
     cta: "View Rooms",
     image:
       "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1000&q=80",

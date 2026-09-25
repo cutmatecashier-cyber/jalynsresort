@@ -1,5 +1,12 @@
--- Rooms page photos (run in Supabase SQL Editor)
--- Public bucket for admin room uploads. Safe to re-run.
+-- Rooms page photos + hero/content backgrounds (run in Supabase SQL Editor)
+-- Public bucket for admin room uploads and page backgrounds.
+-- Catalog data (rooms, voucher, jeepney highlights) lives in Postgres — run supabase/ROOMS.sql.
+-- Object layout:
+--   photos/*              — room gallery images
+--   highlights/*          — jeepney / shuttle photos
+--   hero/current.{ext}    — Rooms hero background (optional)
+--   content/current.{ext} — Rooms content background (optional)
+-- Safe to re-run.
 
 create or replace function public.is_approved_admin()
 returns boolean

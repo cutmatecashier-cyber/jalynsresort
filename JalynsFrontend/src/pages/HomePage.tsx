@@ -4,7 +4,6 @@ import { Footer } from "../components/Footer";
 import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
 import { News } from "../components/News";
-import { Rooms } from "../components/Rooms";
 import { Services } from "../components/Services";
 import { Testimonials } from "../components/Testimonials";
 import { WhyStay } from "../components/WhyStay";
@@ -23,6 +22,8 @@ export function HomePage() {
       navigate("/spa", { replace: true });
     } else if (hash === "#news") {
       navigate("/news", { replace: true });
+    } else if (hash === "#rooms") {
+      navigate("/rooms", { replace: true });
     }
   }, [navigate]);
 
@@ -30,7 +31,6 @@ export function HomePage() {
     <main className="bg-foam">
       <Hero />
       <Services />
-      <Rooms />
       <Testimonials />
       <Gallery />
       <News />

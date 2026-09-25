@@ -707,3 +707,12 @@ grant select on public.site_reviews to anon, authenticated;
 grant all on public.site_reviews to service_role;
 
 notify pgrst, 'reload schema';
+
+-- ============================================================
+-- Rooms catalog (Postgres tables) — also in supabase/ROOMS.sql
+-- Run supabase/ROOMS.sql in the SQL Editor to create:
+--   public.rooms
+--   public.room_highlights
+--   public.rooms_settings
+-- Images remain in storage bucket rooms-page (ROOMS_PAGE.sql).
+-- ============================================================

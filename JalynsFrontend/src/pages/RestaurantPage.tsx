@@ -433,7 +433,7 @@ export function RestaurantPage() {
             <img
               src={displayHero}
               alt="Jalyn's Restaurant dining"
-              className="absolute inset-0 h-full w-full object-cover object-center animate-ken-burns"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               fetchPriority="high"
             />
           ) : null}

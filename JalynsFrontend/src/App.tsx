@@ -16,6 +16,7 @@ import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RestaurantPage } from "./pages/RestaurantPage";
+import { RoomsPage } from "./pages/RoomsPage";
 import { SpaPage } from "./pages/SpaPage";
 import { SignupPage } from "./pages/SignupPage";
 import { VerifyCodePage } from "./pages/VerifyCodePage";
@@ -30,7 +31,7 @@ function App() {
         <ContentSync />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/rooms" element={<Navigate to="/#rooms" replace />} />
+          <Route path="/rooms" element={<RoomsPage />} />
           <Route path="/spa" element={<SpaPage />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/:id" element={<NewsDetailPage />} />

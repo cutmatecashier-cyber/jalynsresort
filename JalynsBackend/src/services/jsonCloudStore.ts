@@ -6,7 +6,7 @@ let bucketReady = false
 
 /** Same-process write-through so a delete isn't undone by a stale CDN read. */
 const recentWrites = new Map<string, { value: unknown; until: number }>()
-const RECENT_MS = 15_000
+const RECENT_MS = 60_000
 
 export type JsonCloudStoreOptions<T> = {
   /** Object path inside site-data bucket */

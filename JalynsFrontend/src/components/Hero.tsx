@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   DEFAULT_HOME_SLIDES,
@@ -12,6 +13,12 @@ import {
   uploadHomeHeroSlide,
   type HomeHeroSlide,
 } from "../lib/homeHero";
+import {
+  DEFAULT_ROOMS_VOUCHER,
+  fetchRoomsVoucher,
+  ROOMS_UPDATED_EVENT,
+  type RoomsVoucher,
+} from "../lib/rooms";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { BookingBar } from "./BookingBar";
 import { AdminEditButton } from "./AdminEditButton";
@@ -73,6 +80,7 @@ export function Hero() {
   const [active, setActive] = useState(0);
   const [tick, setTick] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
+  const [roomsVoucher, setRoomsVoucher] = useState<RoomsVoucher>({ ...DEFAULT_ROOMS_VOUCHER });
 
   const [bgOpen, setBgOpen] = useState(false);
   const [editorSlides, setEditorSlides] = useState<HomeHeroSlide[]>(DEFAULT_HOME_SLIDES);
@@ -105,6 +113,28 @@ export function Hero() {
     return () => {
       alive = false;
       window.removeEventListener(HOME_HERO_UPDATED_EVENT, onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchRoomsVoucher().then((next) => {
+      if (alive) setRoomsVoucher(next);
+    });
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ voucher?: RoomsVoucher }>).detail;
+      if (detail?.voucher) {
+        setRoomsVoucher(detail.voucher);
+        return;
+      }
+      void fetchRoomsVoucher().then((next) => {
+        if (alive) setRoomsVoucher(next);
+      });
+    };
+    window.addEventListener(ROOMS_UPDATED_EVENT, onUpdated);
+    return () => {
+      alive = false;
+      window.removeEventListener(ROOMS_UPDATED_EVENT, onUpdated);
     };
   }, []);
 
@@ -285,6 +315,30 @@ export function Hero() {
               delicious cuisine, and world-class diving experiences.
             </span>
           </p>
+
+          {roomsVoucher.enabled && roomsVoucher.percent > 0 ? (
+            <div
+              className="animate-fade-up mt-4 max-w-lg rounded-2xl border border-white/25 bg-white/12 px-4 py-3 backdrop-blur-md sm:mt-5 sm:px-5 sm:py-4"
+              style={{ animationDelay: "0.22s" }}
+            >
+              <p className="text-[0.62rem] font-semibold tracking-[0.2em] text-white/75 uppercase">
+                Limited rooms offer
+              </p>
+              <p className="mt-1 font-display text-xl text-white sm:text-2xl">
+                <span className="text-amber-200">{roomsVoucher.percent}% off</span> your stay
+              </p>
+              <p className="mt-1 text-[0.78rem] leading-relaxed text-white/80 sm:text-sm">
+                Automatic discount on room rates — no code needed. Browse rooms and apartments to
+                plan your Puerto Galera escape.
+              </p>
+              <Link
+                to="/rooms"
+                className="btn-press mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white/90"
+              >
+                View rooms
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -347,14 +401,14 @@ export function Hero() {
         ) : null}
 
         <div className="order-4 mt-4 hidden justify-center sm:mt-8 sm:flex">
-          <a
-            href="#rooms"
+          <Link
+            to="/rooms"
             className="animate-scroll-hint flex flex-col items-center gap-1 text-[0.65rem] tracking-[0.2em] text-white/60 uppercase"
-            aria-label="Scroll to rooms"
+            aria-label="View rooms and apartments"
           >
-            <span>Scroll</span>
+            <span>Rooms</span>
             <span className="h-6 w-px bg-white/50" />
-          </a>
+          </Link>
         </div>
       </div>
 

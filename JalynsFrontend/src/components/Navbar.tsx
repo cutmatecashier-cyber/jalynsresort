@@ -11,7 +11,7 @@ type NavItem =
 
 const links: NavItem[] = [
   { label: "Home", shortLabel: "Home", kind: "hash", hash: "#home" },
-  { label: "Rooms and Apartments", shortLabel: "Rooms", kind: "hash", hash: "#rooms" },
+  { label: "Rooms and Apartments", shortLabel: "Rooms", kind: "route", to: "/rooms" },
   { label: "Restaurant", shortLabel: "Restaurant", kind: "route", to: "/restaurant" },
   { label: "Scuba Diving", shortLabel: "Scuba Diving", kind: "route", to: "/scuba-diving" },
   { label: "SPA", shortLabel: "SPA", kind: "route", to: "/spa" },
