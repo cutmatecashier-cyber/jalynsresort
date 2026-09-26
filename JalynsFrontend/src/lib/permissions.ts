@@ -16,8 +16,9 @@ export const permissions = {
   canViewDashboardExtras: (role: UserRole | null, status: ApprovalStatus | null) =>
     Boolean(role && status === "approved"),
 
+  /** Admin-only: room booking requests (/bookings) */
   canManageBookings: (role: UserRole | null, status: ApprovalStatus | null) =>
-    Boolean(role && status === "approved"),
+    role === "admin" && status === "approved",
 
   canManageContent: (role: UserRole | null, status: ApprovalStatus | null) =>
     Boolean(role && status === "approved"),

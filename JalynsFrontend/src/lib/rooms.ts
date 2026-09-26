@@ -406,6 +406,65 @@ export const DEFAULT_ROOMS_VOUCHER: RoomsVoucher = {
   percent: 0,
 };
 
+/** Pull a numeric amount from price text like "1200", "₱1,200", "1200 / night". */
+export function parsePriceAmount(value: string): number | null {
+  const raw = value.trim();
+  if (!raw || raw === "—") return null;
+  if (/contact/i.test(raw) && !/\d/.test(raw)) return null;
+  const digits = raw.replace(/[^\d.]/g, "");
+  if (!digits) return null;
+  const num = Number(digits);
+  return Number.isFinite(num) ? num : null;
+}
+
+export function formatPesoAmount(num: number): string {
+  return `₱${num.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
+}
+
+/** Format a stored price string for display (no voucher). */
+export function formatRoomPrice(value: string): string {
+  const raw = value.trim();
+  if (!raw || raw === "—") return "—";
+  const amount = parsePriceAmount(raw);
+  if (amount == null) {
+    if (/[₱$€]|peso|contact|night|\/\s*night/i.test(raw)) return raw;
+    return raw;
+  }
+  return formatPesoAmount(amount);
+}
+
+/** Apply rooms voucher to a price string — returns discounted display + original. */
+export function applyVoucherToPrice(
+  priceText: string,
+  voucher: RoomsVoucher,
+): {
+  display: string;
+  original: string | null;
+  percent: number | null;
+  discountedAmount: number | null;
+} {
+  const amount = parsePriceAmount(priceText);
+  if (amount == null) {
+    return {
+      display: formatRoomPrice(priceText),
+      original: null,
+      percent: null,
+      discountedAmount: null,
+    };
+  }
+  const original = formatPesoAmount(amount);
+  if (!voucher.enabled || voucher.percent <= 0) {
+    return { display: original, original: null, percent: null, discountedAmount: amount };
+  }
+  const discounted = Math.max(0, Math.round(amount * (1 - Math.min(100, voucher.percent) / 100)));
+  return {
+    display: formatPesoAmount(discounted),
+    original,
+    percent: voucher.percent,
+    discountedAmount: discounted,
+  };
+}
+
 export function roomsMediaUrl(url: string) {
   if (!url) return url;
   if (/^(https?:|data:|blob:)/i.test(url)) return url;
@@ -551,6 +610,84 @@ export async function deleteRoomHighlightById(id: string): Promise<RoomHighlight
 
 export async function fetchRooms(): Promise<Room[]> {
   return (await fetchRoomsCatalog()).rooms;
+}
+
+export type RoomBookingStatus = "pending" | "confirmed" | "completed";
+
+export type RoomBooking = {
+  id: string;
+  room_id: string;
+  room_name: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  guests: number;
+  full_name: string;
+  email: string;
+  phone: string;
+  price_per_night: string | null;
+  estimated_total: string | null;
+  voucher_percent: number | null;
+  status: RoomBookingStatus;
+  created_at: string;
+};
+
+export type RoomBookingInput = {
+  roomId: string;
+  roomName: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  nights?: number;
+  pricePerNight?: string | null;
+  estimatedTotal?: string | null;
+  voucherPercent?: number | null;
+};
+
+export async function submitRoomBooking(input: RoomBookingInput) {
+  const res = await fetch(`${getApiUrl()}/api/rooms/bookings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as { success?: boolean; message?: string };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not submit booking."));
+  return data.message ?? "Booking request sent.";
+}
+
+export async function fetchRoomBookings(): Promise<RoomBooking[]> {
+  const res = await fetch(`${getApiUrl()}/api/rooms/bookings?t=${Date.now()}`, {
+    cache: "no-store",
+    headers: await adminAuthHeaders(true),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    bookings?: RoomBooking[];
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not load bookings."));
+  return Array.isArray(data.bookings) ? data.bookings : [];
+}
+
+export async function updateRoomBookingStatus(
+  id: string,
+  status: RoomBookingStatus,
+): Promise<RoomBooking[]> {
+  const res = await fetch(`${getApiUrl()}/api/rooms/bookings/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: await adminAuthHeaders(true),
+    body: JSON.stringify({ status }),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    bookings?: RoomBooking[];
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not update booking."));
+  return Array.isArray(data.bookings) ? data.bookings : [];
 }
 
 export async function updateRoomsVoucher(input: {

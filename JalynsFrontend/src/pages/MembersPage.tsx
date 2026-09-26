@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AdminHeader } from "../components/AdminHeader";
+import { Footer } from "../components/Footer";
+import { Navbar } from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { getApiUrl } from "../lib/api";
 import { roleLabel, statusLabel } from "../lib/permissions";
@@ -164,15 +165,31 @@ export function MembersPage() {
   });
 
   return (
-    <div className="min-h-screen bg-foam text-ink">
-      <AdminHeader title="Member Management" />
+    <div className="flex min-h-screen flex-col bg-foam text-ink">
+      <div className="bg-[#050b12]">
+        <Navbar />
+      </div>
 
-      <main className="w-full px-5 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 xl:px-12">
-        <div className="flex flex-wrap gap-2">
+      <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 pt-8 pb-16 sm:px-6 sm:pt-10 sm:pb-20 md:px-8 md:pb-24 lg:px-10 xl:px-12">
+        <header className="max-w-2xl">
+          <p className="text-[0.62rem] font-semibold tracking-[0.22em] text-sky uppercase">
+            Admin only
+          </p>
+          <h1 className="mt-1.5 font-display text-3xl text-ink sm:text-4xl">
+            Member Management
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-stone sm:text-[0.95rem]">
+            Review verified accounts, approve roles, or remove access.
+          </p>
+        </header>
+
+        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Filter members">
           {filters.map((f) => (
             <button
               key={f.id}
               type="button"
+              role="tab"
+              aria-selected={filter === f.id}
               onClick={() => setFilter(f.id)}
               className={`btn-press rounded-full px-3.5 py-2 text-sm font-semibold transition sm:px-4 ${
                 filter === f.id
@@ -192,94 +209,88 @@ export function MembersPage() {
         ) : null}
 
         {loading ? (
-          <p className="mt-6 text-sm text-stone">Loading members…</p>
+          <p className="mt-8 text-sm text-stone">Loading members…</p>
         ) : filtered.length === 0 ? (
-          <p className="mt-6 rounded-2xl border border-ink/8 bg-white p-6 text-sm text-stone">
+          <p className="mt-8 rounded-2xl border border-ink/8 bg-white p-6 text-sm text-stone">
             No verified members in this filter yet.
           </p>
         ) : (
           <>
-            <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-ink/8 bg-white shadow-sm md:block">
-              <table className="w-full min-w-[64rem] table-fixed text-left text-sm">
-                <thead className="border-b border-sky-bright/30 bg-sky text-xs tracking-wide text-white uppercase">
-                  <tr>
-                    <th className="w-[12%] px-3 py-3 font-semibold xl:px-4">Name</th>
-                    <th className="w-[11%] px-3 py-3 font-semibold xl:px-4">Phone</th>
-                    <th className="w-[18%] px-3 py-3 font-semibold xl:px-4">Email</th>
-                    <th className="w-[10%] px-3 py-3 font-semibold xl:px-4">Email status</th>
-                    <th className="w-[9%] px-3 py-3 font-semibold xl:px-4">Account</th>
-                    <th className="w-[8%] px-3 py-3 font-semibold xl:px-4">Role</th>
-                    <th className="w-[14%] px-3 py-3 font-semibold xl:px-4">Registered</th>
-                    <th className="w-[18%] px-3 py-3 font-semibold xl:px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((m) => (
-                    <tr key={m.id} className="border-b border-ink/6 last:border-0">
-                      <td className="px-3 py-3 align-middle font-medium whitespace-nowrap text-ink xl:px-4">
-                        {m.name || "—"}
-                      </td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap text-stone xl:px-4">
-                        {m.phone || "—"}
-                      </td>
-                      <td
-                        className="px-3 py-3 align-middle text-stone xl:px-4"
-                        title={m.email}
-                      >
-                        <span className="block truncate">{m.email}</span>
-                      </td>
-                      <td className="px-3 py-3 align-middle xl:px-4">
-                        <span className="inline-flex rounded-full border border-sky/30 bg-sky/10 px-2.5 py-0.5 text-xs font-semibold text-sky">
-                          Verified
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 align-middle xl:px-4">
-                        <StatusBadge status={m.approval_status} />
-                      </td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap xl:px-4">
-                        {roleLabel(m.role)}
-                      </td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap text-stone xl:px-4">
-                        {formatDate(m.created_at)}
-                      </td>
-                      <td className="px-3 py-3 align-middle xl:px-4">
-                        <MemberActions {...actionProps(m)} />
-                      </td>
+            <div className="mt-8 hidden overflow-hidden rounded-2xl border border-ink/8 bg-white shadow-sm lg:block">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[52rem] text-left text-sm">
+                  <thead className="border-b border-ink/8 bg-mist/80 text-[0.7rem] tracking-wide text-stone uppercase">
+                    <tr>
+                      <th className="px-4 py-3.5 font-semibold">Name</th>
+                      <th className="px-4 py-3.5 font-semibold">Phone</th>
+                      <th className="px-4 py-3.5 font-semibold">Email</th>
+                      <th className="px-4 py-3.5 font-semibold">Account</th>
+                      <th className="px-4 py-3.5 font-semibold">Role</th>
+                      <th className="px-4 py-3.5 font-semibold">Registered</th>
+                      <th className="sticky right-0 bg-mist/80 px-4 py-3.5 font-semibold">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filtered.map((m) => (
+                      <tr
+                        key={m.id}
+                        className="group border-b border-ink/6 transition last:border-0 hover:bg-mist/40"
+                      >
+                        <td className="px-4 py-3.5 align-middle font-medium whitespace-nowrap text-ink">
+                          {m.name || "—"}
+                        </td>
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap text-stone">
+                          {m.phone || "—"}
+                        </td>
+                        <td className="max-w-[14rem] px-4 py-3.5 align-middle text-stone" title={m.email}>
+                          <span className="block truncate">{m.email}</span>
+                        </td>
+                        <td className="px-4 py-3.5 align-middle">
+                          <StatusBadge status={m.approval_status} />
+                        </td>
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap text-ink">
+                          {roleLabel(m.role)}
+                        </td>
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap text-stone">
+                          {formatDate(m.created_at)}
+                        </td>
+                        <td className="sticky right-0 bg-white px-4 py-3.5 align-middle shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.18)] group-hover:bg-[#f3f6f4]">
+                          <MemberActions {...actionProps(m)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <ul className="mt-6 space-y-4 md:hidden">
+            <ul className="mt-8 space-y-3 lg:hidden">
               {filtered.map((m) => (
                 <li
                   key={m.id}
                   className="rounded-2xl border border-ink/8 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-ink">{m.name || "—"}</p>
-                      <p className="break-all text-sm text-stone">{m.email}</p>
+                      <p className="mt-0.5 break-all text-sm text-stone">{m.email}</p>
                       <p className="text-sm text-stone">{m.phone || "—"}</p>
                     </div>
                     <StatusBadge status={m.approval_status} />
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-stone">
                     <div>
-                      <dt className="uppercase tracking-wide">Email</dt>
-                      <dd className="mt-0.5 font-semibold text-sky">Verified</dd>
-                    </div>
-                    <div>
-                      <dt className="uppercase tracking-wide">Role</dt>
+                      <dt className="tracking-wide uppercase">Role</dt>
                       <dd className="mt-0.5 font-semibold text-ink">{roleLabel(m.role)}</dd>
                     </div>
-                    <div className="col-span-2">
-                      <dt className="uppercase tracking-wide">Registered</dt>
+                    <div>
+                      <dt className="tracking-wide uppercase">Registered</dt>
                       <dd className="mt-0.5 text-ink">{formatDate(m.created_at)}</dd>
                     </div>
                   </dl>
-                  <div className="mt-4">
+                  <div className="mt-4 border-t border-ink/6 pt-4">
                     <MemberActions {...actionProps(m)} />
                   </div>
                 </li>
@@ -288,6 +299,8 @@ export function MembersPage() {
           </>
         )}
       </main>
+
+      <Footer />
 
       {acceptFor ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -430,13 +443,13 @@ function MemberActions({
   const isApproved = member.approval_status === "approved";
 
   return (
-    <div className="flex flex-nowrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {!isRejected ? (
         <button
           type="button"
           disabled={busy}
           onClick={onAccept}
-          className="btn-press shrink-0 rounded-full bg-sky px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white transition hover:bg-sky-bright disabled:opacity-60 sm:px-3.5 sm:text-sm"
+          className="btn-press shrink-0 rounded-full bg-sky px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white transition hover:bg-sky-bright disabled:opacity-60 sm:text-sm"
         >
           {isApproved ? "Change role" : "Accept"}
         </button>
@@ -447,7 +460,7 @@ function MemberActions({
           type="button"
           disabled={busy}
           onClick={onReject}
-          className="btn-press shrink-0 rounded-full border border-ink/20 bg-white px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-ink transition hover:bg-mist disabled:opacity-60 sm:px-3.5 sm:text-sm"
+          className="btn-press shrink-0 rounded-full border border-ink/20 bg-white px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-ink transition hover:bg-mist disabled:opacity-60 sm:text-sm"
         >
           Reject
         </button>
@@ -457,7 +470,7 @@ function MemberActions({
         type="button"
         disabled={busy}
         onClick={onDelete}
-        className="btn-press shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white transition hover:bg-red-700 disabled:opacity-60 sm:px-3.5 sm:text-sm"
+        className="btn-press shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white transition hover:bg-red-700 disabled:opacity-60 sm:text-sm"
       >
         Delete
       </button>

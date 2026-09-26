@@ -77,9 +77,12 @@ export function LoginPage() {
         return;
       }
 
-      navigate(from === "/members" && profile.role !== "admin" ? "/" : from, {
-        replace: true,
-      });
+      navigate(
+        (from === "/members" || from === "/bookings") && profile.role !== "admin" ? "/" : from,
+        {
+          replace: true,
+        },
+      );
     } finally {
       setSubmitting(false);
     }

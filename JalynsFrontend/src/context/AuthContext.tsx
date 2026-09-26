@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -80,15 +81,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileUserIdRef = useRef<string | null>(null);
 
   const refreshProfile = useCallback(async () => {
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) {
       setProfile(null);
+      profileUserIdRef.current = null;
       return { profile: null, errorMessage: "Not signed in." };
     }
     const result = await fetchProfile(userId);
     setProfile(result.profile);
+    profileUserIdRef.current = result.profile?.id ?? null;
     return result;
   }, []);
 
@@ -109,26 +113,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextSession?.user) {
         setProfile(null);
+        profileUserIdRef.current = null;
         if (mounted && seq === resolveSeq) setLoading(false);
         return;
       }
 
-      // Keep loading true until profile finishes — prevents false "Pending approval" on refresh
-      setLoading(true);
-      const result = await fetchProfile(nextSession.user.id);
+      const userId = nextSession.user.id;
+      // Same user already loaded — refresh quietly (no Loading screen flash on refresh).
+      const alreadyReady = profileUserIdRef.current === userId;
+      if (!alreadyReady) setLoading(true);
+
+      const result = await fetchProfile(userId);
       if (!mounted || seq !== resolveSeq) return;
 
       setProfile(result.profile);
+      profileUserIdRef.current = result.profile?.id ?? null;
       setLoading(false);
     }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // getSession() below handles the first paint; skip duplicate INITIAL_SESSION flash.
+      if (event === "INITIAL_SESSION") return;
       void applySession(nextSession);
     });
 
-    // Initial session (in case INITIAL_SESSION is delayed)
     void supabase.auth.getSession().then(({ data }) => {
       void applySession(data.session);
     });
@@ -142,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    profileUserIdRef.current = null;
     setSession(null);
   }, []);
 

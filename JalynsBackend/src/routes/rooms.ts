@@ -1,6 +1,8 @@
 import multer from 'multer'
 import { Router } from 'express'
+import { sendAppEmail } from '../config/mail.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
+import { loadContactSettings } from '../services/contactSettings.js'
 import {
   addRoomHighlight,
   addRoomImages,
@@ -17,6 +19,12 @@ import {
   updateRoomsVoucher,
   type RoomInput,
 } from '../services/rooms.js'
+import {
+  createRoomBooking,
+  listRoomBookings,
+  updateRoomBookingStatus,
+  type RoomBookingStatus,
+} from '../services/roomBookings.js'
 import {
   getRoomsContentBackground,
   getRoomsHeroBackground,
@@ -117,6 +125,160 @@ roomsRouter.get('/', async (_req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load rooms.'
     return res.status(500).json({ success: false, message })
+  }
+})
+
+roomsRouter.get('/bookings', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can view bookings.'))) {
+      return
+    }
+    res.setHeader('Cache-Control', 'no-store')
+    const bookings = await listRoomBookings()
+    return res.json({ success: true, bookings })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load bookings.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+roomsRouter.patch('/bookings/:id', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can update bookings.'))) {
+      return
+    }
+    const statusRaw = String(req.body?.status ?? '').trim()
+    const status: RoomBookingStatus | null =
+      statusRaw === 'pending' || statusRaw === 'confirmed' || statusRaw === 'completed'
+        ? statusRaw
+        : null
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be pending, confirmed, or completed.',
+      })
+    }
+    const bookings = await updateRoomBookingStatus(req.params.id, status)
+    return res.json({ success: true, bookings })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not update booking.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+roomsRouter.post('/bookings', async (req, res) => {
+  try {
+    const roomId = String(req.body.roomId ?? '').trim()
+    const roomName = String(req.body.roomName ?? '').trim()
+    const checkIn = String(req.body.checkIn ?? '').trim()
+    const checkOut = String(req.body.checkOut ?? '').trim()
+    const fullName = String(req.body.fullName ?? '').trim()
+    const email = String(req.body.email ?? '').trim()
+    const phone = String(req.body.phone ?? '').trim()
+    const guestsRaw = req.body.guests
+    const guests =
+      typeof guestsRaw === 'number' ? guestsRaw : Number(String(guestsRaw ?? '').trim())
+    const nightsRaw = req.body.nights
+    const nights =
+      typeof nightsRaw === 'number' ? nightsRaw : Number(String(nightsRaw ?? '').trim())
+    const pricePerNight =
+      typeof req.body.pricePerNight === 'string' ? req.body.pricePerNight.trim() : null
+    const estimatedTotal =
+      typeof req.body.estimatedTotal === 'string' ? req.body.estimatedTotal.trim() : null
+    const voucherRaw = req.body.voucherPercent
+    const voucherPercent =
+      typeof voucherRaw === 'number'
+        ? voucherRaw
+        : typeof voucherRaw === 'string' && voucherRaw.trim()
+          ? Number(voucherRaw)
+          : null
+
+    const booking = await createRoomBooking({
+      roomId,
+      roomName,
+      checkIn,
+      checkOut,
+      guests,
+      fullName,
+      email,
+      phone,
+      nights: Number.isFinite(nights) && nights > 0 ? nights : undefined,
+      pricePerNight,
+      estimatedTotal,
+      voucherPercent: Number.isFinite(voucherPercent) ? voucherPercent : null,
+    })
+
+    // Respond immediately — email goes out in the background.
+    res.json({
+      success: true,
+      message: 'Your booking request has been sent. We will contact you shortly.',
+      booking,
+    })
+
+    void (async () => {
+      try {
+        const settings = await loadContactSettings()
+        const to = settings.contact_email || process.env.SMTP_FROM || process.env.SMTP_USER
+        if (!to) return
+
+        const escapeHtml = (value: string) =>
+          value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+
+        const text = [
+          `Room booking request`,
+          ``,
+          `Ref: ${booking.id}`,
+          `Room: ${booking.room_name} (${booking.room_id})`,
+          `Check-in: ${booking.check_in}`,
+          `Check-out: ${booking.check_out}`,
+          `Nights: ${booking.nights}`,
+          `Guests: ${booking.guests}`,
+          booking.estimated_total ? `Estimated total: ${booking.estimated_total}` : null,
+          ``,
+          `Guest: ${booking.full_name}`,
+          `Email: ${booking.email}`,
+          `Phone: ${booking.phone}`,
+        ]
+          .filter((line): line is string => line != null)
+          .join('\n')
+
+        await sendAppEmail({
+          to,
+          subject: `Room booking — ${booking.room_name} — ${booking.full_name}`,
+          text,
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0c1210">
+              <h2 style="margin:0 0 12px">New room booking request</h2>
+              <p style="margin:0 0 12px;color:#6b756f">Ref: ${escapeHtml(booking.id)}</p>
+              <h3 style="margin:16px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#6b756f">Booking Information</h3>
+              <p><strong>Room:</strong> ${escapeHtml(booking.room_name)}</p>
+              <p><strong>Check-in:</strong> ${escapeHtml(booking.check_in)}</p>
+              <p><strong>Check-out:</strong> ${escapeHtml(booking.check_out)}</p>
+              <p><strong>Nights:</strong> ${booking.nights}</p>
+              <p><strong>Guests:</strong> ${booking.guests}</p>
+              ${
+                booking.estimated_total
+                  ? `<p><strong>Estimated total:</strong> ${escapeHtml(booking.estimated_total)}</p>`
+                  : ''
+              }
+              <h3 style="margin:16px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#6b756f">Guest Information</h3>
+              <p><strong>Full name:</strong> ${escapeHtml(booking.full_name)}</p>
+              <p><strong>Email:</strong> ${escapeHtml(booking.email)}</p>
+              <p><strong>Contact number:</strong> ${escapeHtml(booking.phone)}</p>
+            </div>
+          `,
+        })
+      } catch (err) {
+        console.warn('[bookings] background email failed:', err instanceof Error ? err.message : err)
+      }
+    })()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not submit booking.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
   }
 })
 

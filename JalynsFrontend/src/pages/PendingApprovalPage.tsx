@@ -1,8 +1,9 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AuthShell } from "../components/AuthShell";
 import { useAuth } from "../context/AuthContext";
 
 export function PendingApprovalPage() {
+  const navigate = useNavigate();
   const { loading, isApproved, approvalStatus, signOut, profile } = useAuth();
   const rejected = approvalStatus === "rejected";
 
@@ -19,6 +20,11 @@ export function PendingApprovalPage() {
     );
   }
 
+  async function handleSignOut() {
+    navigate("/", { replace: true });
+    await signOut();
+  }
+
   return (
     <AuthShell
       title={rejected ? "Account rejected" : "Pending approval"}
@@ -31,7 +37,7 @@ export function PendingApprovalPage() {
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          onClick={() => void signOut()}
+          onClick={() => void handleSignOut()}
           className="btn-press inline-flex flex-1 items-center justify-center rounded-full bg-sky px-5 py-3.5 text-base font-semibold text-white transition hover:bg-sky-bright"
         >
           Sign out

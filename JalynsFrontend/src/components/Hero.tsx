@@ -401,14 +401,14 @@ export function Hero() {
         ) : null}
 
         <div className="order-4 mt-4 hidden justify-center sm:mt-8 sm:flex">
-          <Link
-            to="/rooms"
+          <a
+            href="#rooms"
             className="animate-scroll-hint flex flex-col items-center gap-1 text-[0.65rem] tracking-[0.2em] text-white/60 uppercase"
-            aria-label="View rooms and apartments"
+            aria-label="Scroll to rooms"
           >
             <span>Rooms</span>
             <span className="h-6 w-px bg-white/50" />
-          </Link>
+          </a>
         </div>
       </div>
 

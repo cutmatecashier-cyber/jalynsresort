@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
+import { HomeRooms } from "../components/HomeRooms";
 import { News } from "../components/News";
 import { Services } from "../components/Services";
 import { Testimonials } from "../components/Testimonials";
@@ -22,8 +23,6 @@ export function HomePage() {
       navigate("/spa", { replace: true });
     } else if (hash === "#news") {
       navigate("/news", { replace: true });
-    } else if (hash === "#rooms") {
-      navigate("/rooms", { replace: true });
     }
   }, [navigate]);
 
@@ -31,6 +30,7 @@ export function HomePage() {
     <main className="bg-foam">
       <Hero />
       <Services />
+      <HomeRooms />
       <Testimonials />
       <Gallery />
       <News />

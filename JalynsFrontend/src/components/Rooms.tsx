@@ -18,9 +18,11 @@ import {
   DEFAULT_ROOMS_VOUCHER,
   deleteRoomById,
   deleteRoomImageAt,
+  applyVoucherToPrice,
   fetchRoomsCatalog,
   fetchRoomsContentBackground,
   fetchRoomsHero,
+  formatRoomPrice,
   removeRoomsContentBackground,
   removeRoomsHero,
   replaceRoomImageAt,
@@ -81,15 +83,7 @@ function textToAmenities(text: string) {
 }
 
 function formatPeso(value: string) {
-  const raw = value.trim();
-  if (!raw || raw === "—") return "—";
-  // Already has currency / contact-style text — keep as-is
-  if (/[₱$€]|peso|contact|night|\/\s*night/i.test(raw)) return raw;
-  const digits = raw.replace(/[^\d.]/g, "");
-  if (!digits) return raw;
-  const num = Number(digits);
-  if (!Number.isFinite(num)) return `₱${raw}`;
-  return `₱${num.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
+  return formatRoomPrice(value);
 }
 
 /** Line-clamped text with Read more / Read less when content overflows. */
@@ -862,12 +856,27 @@ export function Rooms() {
                               Price per night
                             </dt>
                             <dd className="mt-0.5 font-semibold text-ink">
-                              {formatPeso(room.price_per_night || "")}
-                              {voucher.enabled && voucher.percent > 0 ? (
-                                <span className="ml-1.5 text-[0.65rem] font-semibold text-amber-800">
-                                  (−{voucher.percent}%)
-                                </span>
-                              ) : null}
+                              {(() => {
+                                const priced = applyVoucherToPrice(
+                                  room.price_per_night || "",
+                                  voucher,
+                                );
+                                return (
+                                  <>
+                                    {priced.original ? (
+                                      <span className="mr-1.5 text-[0.75em] font-medium text-ink/40 line-through">
+                                        {priced.original}
+                                      </span>
+                                    ) : null}
+                                    <span>{priced.display}</span>
+                                    {priced.percent != null ? (
+                                      <span className="ml-1.5 text-[0.65rem] font-semibold text-amber-800">
+                                        (−{priced.percent}%)
+                                      </span>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
                             </dd>
                           </div>
                           <div>
@@ -957,12 +966,16 @@ export function Rooms() {
                             >
                               Edit room
                             </button>
+                          ) : room.status === "unavailable" ? (
+                            <span className="inline-flex min-h-10 items-center justify-center rounded-full border border-ink/10 bg-white/60 px-5 py-2 text-sm font-semibold text-ink/45">
+                              Unavailable
+                            </span>
                           ) : (
                             <Link
-                              to="/contact"
+                              to={`/book?room=${encodeURIComponent(room.id)}`}
                               className="btn-press inline-flex min-h-10 items-center justify-center rounded-full bg-sky-deep px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky"
                             >
-                              Enquire / Book
+                              Book Now
                             </Link>
                           )}
                         </div>

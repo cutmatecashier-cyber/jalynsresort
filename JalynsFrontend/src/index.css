@@ -566,6 +566,15 @@
   transform: scaleX(1);
 }
 
+.nav-link[aria-current="page"] {
+  color: #fff;
+}
+
+.nav-link[aria-current="page"]::after {
+  transform: scaleX(1);
+  opacity: 0.95;
+}
+
 .live-orb {
   pointer-events: none;
   position: absolute;
