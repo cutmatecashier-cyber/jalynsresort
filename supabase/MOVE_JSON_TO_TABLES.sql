@@ -65,10 +65,16 @@ create table if not exists public.room_bookings (
   price_per_night text,
   estimated_total text,
   voucher_percent int,
+  paypal_order_id text,
+  paypal_capture_id text,
   status text not null default 'confirmed'
     check (status in ('pending', 'confirmed', 'completed')),
   created_at timestamptz not null default now()
 );
+
+alter table public.room_bookings
+  add column if not exists paypal_order_id text,
+  add column if not exists paypal_capture_id text;
 
 create index if not exists room_bookings_room_idx
   on public.room_bookings (room_id, check_in, check_out);

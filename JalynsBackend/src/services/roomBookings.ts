@@ -13,7 +13,7 @@ import {
   type ExtraGuestQuote,
 } from './guestPricing.js'
 import { clockToMinutes, stayFits } from './roomAvailability.js'
-import { listRooms } from './rooms.js'
+import { getRoomsVoucher, listRooms } from './rooms.js'
 
 export type RoomBookingStatus = 'pending' | 'confirmed' | 'completed'
 
@@ -35,6 +35,8 @@ export type RoomBooking = {
   price_per_night: string | null
   estimated_total: string | null
   voucher_percent: number | null
+  paypal_order_id: string | null
+  paypal_capture_id: string | null
   status: RoomBookingStatus
   created_at: string
 }
@@ -55,6 +57,8 @@ export type RoomBookingInput = {
   pricePerNight?: string | null
   estimatedTotal?: string | null
   voucherPercent?: number | null
+  paypalOrderId?: string | null
+  paypalCaptureId?: string | null
 }
 
 type StoreShape = { bookings: RoomBooking[] }
@@ -158,6 +162,8 @@ function normalizeBooking(row: Partial<RoomBooking>): RoomBooking | null {
       typeof row.voucher_percent === 'number' && Number.isFinite(row.voucher_percent)
         ? row.voucher_percent
         : null,
+    paypal_order_id: String(row.paypal_order_id || '').trim() || null,
+    paypal_capture_id: String(row.paypal_capture_id || '').trim() || null,
     status,
     created_at: String(row.created_at || new Date().toISOString()),
   }
@@ -205,6 +211,8 @@ function toRow(booking: RoomBooking) {
     price_per_night: booking.price_per_night,
     estimated_total: booking.estimated_total,
     voucher_percent: booking.voucher_percent,
+    paypal_order_id: booking.paypal_order_id,
+    paypal_capture_id: booking.paypal_capture_id,
     status: booking.status,
     created_at: booking.created_at,
   }
@@ -252,7 +260,7 @@ export async function listRoomBookings(): Promise<RoomBooking[]> {
   return loadBookings()
 }
 
-export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
+async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   const roomId = input.roomId.trim()
   const roomName = input.roomName.trim()
   const checkIn = input.checkIn.trim()
@@ -277,14 +285,13 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
   }
   if (!phone) throw new Error('Contact number is required.')
 
-  const nights =
-    typeof input.nights === 'number' && input.nights > 0
-      ? input.nights
-      : nightsBetween(checkIn, checkOut)
+  const nights = nightsBetween(checkIn, checkOut)
+  if (nights < 1) throw new Error('Check-out must be after check-in.')
 
-  const [rooms, settings, currentBookings] = await Promise.all([
+  const [rooms, settings, voucher, currentBookings] = await Promise.all([
     listRooms(),
     loadBookingSettings(),
+    getRoomsVoucher(),
     loadBookings(),
   ])
   const room = rooms.find((item) => item.id === roomId)
@@ -338,9 +345,20 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
   const extraGuests = quoteExtraGuests(slots, ages, settings.extraPersonRules)
   const extraPerNight = extraGuests.reduce((sum, guest) => sum + guest.charge, 0)
   const extraTotal = extraChargeForStay(extraPerNight, nights)
-  const nightly = parsePeso(input.pricePerNight)
-  const estimatedTotal =
-    nightly != null && nights > 0 ? peso(nightly * nights + extraTotal) : input.estimatedTotal
+  const baseNightly = parsePeso(room.price_per_night)
+  if (baseNightly == null || baseNightly <= 0) {
+    throw new Error('This room has no online rate. Contact the resort to book.')
+  }
+  const voucherPercent =
+    voucher.enabled && voucher.percent > 0 ? Math.min(100, voucher.percent) : 0
+  const nightly =
+    voucherPercent > 0
+      ? Math.max(0, Math.round(baseNightly * (1 - voucherPercent / 100)))
+      : baseNightly
+  const amount = nightly * nights + extraTotal
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('This stay cannot be paid online.')
+  }
 
   const booking: RoomBooking = {
     id: `bk-${randomUUID().slice(0, 10)}`,
@@ -357,19 +375,48 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
     full_name: fullName,
     email,
     phone,
-    price_per_night: sanitizeMoneyText(input.pricePerNight),
-    estimated_total: sanitizeMoneyText(estimatedTotal),
-    voucher_percent:
-      typeof input.voucherPercent === 'number' && Number.isFinite(input.voucherPercent)
-        ? input.voucherPercent
-        : null,
+    price_per_night: peso(nightly),
+    estimated_total: peso(amount),
+    voucher_percent: voucherPercent > 0 ? Math.round(voucherPercent) : null,
+    paypal_order_id: String(input.paypalOrderId || '').trim() || null,
+    paypal_capture_id: String(input.paypalCaptureId || '').trim() || null,
     status: 'confirmed',
     created_at: new Date().toISOString(),
   }
 
+  return booking
+}
+
+export async function quoteRoomBooking(input: RoomBookingInput): Promise<number> {
+  const booking = await buildRoomBooking(input)
+  const amount = parsePeso(booking.estimated_total)
+  if (amount == null || amount <= 0) throw new Error('This stay cannot be paid online.')
+  return amount
+}
+
+export async function findBookingByPayPalOrder(orderId: string): Promise<RoomBooking | null> {
+  const id = orderId.trim()
+  if (!id) return null
+  const list = await loadBookings()
+  return list.find((item) => item.paypal_order_id === id) ?? null
+}
+
+async function insertBookingRow(booking: RoomBooking) {
+  const row = toRow(booking)
+  const { error } = await supabaseAdmin.from('room_bookings').insert(row)
+  if (error && /paypal_/i.test(error.message)) {
+    const { paypal_order_id: _order, paypal_capture_id: _capture, ...rest } = row
+    const retry = await supabaseAdmin.from('room_bookings').insert(rest)
+    if (retry.error) throw new Error(retry.error.message)
+    return
+  }
+  if (error) throw new Error(error.message)
+}
+
+export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
+  const booking = await buildRoomBooking(input)
   if (await relationReady('room_bookings')) {
-    const { error } = await supabaseAdmin.from('room_bookings').insert(toRow(booking))
-    if (error) throw new Error(error.message)
+    await insertBookingRow(booking)
   } else {
     const current = await jsonStore.load()
     await jsonStore.save({ bookings: [booking, ...current.bookings] })

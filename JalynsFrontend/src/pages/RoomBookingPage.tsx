@@ -5,16 +5,21 @@ import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { scrollToTopInstant } from "../components/ScrollToTop";
 import { broadcastContentChanged, CONTENT_CHANGED_EVENT, refreshLocalContent } from "../components/ContentSync";
+import { NumberStepper } from "../components/NumberStepper";
+import { PayPalCheckout } from "../components/PayPalCheckout";
 import { StayDateField } from "../components/StayCalendar";
 import {
   DEFAULT_ROOMS,
   DEFAULT_ROOMS_VOUCHER,
   applyVoucherToPrice,
   fetchRoomAvailability,
+  capturePayPalCheckout,
+  createPayPalCheckout,
+  fetchPayPalConfig,
   fetchRoomsCatalog,
   formatPesoAmount,
   roomsMediaUrl,
-  submitRoomBooking,
+  type PayPalConfig,
   type Room,
   type RoomAvailabilitySnapshot,
   type RoomsVoucher,
@@ -286,7 +291,23 @@ export function RoomBookingPage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
   const [availability, setAvailability] = useState<RoomAvailabilitySnapshot | null>(null);
+
+  useEffect(() => {
+    if (step !== "review") return;
+    let cancelled = false;
+    void fetchPayPalConfig()
+      .then((config) => {
+        if (!cancelled) setPaypalConfig(config);
+      })
+      .catch(() => {
+        if (!cancelled) setPaypalConfig({ enabled: false, clientId: "", currency: "PHP" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
 
   const bookable = useMemo(
     () => catalog.filter((r) => r.status !== "unavailable"),
@@ -530,37 +551,36 @@ export function RoomBookingPage() {
     setStep("review");
   }
 
-  async function confirmSubmit() {
+  async function startPayPalOrder() {
     setError(null);
-    if (!validateForm() || !selectedRoom) return;
+    if (!validateForm() || !selectedRoom) {
+      throw new Error("Check the booking details and try again.");
+    }
+    return createPayPalCheckout({
+      roomId: selectedRoom.id,
+      roomName: selectedRoom.name,
+      checkIn,
+      checkOut,
+      guests: totalGuests,
+      adults,
+      kids,
+      extraGuests: extraQuotes.map((guest) => ({ kind: guest.kind, age: guest.age })),
+      fullName: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+    });
+  }
 
+  async function finishPayPal(orderId: string) {
+    setError(null);
     setBusy(true);
     try {
-      const priceDisplay = staySummary.priced?.display ?? selectedRoom.price_per_night ?? null;
-      const grandTotal = staySummary.total != null ? staySummary.total + extraTotal : null;
-      await submitRoomBooking({
-        roomId: selectedRoom.id,
-        roomName: selectedRoom.name,
-        checkIn,
-        checkOut,
-        guests: totalGuests,
-        adults,
-        kids,
-        extraGuests: extraQuotes.map((guest) => ({ kind: guest.kind, age: guest.age })),
-        fullName: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        nights: staySummary.nights > 0 ? staySummary.nights : undefined,
-        pricePerNight: priceDisplay,
-        estimatedTotal: grandTotal != null ? formatPesoAmount(grandTotal) : null,
-        voucherPercent: staySummary.priced?.percent ?? null,
-      });
+      await capturePayPalCheckout(orderId);
       setStep("done");
-      // Live admin update — don't block the success screen.
       broadcastContentChanged();
       void refreshLocalContent();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not submit booking.");
+      setError(err instanceof Error ? err.message : "Could not complete PayPal payment.");
     } finally {
       setBusy(false);
     }
@@ -588,9 +608,9 @@ export function RoomBookingPage() {
             {step === "pick"
               ? "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
               : step === "review"
-                ? "Check everything carefully, then confirm to send your booking request."
+                ? "Check everything carefully, then pay with PayPal to confirm your booking."
                 : step === "done"
-                  ? "We’ve received your request and will get back to you soon."
+                  ? "Payment received. Your booking is confirmed."
                   : "Confirm your dates and how we can reach you."}
           </p>
         </div>
@@ -602,8 +622,8 @@ export function RoomBookingPage() {
             <div className="-mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:-mt-8 sm:p-8">
               <p className="font-display text-2xl text-emerald-950 sm:text-3xl">Thank you</p>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-950/85 sm:text-base">
-                {fullName.trim()}, your booking request for <strong>{selectedRoom.name}</strong>{" "}
-                is in. We’ll contact you at <strong>{email.trim()}</strong>.
+                {fullName.trim()}, your stay in <strong>{selectedRoom.name}</strong> is confirmed.
+                We’ll contact you at <strong>{email.trim()}</strong>.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link
@@ -921,37 +941,32 @@ export function RoomBookingPage() {
                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
                               {guestSlots.map((slot, index) =>
                                 slot.kind === "kid" ? (
-                                  <label
+                                  <NumberStepper
                                     key={`${slot.kind}-${index}`}
-                                    className="block text-sm font-semibold text-ink"
-                                  >
-                                    Extra child{" "}
-                                    {guestSlots
-                                      .slice(0, index + 1)
-                                      .filter((item) => item.kind === "kid").length}{" "}
-                                    age
-                                    <input
-                                      type="number"
-                                      required
-                                      min={0}
-                                      max={120}
-                                      step={1}
-                                      inputMode="numeric"
-                                      value={extraAges[index] ?? ""}
-                                      onChange={(event) => {
-                                        const next = event.target.value;
-                                        setExtraAges((current) => {
-                                          const copy = guestSlots.map(
-                                            (_, item) => current[item] ?? "",
-                                          );
-                                          copy[index] = next;
-                                          return copy;
-                                        });
-                                      }}
-                                      placeholder="Years old"
-                                      className={inputClass}
-                                    />
-                                  </label>
+                                    label={`Extra child ${
+                                      guestSlots
+                                        .slice(0, index + 1)
+                                        .filter((item) => item.kind === "kid").length
+                                    } age`}
+                                    value={
+                                      extraAges[index] != null && extraAges[index] !== ""
+                                        ? Number(extraAges[index])
+                                        : null
+                                    }
+                                    min={0}
+                                    max={120}
+                                    allowEmpty
+                                    emptyLabel="—"
+                                    onChange={(next) => {
+                                      setExtraAges((current) => {
+                                        const copy = guestSlots.map(
+                                          (_, item) => current[item] ?? "",
+                                        );
+                                        copy[index] = next == null ? "" : String(next);
+                                        return copy;
+                                      });
+                                    }}
+                                  />
                                 ) : null,
                               )}
                             </div>
@@ -1273,7 +1288,7 @@ export function RoomBookingPage() {
                     </p>
                   ) : null}
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <button
                       type="button"
                       disabled={busy}
@@ -1285,14 +1300,27 @@ export function RoomBookingPage() {
                     >
                       Back
                     </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void confirmSubmit()}
-                      className="btn-press inline-flex min-h-11 items-center justify-center rounded-full bg-sky-deep px-6 text-sm font-semibold text-white transition hover:bg-sky disabled:opacity-60"
-                    >
-                      {busy ? "Sending…" : "Confirm & submit"}
-                    </button>
+                    {staySummary.total == null ? (
+                      <p className="max-w-sm text-sm text-ink/70 sm:text-right">
+                        This room has no online rate. Contact the resort to book.
+                      </p>
+                    ) : paypalConfig == null ? (
+                      <p className="text-sm text-ink/60">Loading PayPal…</p>
+                    ) : paypalConfig.enabled ? (
+                      <div className={busy ? "pointer-events-none opacity-60" : undefined}>
+                        <PayPalCheckout
+                          clientId={paypalConfig.clientId}
+                          currency={paypalConfig.currency}
+                          createOrder={startPayPalOrder}
+                          onApprove={finishPayPal}
+                          onError={setError}
+                        />
+                      </div>
+                    ) : (
+                      <p className="max-w-sm text-sm text-ink/70 sm:text-right">
+                        Online payment is not available yet. Please contact the resort.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

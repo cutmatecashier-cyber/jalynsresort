@@ -1,10 +1,7 @@
 import multer from 'multer'
 import { Router } from 'express'
-import { sendAppEmail } from '../config/mail.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import { loadBookingSettings, saveBookingSchedule, saveExtraPersonRules } from '../services/bookingSettings.js'
-import { loadContactSettings } from '../services/contactSettings.js'
-import { formatClockLabel } from '../services/roomAvailability.js'
 import {
   addRoomHighlight,
   addRoomImages,
@@ -22,7 +19,6 @@ import {
   type RoomInput,
 } from '../services/rooms.js'
 import {
-  createRoomBooking,
   listRoomBookings,
   updateRoomBookingStatus,
   type RoomBookingStatus,
@@ -238,167 +234,11 @@ roomsRouter.patch('/bookings/:id', async (req, res) => {
   }
 })
 
-roomsRouter.post('/bookings', async (req, res) => {
-  try {
-    const roomId = String(req.body.roomId ?? '').trim()
-    const roomName = String(req.body.roomName ?? '').trim()
-    const checkIn = String(req.body.checkIn ?? '').trim()
-    const checkOut = String(req.body.checkOut ?? '').trim()
-    const fullName = String(req.body.fullName ?? '').trim()
-    const email = String(req.body.email ?? '').trim()
-    const phone = String(req.body.phone ?? '').trim()
-    const guestsRaw = req.body.guests
-    const guests =
-      typeof guestsRaw === 'number' ? guestsRaw : Number(String(guestsRaw ?? '').trim())
-    const adultsRaw = req.body.adults
-    const adults =
-      typeof adultsRaw === 'number' ? adultsRaw : Number(String(adultsRaw ?? '').trim())
-    const kidsRaw = req.body.kids
-    const kids = typeof kidsRaw === 'number' ? kidsRaw : Number(String(kidsRaw ?? '').trim())
-    const extraGuests = Array.isArray(req.body.extraGuests)
-      ? req.body.extraGuests.map((item: { kind?: unknown; age?: unknown }) => ({
-          kind: item?.kind === 'adult' ? ('adult' as const) : ('kid' as const),
-          age: typeof item?.age === 'number' ? item.age : Number(item?.age),
-        }))
-      : []
-    const nightsRaw = req.body.nights
-    const nights =
-      typeof nightsRaw === 'number' ? nightsRaw : Number(String(nightsRaw ?? '').trim())
-    const pricePerNight =
-      typeof req.body.pricePerNight === 'string' ? req.body.pricePerNight.trim() : null
-    const estimatedTotal =
-      typeof req.body.estimatedTotal === 'string' ? req.body.estimatedTotal.trim() : null
-    const voucherRaw = req.body.voucherPercent
-    const voucherPercent =
-      typeof voucherRaw === 'number'
-        ? voucherRaw
-        : typeof voucherRaw === 'string' && voucherRaw.trim()
-          ? Number(voucherRaw)
-          : null
-
-    const booking = await createRoomBooking({
-      roomId,
-      roomName,
-      checkIn,
-      checkOut,
-      guests,
-      adults: Number.isInteger(adults) ? adults : undefined,
-      kids: Number.isInteger(kids) ? kids : undefined,
-      extraGuests,
-      fullName,
-      email,
-      phone,
-      nights: Number.isFinite(nights) && nights > 0 ? nights : undefined,
-      pricePerNight,
-      estimatedTotal,
-      voucherPercent: Number.isFinite(voucherPercent) ? voucherPercent : null,
-    })
-
-    // Respond immediately — email goes out in the background.
-    res.json({
-      success: true,
-      message: 'Your booking request has been sent. We will contact you shortly.',
-      booking,
-    })
-
-    void (async () => {
-      try {
-        const settings = await loadContactSettings()
-        const to = settings.contact_email || process.env.SMTP_FROM || process.env.SMTP_USER
-        if (!to) return
-
-        const escapeHtml = (value: string) =>
-          value
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-
-        const schedule = await loadBookingSettings()
-        const checkInLabel = `${booking.check_in} ${formatClockLabel(schedule.checkInTime)}`
-        const checkOutLabel = `${booking.check_out} ${formatClockLabel(schedule.checkOutTime)}`
-
-        const text = [
-          `Room booking request`,
-          ``,
-          `Ref: ${booking.id}`,
-          `Room: ${booking.room_name} (${booking.room_id})`,
-          `Check-in: ${checkInLabel}`,
-          `Check-out: ${checkOutLabel}`,
-          `Nights: ${booking.nights}`,
-          `Adults: ${booking.adults}`,
-          `Kids: ${booking.kids}`,
-          `Total guests: ${booking.guests}`,
-          booking.extra_guests.length
-            ? `Extra guests: ${booking.extra_guests
-                .map((guest) =>
-                  guest.kind === 'adult'
-                    ? `adult (10+) ₱${guest.charge.toLocaleString('en-PH')}/night`
-                    : `${guest.age} years old (child) ₱${guest.charge.toLocaleString('en-PH')}/night`,
-                )
-                .join(', ')}`
-            : null,
-          booking.extra_person_total > 0
-            ? `Extra person charge: ₱${booking.extra_person_total.toLocaleString('en-PH')}`
-            : null,
-          booking.estimated_total ? `Estimated total: ${booking.estimated_total}` : null,
-          ``,
-          `Guest: ${booking.full_name}`,
-          `Email: ${booking.email}`,
-          `Phone: ${booking.phone}`,
-        ]
-          .filter((line): line is string => line != null)
-          .join('\n')
-
-        await sendAppEmail({
-          to,
-          subject: `Room booking — ${booking.room_name} — ${booking.full_name}`,
-          text,
-          html: `
-            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0c1210">
-              <h2 style="margin:0 0 12px">New room booking request</h2>
-              <p style="margin:0 0 12px;color:#6b756f">Ref: ${escapeHtml(booking.id)}</p>
-              <h3 style="margin:16px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#6b756f">Booking Information</h3>
-              <p><strong>Room:</strong> ${escapeHtml(booking.room_name)}</p>
-              <p><strong>Check-in:</strong> ${escapeHtml(checkInLabel)}</p>
-              <p><strong>Check-out:</strong> ${escapeHtml(checkOutLabel)}</p>
-              <p><strong>Nights:</strong> ${booking.nights}</p>
-              <p><strong>Adults:</strong> ${booking.adults}</p>
-              <p><strong>Kids:</strong> ${booking.kids}</p>
-              <p><strong>Total guests:</strong> ${booking.guests}</p>
-              ${
-                booking.extra_guests.length
-                  ? `<p><strong>Extra guests:</strong> ${escapeHtml(
-                      booking.extra_guests
-                        .map((guest) =>
-                          guest.kind === 'adult'
-                            ? `adult (10+) — ₱${guest.charge.toLocaleString('en-PH')}/night`
-                            : `${guest.age} years old (child) — ₱${guest.charge.toLocaleString('en-PH')}/night`,
-                        )
-                        .join(', '),
-                    )}</p>`
-                  : ''
-              }
-              ${
-                booking.estimated_total
-                  ? `<p><strong>Estimated total:</strong> ${escapeHtml(booking.estimated_total)}</p>`
-                  : ''
-              }
-              <h3 style="margin:16px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#6b756f">Guest Information</h3>
-              <p><strong>Full name:</strong> ${escapeHtml(booking.full_name)}</p>
-              <p><strong>Email:</strong> ${escapeHtml(booking.email)}</p>
-              <p><strong>Contact number:</strong> ${escapeHtml(booking.phone)}</p>
-            </div>
-          `,
-        })
-      } catch (err) {
-        console.warn('[bookings] background email failed:', err instanceof Error ? err.message : err)
-      }
-    })()
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not submit booking.'
-    return res.status(clientErrorStatus(message)).json({ success: false, message })
-  }
+roomsRouter.post('/bookings', (_req, res) => {
+  return res.status(400).json({
+    success: false,
+    message: 'Pay with PayPal to confirm this booking.',
+  })
 })
 
 roomsRouter.get('/highlights', async (_req, res) => {

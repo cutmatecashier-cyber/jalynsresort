@@ -15,6 +15,7 @@ import {
   type SpaService,
 } from "../lib/spa";
 import { broadcastContentChanged } from "./ContentSync";
+import { NumberStepper } from "./NumberStepper";
 import { Reveal } from "./Reveal";
 
 const inputClass =
@@ -533,20 +534,16 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                         minLength={2}
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-ink" htmlFor="spa-svc-mins">
-                        Duration (minutes, optional)
-                      </label>
-                      <input
-                        id="spa-svc-mins"
-                        type="number"
-                        min={0}
-                        className={inputClass}
-                        value={svcMins}
-                        onChange={(e) => setSvcMins(e.target.value)}
-                        placeholder="e.g. 60"
-                      />
-                    </div>
+                    <NumberStepper
+                      label="Duration (minutes)"
+                      value={svcMins.trim() === "" ? null : Number(svcMins)}
+                      min={5}
+                      max={480}
+                      step={5}
+                      allowEmpty
+                      emptyLabel="—"
+                      onChange={(next) => setSvcMins(next == null ? "" : String(next))}
+                    />
                     <div>
                       <label className="text-xs font-semibold text-ink" htmlFor="spa-svc-rate">
                         Rate

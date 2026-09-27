@@ -9,6 +9,7 @@ import { homeRouter } from './routes/home.js'
 import { menuRouter } from './routes/menu.js'
 import { reviewsRouter } from './routes/reviews.js'
 import { restaurantRouter } from './routes/restaurant.js'
+import { paymentsRouter } from './routes/payments.js'
 import { roomsRouter } from './routes/rooms.js'
 import { galleryRouter } from './routes/gallery.js'
 import { contentRouter } from './routes/content.js'
@@ -90,6 +91,7 @@ app.use('/api/menu', menuRouter)
 app.use('/api/restaurant', restaurantRouter)
 app.use('/api/reviews', reviewsRouter)
 app.use('/api/rooms', roomsRouter)
+app.use('/api/payments', paymentsRouter)
 app.use('/api/gallery', galleryRouter)
 app.use('/api/content', contentRouter)
 app.use('/api/scuba', scubaRouter)

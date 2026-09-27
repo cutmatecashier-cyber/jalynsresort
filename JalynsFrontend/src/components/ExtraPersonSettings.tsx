@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { broadcastContentChanged } from "./ContentSync";
+import { NumberStepper } from "./NumberStepper";
 import {
   DEFAULT_EXTRA_PERSON_RULES,
   chargeForExtraGuest,
@@ -90,46 +91,30 @@ export function ExtraPersonSettings() {
               </button>
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <label className="block text-xs font-semibold text-ink/70">
-                Minimum age
-                <input
-                  type="number"
-                  min={0}
-                  max={120}
-                  required
-                  value={rule.minAge}
-                  onChange={(event) => updateRule(rule.id, { minAge: Number(event.target.value) })}
-                  className={inputClass}
-                />
-              </label>
-              <label className="block text-xs font-semibold text-ink/70">
-                Maximum age
-                <input
-                  type="number"
-                  min={0}
-                  max={120}
-                  placeholder="And older"
-                  value={rule.maxAge ?? ""}
-                  onChange={(event) =>
-                    updateRule(rule.id, {
-                      maxAge: event.target.value === "" ? null : Number(event.target.value),
-                    })
-                  }
-                  className={inputClass}
-                />
-              </label>
-              <label className="block text-xs font-semibold text-ink/70">
-                Extra charge (₱)
-                <input
-                  type="number"
-                  min={0}
-                  max={100000}
-                  required
-                  value={rule.charge}
-                  onChange={(event) => updateRule(rule.id, { charge: Number(event.target.value) })}
-                  className={inputClass}
-                />
-              </label>
+              <NumberStepper
+                label="Minimum age"
+                value={rule.minAge}
+                min={0}
+                max={120}
+                onChange={(next) => updateRule(rule.id, { minAge: next ?? 0 })}
+              />
+              <NumberStepper
+                label="Maximum age"
+                value={rule.maxAge}
+                min={0}
+                max={120}
+                allowEmpty
+                emptyLabel="Any"
+                onChange={(next) => updateRule(rule.id, { maxAge: next })}
+              />
+              <NumberStepper
+                label="Extra charge (₱)"
+                value={rule.charge}
+                min={0}
+                max={100000}
+                step={50}
+                onChange={(next) => updateRule(rule.id, { charge: next ?? 0 })}
+              />
               <label className="block text-xs font-semibold text-ink/70">
                 Applies to
                 <select
@@ -152,29 +137,31 @@ export function ExtraPersonSettings() {
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          setSaved(false);
-          setRules((current) => [...current, blankRule()]);
-        }}
-        className="btn-press mt-3 text-sm font-semibold text-sky-deep"
-      >
-        Add age range
-      </button>
       {error ? (
         <p className="mt-3 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}
       {saved ? <p className="mt-3 text-sm font-medium text-emerald-800">Saved.</p> : null}
-      <button
-        type="submit"
-        disabled={busy}
-        className="btn-press mt-3 rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {busy ? "Saving…" : "Save extra person settings"}
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <button
+          type="button"
+          onClick={() => {
+            setSaved(false);
+            setRules((current) => [...current, blankRule()]);
+          }}
+          className="btn-press text-sm font-semibold text-sky-deep"
+        >
+          Add age range
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn-press rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Save extra person settings"}
+        </button>
+      </div>
       <p className="mt-2 text-[0.68rem] text-ink/40">
         Example: an extra adult is {formatPesoAmount(chargeForExtraGuest(10, "adult", rules))} per
         night. Two nights is {formatPesoAmount(chargeForExtraGuest(10, "adult", rules) * 2)}. A

@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
+import { NumberStepper } from "./NumberStepper";
 import { useAuth } from "../context/AuthContext";
 import {
   createRoomWithImage,
@@ -1279,28 +1280,19 @@ export function Rooms() {
                         className={inputClass}
                       />
                     </label>
-                    <label className="block">
-                      <span className="text-sm font-semibold text-ink">Maximum guest capacity</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        required
-                        value={parseMaxGuests(form.max_capacity)}
-                        onChange={(e) => {
-                          const next = Number(e.target.value);
-                          const count = Number.isFinite(next)
-                            ? Math.min(30, Math.max(1, Math.round(next)))
-                            : 2;
-                          setForm((f) => ({ ...f, max_capacity: formatMaxGuests(count) }));
-                        }}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        className={inputClass}
-                      />
-                      <span className="mt-1 block text-xs font-medium text-ink/45">
-                        Guests included in the room rate. Anyone past this number is an extra guest.
-                      </span>
-                    </label>
+                    <NumberStepper
+                      label="Maximum guest capacity"
+                      value={parseMaxGuests(form.max_capacity)}
+                      min={1}
+                      max={30}
+                      onChange={(next) =>
+                        setForm((f) => ({
+                          ...f,
+                          max_capacity: formatMaxGuests(next ?? 1),
+                        }))
+                      }
+                      hint="Guests included in the room rate. Anyone past this number is an extra guest."
+                    />
                     <label className="block">
                       <span className="text-sm font-semibold text-ink">Beds</span>
                       <input
@@ -1322,20 +1314,6 @@ export function Rooms() {
                       />
                     </label>
                     <label className="block">
-                      <span className="text-sm font-semibold text-ink">Extra person charges</span>
-                      <input
-                        value={form.extra_person_charge ?? ""}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, extra_person_charge: e.target.value }))
-                        }
-                        placeholder="Optional note"
-                        className={inputClass}
-                      />
-                      <span className="mt-1 block text-xs font-medium text-ink/45">
-                        Booking totals use Extra person settings. This note is not added to the price.
-                      </span>
-                    </label>
-                    <label className="block">
                       <span className="text-sm font-semibold text-ink">Status</span>
                       <select
                         value={form.status === "unavailable" ? "unavailable" : "available"}
@@ -1351,32 +1329,48 @@ export function Rooms() {
                         <option value="unavailable">Unavailable</option>
                       </select>
                     </label>
-                    <label className="block">
-                      <span className="text-sm font-semibold text-ink">Quantity</span>
-                      <input
-                        type="number"
-                        required
-                        min={1}
-                        max={99}
-                        step={1}
-                        value={form.quantity}
-                        onChange={(e) => {
-                          const next = Number(e.target.value);
-                          setForm((f) => ({
-                            ...f,
-                            quantity: Number.isFinite(next)
-                              ? Math.min(99, Math.max(1, Math.round(next)))
-                              : 1,
-                          }));
-                        }}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        className={inputClass}
-                      />
+                    <div className="block">
+                      <div className="mt-1.5 flex items-center justify-between rounded-xl border border-ink/12 bg-white px-3.5 py-2.5">
+                        <span className="text-sm font-semibold text-ink">Quantity</span>
+                        <span className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={form.quantity <= 1}
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                quantity: Math.max(1, f.quantity - 1),
+                              }))
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ink/15 text-base leading-none disabled:opacity-40"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="w-6 text-center text-sm font-semibold tabular-nums text-ink">
+                            {form.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={form.quantity >= 99}
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                quantity: Math.min(99, f.quantity + 1),
+                              }))
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ink/15 text-base leading-none disabled:opacity-40"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </span>
+                      </div>
                       <span className="mt-1 block text-xs font-medium text-ink/45">
                         Physical rooms of this type. Five standard rooms means five guests can book
                         the same dates.
                       </span>
-                    </label>
+                    </div>
                     <label className="block sm:col-span-2">
                       <span className="text-sm font-semibold text-ink">
                         Room rules &amp; policies

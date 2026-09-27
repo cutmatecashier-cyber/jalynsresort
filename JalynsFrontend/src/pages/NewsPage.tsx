@@ -110,6 +110,27 @@ export function NewsPage() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  function scrollToNewsFeed() {
+    const feed = document.getElementById("news-feed");
+    if (!feed) return;
+    const lenis = (
+      window as Window & {
+        __lenis?: {
+          scrollTo: (
+            target: HTMLElement | number,
+            opts?: { immediate?: boolean; offset?: number },
+          ) => void;
+        };
+      }
+    ).__lenis;
+    if (lenis?.scrollTo) {
+      lenis.scrollTo(feed, { immediate: true, offset: -88 });
+      return;
+    }
+    const top = feed.getBoundingClientRect().top + window.scrollY - 88;
+    window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+  }
+
   function goToPage(next: number) {
     setPage(next);
     requestAnimationFrame(() => {
@@ -262,7 +283,7 @@ export function NewsPage() {
     setFilter(next);
     setPage(0);
     requestAnimationFrame(() => {
-      requestAnimationFrame(scrollToPageTop);
+      requestAnimationFrame(scrollToNewsFeed);
     });
   }
 

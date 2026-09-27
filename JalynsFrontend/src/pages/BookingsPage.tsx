@@ -389,6 +389,9 @@ export function BookingsPage() {
                         </td>
                         <td className="px-5 py-4 align-middle font-semibold whitespace-nowrap text-ink">
                           {formatMoneyDisplay(b.estimated_total)}
+                          {b.paypal_capture_id ? (
+                            <span className="mt-0.5 block text-xs font-medium text-emerald-800">PayPal</span>
+                          ) : null}
                         </td>
                         <td className="px-5 py-4 align-middle">
                           <StatusBadge status={b.status} />
@@ -440,6 +443,9 @@ export function BookingsPage() {
                       </dt>
                       <dd className="mt-0.5 font-semibold text-ink">
                         {formatMoneyDisplay(b.estimated_total)}
+                        {b.paypal_capture_id ? (
+                          <span className="mt-0.5 block text-xs font-medium text-emerald-800">PayPal</span>
+                        ) : null}
                       </dd>
                     </div>
                     <div className="col-span-2">

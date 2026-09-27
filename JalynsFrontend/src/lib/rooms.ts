@@ -645,6 +645,8 @@ export type RoomBooking = {
   price_per_night: string | null;
   estimated_total: string | null;
   voucher_percent: number | null;
+  paypal_order_id?: string | null;
+  paypal_capture_id?: string | null;
   status: RoomBookingStatus;
   created_at: string;
 };
@@ -752,15 +754,42 @@ export async function updateBookingSchedule(input: { checkInTime: string; checkO
   };
 }
 
-export async function submitRoomBooking(input: RoomBookingInput) {
-  const res = await fetch(`${getApiUrl()}/api/rooms/bookings`, {
+export type PayPalConfig = {
+  enabled: boolean;
+  clientId: string;
+  currency: string;
+};
+
+export async function fetchPayPalConfig(): Promise<PayPalConfig> {
+  const res = await fetch(`${getApiUrl()}/api/payments/paypal/config`, { cache: "no-store" });
+  const data = (await res.json()) as PayPalConfig & { success?: boolean; message?: string };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not load PayPal."));
+  return {
+    enabled: Boolean(data.enabled && data.clientId),
+    clientId: data.clientId || "",
+    currency: data.currency || "PHP",
+  };
+}
+
+export async function createPayPalCheckout(input: RoomBookingInput) {
+  const res = await fetch(`${getApiUrl()}/api/payments/paypal/orders`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+  const data = (await res.json()) as { success?: boolean; message?: string; orderId?: string };
+  if (!res.ok || !data.orderId) throw new Error(apiMessage(data, "Could not start PayPal checkout."));
+  return data.orderId;
+}
+
+export async function capturePayPalCheckout(orderId: string) {
+  const res = await fetch(`${getApiUrl()}/api/payments/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
   const data = (await res.json()) as { success?: boolean; message?: string };
-  if (!res.ok) throw new Error(apiMessage(data, "Could not submit booking."));
-  return data.message ?? "Booking request sent.";
+  if (!res.ok) throw new Error(apiMessage(data, "Could not complete PayPal payment."));
+  return data.message ?? "Payment received. Your booking is confirmed.";
 }
 
 function normalizeClientBooking(row: RoomBooking): RoomBooking {

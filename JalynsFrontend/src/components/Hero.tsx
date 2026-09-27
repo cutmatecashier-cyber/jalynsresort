@@ -316,23 +316,6 @@ export function Hero() {
               Peaceful, Quiet and Family Friendly!
             </span>
           </h1>
-          <div
-            className={`animate-fade-up mt-2.5 max-w-2xl space-y-3 text-[0.8125rem] leading-relaxed text-white/85 sm:mt-4 sm:space-y-3.5 sm:text-base md:text-[1.05rem] ${
-              availabilityOpen ? "lg:hidden" : ""
-            }`}
-            style={{ animationDelay: "0.16s" }}
-          >
-            <p>
-              If you&apos;re looking for tranquil, luxurious accommodation that&apos;s just far
-              enough away from the hustle and bustle of Sabang, look no further than Jalyn&apos;s
-              Resort &amp; Restaurant.
-            </p>
-            <p>
-              With three swimming pools, a highly-regarded restaurant, and stunning views over
-              Mangrove Cove, Jalyn&apos;s Resort has everything you need for an unforgettable
-              vacation in beautiful Puerto Galera.
-            </p>
-          </div>
 
           {roomsVoucher.enabled && roomsVoucher.percent > 0 ? (
             <div

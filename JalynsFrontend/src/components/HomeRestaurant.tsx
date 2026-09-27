@@ -79,14 +79,14 @@ export function HomeRestaurant() {
           className="absolute inset-0 will-change-transform"
           style={{
             transform: reduceMotion
-              ? undefined
-              : `translate3d(0, ${parallaxY}px, 0) scale(1.06)`,
+              ? "scale(1.12)"
+              : `translate3d(0, ${parallaxY}px, 0) scale(1.12)`,
           }}
         >
           <img
             src={homeHeroMediaUrl(photo)}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-sm"
           />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink/55 via-ink/30 to-ink/55" />

@@ -811,9 +811,14 @@ export function ScubaDivingPage() {
                     />
                   </a>
                   <p className="mt-5 text-[0.95rem] font-semibold tracking-wide text-[#0b1d33]">
-                    <Link to={SCUBA_NEWS.ecotourism} className={blueLinkClass}>
+                    <a
+                      href="https://divemindoro.org/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={blueLinkClass}
+                    >
                       Blue Alliance Philippines
-                    </Link>
+                    </a>
                   </p>
                   <Link
                     to={SCUBA_NEWS.ecotourism}
