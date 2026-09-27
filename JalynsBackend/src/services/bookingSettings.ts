@@ -1,4 +1,6 @@
+import { supabaseAdmin } from '../config/supabase.js'
 import { createJsonCloudStore } from './jsonCloudStore.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 import {
   DEFAULT_EXTRA_PERSON_RULES,
   normalizeExtraPersonRules,
@@ -61,7 +63,7 @@ function parseSettings(raw: unknown): BookingSettings {
   }
 }
 
-const store = createJsonCloudStore<BookingSettings>({
+const jsonStore = createJsonCloudStore<BookingSettings>({
   cloudObject: 'room-booking-settings.json',
   parse: parseSettings,
   serialize: (value) => value,
@@ -79,6 +81,129 @@ const store = createJsonCloudStore<BookingSettings>({
   }),
   hasContent: (value) => TIME_RE.test(value.checkInTime) && TIME_RE.test(value.checkOutTime),
 })
+
+async function settingsDbReady() {
+  const [times, rules, quantity] = await Promise.all([
+    relationReady('rooms_settings', 'check_in_time'),
+    relationReady('room_extra_person_rules', 'id'),
+    relationReady('rooms', 'quantity'),
+  ])
+  return times && rules && quantity
+}
+
+async function readDb(): Promise<BookingSettings> {
+  const [{ data: settings, error: settingsError }, { data: rules, error: rulesError }, { data: rooms, error: roomsError }] =
+    await Promise.all([
+      supabaseAdmin.from('rooms_settings').select('check_in_time, check_out_time').eq('id', 1).maybeSingle(),
+      supabaseAdmin.from('room_extra_person_rules').select('id, min_age, max_age, charge, applies_to, sort_order').order('sort_order'),
+      supabaseAdmin.from('rooms').select('id, quantity'),
+    ])
+  if (settingsError) throw new Error(settingsError.message)
+  if (rulesError) throw new Error(rulesError.message)
+  if (roomsError) throw new Error(roomsError.message)
+
+  const extraPersonRules = (rules ?? [])
+    .map((row) => {
+      const applies = row.applies_to === 'adults' || row.applies_to === 'kids' || row.applies_to === 'both'
+        ? row.applies_to
+        : 'both'
+      return {
+        id: String(row.id),
+        minAge: Number(row.min_age),
+        maxAge: row.max_age == null ? null : Number(row.max_age),
+        charge: Number(row.charge),
+        appliesTo: applies,
+      } satisfies ExtraPersonRule
+    })
+
+  const quantities: Record<string, number> = {}
+  for (const room of rooms ?? []) {
+    quantities[String(room.id)] = asQuantity(room.quantity, 1)
+  }
+
+  return {
+    checkInTime: normalizeClock(settings?.check_in_time, DEFAULT_CHECK_IN_TIME),
+    checkOutTime: normalizeClock(settings?.check_out_time, DEFAULT_CHECK_OUT_TIME),
+    quantities,
+    extraPersonRules: extraPersonRules.length
+      ? normalizeExtraPersonRules(extraPersonRules, DEFAULT_EXTRA_PERSON_RULES)
+      : DEFAULT_EXTRA_PERSON_RULES.map((rule) => ({ ...rule })),
+  }
+}
+
+async function saveDb(value: BookingSettings) {
+  const { data: existing, error: readError } = await supabaseAdmin
+    .from('rooms_settings')
+    .select('id')
+    .eq('id', 1)
+    .maybeSingle()
+  if (readError) throw new Error(readError.message)
+  if (existing) {
+    const { error } = await supabaseAdmin
+      .from('rooms_settings')
+      .update({
+        check_in_time: value.checkInTime,
+        check_out_time: value.checkOutTime,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 1)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabaseAdmin.from('rooms_settings').insert({
+      id: 1,
+      voucher_enabled: false,
+      voucher_percent: 0,
+      check_in_time: value.checkInTime,
+      check_out_time: value.checkOutTime,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  const { error: clearError } = await supabaseAdmin.from('room_extra_person_rules').delete().neq('id', '')
+  if (clearError) throw new Error(clearError.message)
+  if (value.extraPersonRules.length) {
+    const { error } = await supabaseAdmin.from('room_extra_person_rules').insert(
+      value.extraPersonRules.map((rule, index) => ({
+        id: rule.id,
+        min_age: rule.minAge,
+        max_age: rule.maxAge,
+        charge: rule.charge,
+        applies_to: rule.appliesTo,
+        sort_order: index,
+      })),
+    )
+    if (error) throw new Error(error.message)
+  }
+
+  const { data: rooms, error: roomsError } = await supabaseAdmin.from('rooms').select('id')
+  if (roomsError) throw new Error(roomsError.message)
+  for (const room of rooms ?? []) {
+    const { error } = await supabaseAdmin
+      .from('rooms')
+      .update({ quantity: asQuantity(value.quantities[String(room.id)], 1) })
+      .eq('id', room.id)
+    if (error) throw new Error(error.message)
+  }
+}
+
+const store = {
+  async load(): Promise<BookingSettings> {
+    if (!(await settingsDbReady())) return jsonStore.load()
+    if (!(await alreadyImported('booking-settings'))) {
+      const legacy = await jsonStore.load()
+      await saveDb(legacy)
+      await markImported('booking-settings')
+    }
+    return readDb()
+  },
+  async save(value: BookingSettings) {
+    if (await settingsDbReady()) {
+      await saveDb(value)
+      return
+    }
+    await jsonStore.save(value)
+  },
+}
 
 export async function loadBookingSettings(): Promise<BookingSettings> {
   return store.load()

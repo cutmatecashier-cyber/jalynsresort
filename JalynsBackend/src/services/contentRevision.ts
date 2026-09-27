@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 
 const CLOUD_BUCKET = 'site-data'
 const CLOUD_OBJECT = 'content-revision.json'
@@ -54,7 +55,34 @@ async function ensureHydrated() {
   await hydratePromise
 }
 
+async function readRevisionRow(): Promise<{ revision: number; updatedAt: string } | null> {
+  const { data, error } = await supabaseAdmin
+    .from('content_revision')
+    .select('revision, updated_at')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+  const revision = Number(data.revision)
+  return {
+    revision: Number.isFinite(revision) ? Math.floor(revision) : 0,
+    updatedAt:
+      typeof data.updated_at === 'string' && data.updated_at
+        ? data.updated_at
+        : new Date(0).toISOString(),
+  }
+}
+
 async function writeRevision(revision: number, updatedAt: string) {
+  if (await relationReady('content_revision')) {
+    const { error } = await supabaseAdmin.from('content_revision').upsert({
+      id: 1,
+      revision,
+      updated_at: updatedAt,
+    })
+    if (error) throw new Error(error.message || 'Could not save content revision.')
+    return
+  }
   await ensureCloudBucket()
   const body = Buffer.from(JSON.stringify({ revision, updatedAt }, null, 2), 'utf8')
   const { error } = await supabaseAdmin.storage.from(CLOUD_BUCKET).upload(CLOUD_OBJECT, body, {
@@ -81,8 +109,31 @@ export async function bumpContentRevision(): Promise<{ revision: string; updated
 
 /** Guests poll this to refresh gallery/rooms/home/news after admin edits. */
 export async function getContentRevision(): Promise<{ revision: string; updatedAt: string }> {
+  if (await relationReady('content_revision')) {
+    if (!(await alreadyImported('content-revision'))) {
+      await hydrateFromCloud()
+      const row = await readRevisionRow()
+      const revision = Math.max(memoryRevision, row?.revision ?? 0)
+      const updatedAt = revision === memoryRevision ? memoryUpdatedAt : row?.updatedAt || memoryUpdatedAt
+      if (revision > 0) {
+        memoryRevision = revision
+        memoryUpdatedAt = updatedAt
+        await writeRevision(revision, updatedAt)
+      }
+      await markImported('content-revision')
+    }
+    const row = await readRevisionRow()
+    if (row && row.revision > memoryRevision) {
+      memoryRevision = row.revision
+      memoryUpdatedAt = row.updatedAt
+    }
+    return {
+      revision: memoryRevision > 0 ? String(memoryRevision) : '0',
+      updatedAt: memoryUpdatedAt,
+    }
+  }
+
   await ensureHydrated()
-  // Cheap re-check so other backends' bumps are visible
   await hydrateFromCloud()
   return {
     revision: memoryRevision > 0 ? String(memoryRevision) : '0',

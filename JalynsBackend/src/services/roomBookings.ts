@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { supabaseAdmin } from '../config/supabase.js'
 import { loadBookingSettings } from './bookingSettings.js'
 import { createJsonCloudStore } from './jsonCloudStore.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 import {
   extraSlots,
   parseMaxGuests,
@@ -175,8 +177,7 @@ function sortBookings(list: RoomBooking[]) {
   return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
 
-/** Cloud-only (Supabase site-data) — required for online deploy. */
-const store = createJsonCloudStore<StoreShape>({
+const jsonStore = createJsonCloudStore<StoreShape>({
   cloudObject: 'room-bookings.json',
   parse: parseStore,
   serialize: (value) => value,
@@ -185,13 +186,70 @@ const store = createJsonCloudStore<StoreShape>({
   hasContent: (value) => value.bookings.length > 0,
 })
 
-export async function listRoomBookings(): Promise<RoomBooking[]> {
-  const data = await store.load()
+function toRow(booking: RoomBooking) {
+  return {
+    id: booking.id,
+    room_id: booking.room_id,
+    room_name: booking.room_name,
+    check_in: booking.check_in,
+    check_out: booking.check_out,
+    nights: booking.nights,
+    guests: booking.guests,
+    adults: booking.adults,
+    kids: booking.kids,
+    extra_guests: booking.extra_guests,
+    extra_person_total: booking.extra_person_total,
+    full_name: booking.full_name,
+    email: booking.email,
+    phone: booking.phone,
+    price_per_night: booking.price_per_night,
+    estimated_total: booking.estimated_total,
+    voucher_percent: booking.voucher_percent,
+    status: booking.status,
+    created_at: booking.created_at,
+  }
+}
+
+async function listFromDb(): Promise<RoomBooking[]> {
+  const { data, error } = await supabaseAdmin
+    .from('room_bookings')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
   return sortBookings(
-    data.bookings
-      .map((b) => normalizeBooking(b))
-      .filter((b): b is RoomBooking => Boolean(b)),
+    (data ?? [])
+      .map((row) => normalizeBooking(row as Partial<RoomBooking>))
+      .filter((booking): booking is RoomBooking => Boolean(booking)),
   )
+}
+
+async function importBookingsOnce() {
+  if (await alreadyImported('room-bookings')) return
+  const { count, error: countError } = await supabaseAdmin
+    .from('room_bookings')
+    .select('id', { count: 'exact', head: true })
+  if (countError) throw new Error(countError.message)
+  if (!count) {
+    const legacy = await jsonStore.load()
+    if (legacy.bookings.length) {
+      const { error } = await supabaseAdmin.from('room_bookings').upsert(legacy.bookings.map(toRow))
+      if (error) throw new Error(error.message)
+    }
+  }
+  await markImported('room-bookings')
+}
+
+async function loadBookings(): Promise<RoomBooking[]> {
+  if (await relationReady('room_bookings')) {
+    await importBookingsOnce()
+    return listFromDb()
+  }
+  const data = await jsonStore.load()
+  return sortBookings(data.bookings)
+}
+
+export async function listRoomBookings(): Promise<RoomBooking[]> {
+  return loadBookings()
 }
 
 export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
@@ -224,15 +282,15 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
       ? input.nights
       : nightsBetween(checkIn, checkOut)
 
-  const [rooms, settings, current] = await Promise.all([
+  const [rooms, settings, currentBookings] = await Promise.all([
     listRooms(),
     loadBookingSettings(),
-    store.load(),
+    loadBookings(),
   ])
   const room = rooms.find((item) => item.id === roomId)
   if (!room) throw new Error('Room not found.')
   if (room.status === 'unavailable') throw new Error('This room type is unavailable.')
-  const stays = current.bookings
+  const stays = currentBookings
     .filter((item) => item.room_id === roomId && item.status !== 'completed')
     .map((item) => ({ checkIn: item.check_in, checkOut: item.check_out }))
   if (
@@ -309,7 +367,13 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
     created_at: new Date().toISOString(),
   }
 
-  await store.save({ bookings: [booking, ...current.bookings] })
+  if (await relationReady('room_bookings')) {
+    const { error } = await supabaseAdmin.from('room_bookings').insert(toRow(booking))
+    if (error) throw new Error(error.message)
+  } else {
+    const current = await jsonStore.load()
+    await jsonStore.save({ bookings: [booking, ...current.bookings] })
+  }
   return booking
 }
 
@@ -317,10 +381,20 @@ export async function updateRoomBookingStatus(
   id: string,
   status: RoomBookingStatus,
 ): Promise<RoomBooking[]> {
-  const current = await store.load()
+  if (await relationReady('room_bookings')) {
+    const { data, error } = await supabaseAdmin
+      .from('room_bookings')
+      .update({ status })
+      .eq('id', id)
+      .select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Booking not found.')
+    return listFromDb()
+  }
+  const current = await jsonStore.load()
   const idx = current.bookings.findIndex((b) => b.id === id)
   if (idx < 0) throw new Error('Booking not found.')
   const nextBookings = current.bookings.map((b) => (b.id === id ? { ...b, status } : b))
-  await store.save({ bookings: nextBookings })
+  await jsonStore.save({ bookings: nextBookings })
   return sortBookings(nextBookings)
 }

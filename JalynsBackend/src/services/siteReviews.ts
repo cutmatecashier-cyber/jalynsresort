@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
+import { alreadyImported, markImported } from './siteDataImport.js'
 
 export type SiteReview = {
   id: string
@@ -98,8 +99,50 @@ async function writeFallback(reviews: SiteReview[]) {
   await writeCloud(reviews)
 }
 
+async function importStoredReviews() {
+  if (await alreadyImported('site-reviews')) return
+  const cloud = await readCloud()
+  if (cloud && cloud.length) {
+    const { data: existing, error: readError } = await supabaseAdmin.from('site_reviews').select('id')
+    if (readError) {
+      if (isMissingTableError(readError.message || '')) return
+      throw new Error(readError.message)
+    }
+    const ids = new Set((existing ?? []).map((row) => String(row.id)))
+    const fresh = cloud.filter((review) => !ids.has(review.id))
+    if (fresh.length) {
+      const { error } = await supabaseAdmin.from('site_reviews').insert(
+        fresh.map((review) => ({
+          id: review.id,
+          user_id: review.user_id,
+          guest_name: review.guest_name,
+          rating: review.rating,
+          comment: review.comment,
+          approved: true,
+          created_at: review.created_at,
+        })),
+      )
+      if (error && !isMissingTableError(error.message || '')) {
+        const { error: retry } = await supabaseAdmin.from('site_reviews').insert(
+          fresh.map((review) => ({
+            user_id: review.user_id,
+            guest_name: review.guest_name,
+            rating: review.rating,
+            comment: review.comment,
+            approved: true,
+            created_at: review.created_at,
+          })),
+        )
+        if (retry && !isMissingTableError(retry.message || '')) throw new Error(retry.message)
+      }
+    }
+  }
+  await markImported('site-reviews')
+}
+
 export async function listSiteReviews(): Promise<SiteReview[]> {
   try {
+    await importStoredReviews()
     const primary = await supabaseAdmin
       .from('site_reviews')
       .select(REVIEW_SELECT)

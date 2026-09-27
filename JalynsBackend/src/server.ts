@@ -15,6 +15,7 @@ import { contentRouter } from './routes/content.js'
 import { scubaRouter } from './routes/scuba.js'
 import { spaRouter } from './routes/spa.js'
 import { newsRouter } from './routes/news.js'
+import { importSiteData } from './services/importSiteData.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -104,4 +105,5 @@ app.listen(Number(PORT), '0.0.0.0', () => {
     (key.startsWith('eyJ') || key.startsWith('sb_secret_'))
   console.log(`Server running on http://0.0.0.0:${PORT} (LAN: http://192.168.1.12:${PORT})`)
   console.log(`Supabase service_role: ${ok ? 'OK' : 'MISSING/INVALID — check JalynsBackend/.env'}`)
+  void importSiteData()
 })

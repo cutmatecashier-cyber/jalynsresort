@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import { supabaseAdmin } from '../config/supabase.js'
 import { createJsonCloudStore } from './jsonCloudStore.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 
 export type NewsKind = 'news' | 'offer' | 'event'
 
@@ -289,7 +291,7 @@ function normalizePosts(raw: unknown): NewsPost[] {
     : []
 }
 
-const cloudStore = createJsonCloudStore<StoreShape>({
+const jsonStore = createJsonCloudStore<StoreShape>({
   cloudObject: 'news.json',
   parse: (raw) => {
     const row = (raw && typeof raw === 'object' ? raw : {}) as { posts?: unknown }
@@ -300,6 +302,87 @@ const cloudStore = createJsonCloudStore<StoreShape>({
   emptyValue: () => ({ posts: [] }),
   hasContent: (value) => value.posts.length > 0,
 })
+
+function newsFromRow(row: Record<string, unknown>): NewsPost | null {
+  return normalizePosts([
+    {
+      id: row.id,
+      category: row.category,
+      title: row.title,
+      excerpt: row.excerpt,
+      body: row.body,
+      image: row.image,
+      cta: row.cta,
+      href: row.href,
+      kind: row.kind,
+      date: row.date,
+      price: row.price,
+      gallery: row.gallery,
+      packages: row.packages,
+      videoUrl: row.video_url,
+    },
+  ])[0] ?? null
+}
+
+async function readNews(): Promise<NewsPost[]> {
+  const { data, error } = await supabaseAdmin
+    .from('news_posts')
+    .select('*')
+    .order('date', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data ?? [])
+    .map((row) => newsFromRow(row as Record<string, unknown>))
+    .filter((post): post is NewsPost => Boolean(post))
+}
+
+async function saveNews(posts: NewsPost[]) {
+  const { error: clearError } = await supabaseAdmin.from('news_posts').delete().neq('id', '')
+  if (clearError) throw new Error(clearError.message)
+  if (!posts.length) return
+  const { error } = await supabaseAdmin.from('news_posts').insert(
+    posts.map((post, index) => ({
+      id: post.id,
+      category: post.category,
+      title: post.title,
+      excerpt: post.excerpt,
+      body: post.body,
+      image: post.image,
+      cta: post.cta,
+      href: post.href,
+      kind: post.kind,
+      date: post.date,
+      price: post.price ?? null,
+      gallery: post.gallery ?? null,
+      packages: post.packages ?? null,
+      video_url: post.videoUrl ?? null,
+      sort_order: index,
+    })),
+  )
+  if (error) throw new Error(error.message)
+}
+
+const cloudStore = {
+  async load(): Promise<StoreShape> {
+    if (!(await relationReady('news_posts'))) return jsonStore.load()
+    if (!(await alreadyImported('news'))) {
+      const { count, error } = await supabaseAdmin
+        .from('news_posts')
+        .select('id', { count: 'exact', head: true })
+      if (error) throw new Error(error.message)
+      if (!count) await saveNews((await jsonStore.load()).posts)
+      await markImported('news')
+    }
+    const posts = await readNews()
+    return { posts: posts.length ? posts : DEFAULT_NEWS.map((post) => ({ ...post })) }
+  },
+  async save(value: StoreShape) {
+    if (await relationReady('news_posts')) {
+      await saveNews(value.posts)
+      return
+    }
+    await jsonStore.save(value)
+  },
+}
 
 export async function listNews(): Promise<NewsPost[]> {
   const loaded = await cloudStore.load()

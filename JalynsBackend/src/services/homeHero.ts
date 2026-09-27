@@ -1,4 +1,6 @@
+import { supabaseAdmin } from '../config/supabase.js'
 import { createJsonCloudStore } from './jsonCloudStore.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 
 export type HomeHeroSlide = {
   id: string
@@ -90,7 +92,7 @@ function normalizeSlides(raw: unknown): HomeHeroSlide[] {
   })
 }
 
-const store = createJsonCloudStore<StoreShape>({
+const jsonStore = createJsonCloudStore<StoreShape>({
   cloudObject: 'home-hero.json',
   parse: (raw) => {
     const row = (raw && typeof raw === 'object' ? raw : {}) as Partial<StoreShape>
@@ -119,6 +121,76 @@ const store = createJsonCloudStore<StoreShape>({
     value.slides.length > 0 &&
     Boolean(value.sections?.whystay || value.sections?.news),
 })
+
+async function heroDbReady() {
+  const [slides, sections] = await Promise.all([
+    relationReady('home_hero_slides', 'id'),
+    relationReady('home_sections', 'section_key'),
+  ])
+  return slides && sections
+}
+
+async function readHero(): Promise<StoreShape> {
+  const [{ data: slideRows, error: slideError }, { data: sectionRows, error: sectionError }] =
+    await Promise.all([
+      supabaseAdmin.from('home_hero_slides').select('id, image, alt, sort_order').order('sort_order'),
+      supabaseAdmin.from('home_sections').select('section_key, image'),
+    ])
+  if (slideError) throw new Error(slideError.message)
+  if (sectionError) throw new Error(sectionError.message)
+  const sections = { ...DEFAULT_HOME_SECTIONS }
+  for (const row of sectionRows ?? []) {
+    if (isHomeSectionKey(String(row.section_key)) && typeof row.image === 'string' && row.image.trim()) {
+      sections[row.section_key as HomeSectionKey] = row.image.trim()
+    }
+  }
+  const slides = (slideRows ?? []).map((row) => ({
+    id: String(row.id),
+    image: String(row.image),
+    alt: String(row.alt || ''),
+  }))
+  return {
+    slides: slides.length === DEFAULT_HOME_SLIDES.length ? normalizeSlides(slides) : DEFAULT_HOME_SLIDES.map((slide) => ({ ...slide })),
+    sections: normalizeSections(sections),
+  }
+}
+
+async function saveHero(value: StoreShape) {
+  const slides = value.slides.map((slide, index) => ({
+    id: slide.id,
+    image: slide.image,
+    alt: slide.alt,
+    sort_order: index,
+  }))
+  const { error: slideError } = await supabaseAdmin.from('home_hero_slides').upsert(slides)
+  if (slideError) throw new Error(slideError.message)
+  const { error: sectionError } = await supabaseAdmin.from('home_sections').upsert(
+    SECTION_KEYS.map((key) => ({ section_key: key, image: value.sections[key] })),
+  )
+  if (sectionError) throw new Error(sectionError.message)
+}
+
+const store = {
+  async load(): Promise<StoreShape> {
+    if (!(await heroDbReady())) return jsonStore.load()
+    if (!(await alreadyImported('home-hero'))) {
+      const { count, error } = await supabaseAdmin
+        .from('home_hero_slides')
+        .select('id', { count: 'exact', head: true })
+      if (error) throw new Error(error.message)
+      if (!count) await saveHero(await jsonStore.load())
+      await markImported('home-hero')
+    }
+    return readHero()
+  },
+  async save(value: StoreShape) {
+    if (await heroDbReady()) {
+      await saveHero(value)
+      return
+    }
+    await jsonStore.save(value)
+  },
+}
 
 export function isHomeSectionKey(value: string): value is HomeSectionKey {
   return SECTION_KEYS.includes(value as HomeSectionKey)

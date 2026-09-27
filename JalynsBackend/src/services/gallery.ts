@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import { supabaseAdmin } from '../config/supabase.js'
 import { createJsonCloudStore } from './jsonCloudStore.js'
+import { alreadyImported, markImported, relationReady } from './siteDataImport.js'
 
 export type GalleryPhoto = {
   id: string
@@ -65,7 +67,7 @@ function normalizePhotos(raw: unknown): GalleryPhoto[] {
   return photos.slice(0, MAX_PHOTOS)
 }
 
-const store = createJsonCloudStore<StoreShape>({
+const jsonStore = createJsonCloudStore<StoreShape>({
   cloudObject: 'gallery.json',
   parse: (raw) => {
     const row = (raw && typeof raw === 'object' ? raw : {}) as Partial<StoreShape>
@@ -76,6 +78,52 @@ const store = createJsonCloudStore<StoreShape>({
   emptyValue: () => ({ photos: [] }),
   hasContent: (value) => value.photos.length > 0,
 })
+
+async function readGallery(): Promise<GalleryPhoto[]> {
+  const { data, error } = await supabaseAdmin
+    .from('gallery_photos')
+    .select('id, alt, image, sort_order')
+    .order('sort_order')
+  if (error) throw new Error(error.message)
+  return normalizePhotos(data ?? [])
+}
+
+async function saveGallery(photos: GalleryPhoto[]) {
+  const { error: clearError } = await supabaseAdmin.from('gallery_photos').delete().neq('id', '')
+  if (clearError) throw new Error(clearError.message)
+  if (!photos.length) return
+  const { error } = await supabaseAdmin.from('gallery_photos').insert(
+    photos.map((photo, index) => ({
+      id: photo.id,
+      alt: photo.alt,
+      image: photo.image,
+      sort_order: index,
+    })),
+  )
+  if (error) throw new Error(error.message)
+}
+
+const store = {
+  async load(): Promise<StoreShape> {
+    if (!(await relationReady('gallery_photos'))) return jsonStore.load()
+    if (!(await alreadyImported('gallery'))) {
+      const { count, error } = await supabaseAdmin
+        .from('gallery_photos')
+        .select('id', { count: 'exact', head: true })
+      if (error) throw new Error(error.message)
+      if (!count) await saveGallery((await jsonStore.load()).photos)
+      await markImported('gallery')
+    }
+    return { photos: await readGallery() }
+  },
+  async save(value: StoreShape) {
+    if (await relationReady('gallery_photos')) {
+      await saveGallery(value.photos)
+      return
+    }
+    await jsonStore.save(value)
+  },
+}
 
 export async function listGallery(): Promise<GalleryPhoto[]> {
   return (await store.load()).photos
