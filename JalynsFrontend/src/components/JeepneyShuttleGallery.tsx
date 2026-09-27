@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type TouchEvent,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   deleteRoomHighlightById,
   roomsMediaUrl,
@@ -14,28 +8,7 @@ import {
 import { AdminEditButton } from "./AdminEditButton";
 import { GalleryPager } from "./GalleryPager";
 import { broadcastContentChanged } from "./ContentSync";
-import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
-
-const GALLERY_TRANSITION_MS = 420;
-const GALLERY_SCALE = 0.92;
-
-function useGalleryPerView() {
-  const [perView, setPerView] = useState(4);
-
-  useEffect(() => {
-    const update = () => {
-      const width = window.innerWidth;
-      if (width < 768) setPerView(1);
-      else if (width < 1024) setPerView(2);
-      else setPerView(4);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return perView;
-}
+import { ScubaGalleryStage } from "./ScubaGalleryStage";
 
 type JeepneyShuttleGalleryProps = {
   highlights: RoomHighlight[];
@@ -48,7 +21,7 @@ type JeepneyShuttleGalleryProps = {
   uploadProgress: string | null;
 };
 
-/** Scuba-style paginated gallery for jeepney / shuttle photos on Rooms. */
+/** Center-stage gallery for jeepney / shuttle photos on Rooms. */
 export function JeepneyShuttleGallery({
   highlights,
   canEdit,
@@ -59,62 +32,19 @@ export function JeepneyShuttleGallery({
   setBusy,
   uploadProgress,
 }: JeepneyShuttleGalleryProps) {
-  const perView = useGalleryPerView();
-  const [galleryPage, setGalleryPage] = useState(0);
-  const [galleryBusy, setGalleryBusy] = useState(false);
-  const [galleryFrom, setGalleryFrom] = useState<number | null>(null);
-  const [galleryTo, setGalleryTo] = useState<number | null>(null);
-  const [galleryZoomRun, setGalleryZoomRun] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
-  const galleryTouch = useRef<{ x: number; y: number } | null>(null);
-  const galleryUnlockTimer = useRef<number | null>(null);
-  const galleryRaf = useRef<number | null>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
-
-  const galleryPages = useMemo(() => {
-    if (!highlights.length) return [] as RoomHighlight[][];
-    const pages: RoomHighlight[][] = [];
-    for (let i = 0; i < highlights.length; i += perView) {
-      pages.push(highlights.slice(i, i + perView));
-    }
-    return pages;
-  }, [highlights, perView]);
-
-  const pageCount = Math.max(1, galleryPages.length);
-  const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
-  const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
-  const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
-  const galleryTransitioning = galleryFrom != null && galleryTo != null;
+  const safeIndex = Math.min(galleryIndex, Math.max(0, highlights.length - 1));
+  const slides = highlights.map((item) => ({
+    url: roomsMediaUrl(item.image),
+    alt: "Private jeepney and shuttle",
+    path: item.id,
+  }));
 
   useEffect(() => {
-    setGalleryPage((current) => Math.min(current, Math.max(0, pageCount - 1)));
-    setGalleryFrom(null);
-    setGalleryTo(null);
-    setGalleryZoomRun(false);
-    setGalleryBusy(false);
-  }, [pageCount]);
-
-  useEffect(() => {
-    const focus = galleryTo ?? safeGalleryPage;
-    const nextPage = galleryPages[focus + 1];
-    const prevPage = galleryPages[focus - 1];
-    for (const image of [...(nextPage ?? []), ...(prevPage ?? [])]) {
-      const preload = new Image();
-      preload.src = roomsMediaUrl(image.image);
-    }
-  }, [galleryPages, safeGalleryPage, galleryTo]);
-
-  useEffect(() => {
-    return () => {
-      if (galleryUnlockTimer.current != null) {
-        window.clearTimeout(galleryUnlockTimer.current);
-      }
-      if (galleryRaf.current != null) {
-        window.cancelAnimationFrame(galleryRaf.current);
-      }
-    };
-  }, []);
+    setGalleryIndex((current) => Math.min(current, Math.max(0, highlights.length - 1)));
+  }, [highlights.length]);
 
   useEffect(() => {
     if (lightbox == null) return;
@@ -136,126 +66,6 @@ export function JeepneyShuttleGallery({
       window.removeEventListener("keydown", onKey);
     };
   }, [lightbox, highlights.length]);
-
-  function goGallery(direction: -1 | 1) {
-    if (galleryBusy || !highlights.length) return;
-    const from = safeGalleryPage;
-    const to = from + direction;
-    if (to < 0 || to >= pageCount) return;
-    setGalleryBusy(true);
-    setGalleryFrom(from);
-    setGalleryTo(to);
-    setGalleryZoomRun(false);
-
-    if (galleryRaf.current != null) window.cancelAnimationFrame(galleryRaf.current);
-    galleryRaf.current = window.requestAnimationFrame(() => {
-      galleryRaf.current = window.requestAnimationFrame(() => {
-        setGalleryZoomRun(true);
-        setGalleryPage(to);
-        galleryRaf.current = null;
-      });
-    });
-
-    if (galleryUnlockTimer.current != null) {
-      window.clearTimeout(galleryUnlockTimer.current);
-    }
-    galleryUnlockTimer.current = window.setTimeout(() => {
-      setGalleryFrom(null);
-      setGalleryTo(null);
-      setGalleryZoomRun(false);
-      setGalleryBusy(false);
-      galleryUnlockTimer.current = null;
-    }, GALLERY_TRANSITION_MS + 40);
-  }
-
-  function galleryPrev() {
-    goGallery(-1);
-  }
-
-  function galleryNext() {
-    goGallery(1);
-  }
-
-  function onGalleryTouchStart(event: TouchEvent<HTMLDivElement>) {
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    galleryTouch.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function onGalleryTouchEnd(event: TouchEvent<HTMLDivElement>) {
-    const start = galleryTouch.current;
-    galleryTouch.current = null;
-    if (!start || galleryBusy) return;
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
-    if (dx < 0) galleryNext();
-    else galleryPrev();
-  }
-
-  function renderGalleryPage(pageIndex: number, interactive: boolean) {
-    const page = galleryPages[pageIndex] ?? [];
-    const slots = Array.from({ length: perView }, (_, offset) => page[offset] ?? null);
-    return (
-      <div
-        className={`grid h-full w-full gap-3 md:gap-4 ${
-          perView === 1 ? "grid-cols-1" : perView === 2 ? "grid-cols-2" : "grid-cols-4"
-        }`}
-      >
-        {slots.map((image, offset) => {
-          if (!image) {
-            return (
-              <div
-                key={`empty-${pageIndex}-${offset}`}
-                className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full sm:max-h-none"
-                aria-hidden
-              />
-            );
-          }
-          const absoluteIndex = pageIndex * perView + offset;
-          return (
-            <div
-              key={image.id}
-              className="group relative overflow-hidden rounded-2xl bg-[#0b1d33]/10"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (!interactive || galleryBusy) return;
-                  setLightbox(absoluteIndex);
-                }}
-                className="block w-full"
-                tabIndex={interactive ? 0 : -1}
-              >
-                <img
-                  src={roomsMediaUrl(image.image)}
-                  alt="Private jeepney and shuttle"
-                  loading={Math.abs(pageIndex - safeGalleryPage) <= 1 ? "eager" : "lazy"}
-                  decoding="async"
-                  draggable={false}
-                  className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full object-cover sm:max-h-none"
-                />
-              </button>
-              {interactive && canEdit ? (
-                <div className="absolute inset-x-0 bottom-0 z-10 flex gap-2 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onDelete(image.id)}
-                    className="btn-press rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   async function onUpload(files: FileList | null) {
     if (!files?.length) return;
@@ -332,83 +142,16 @@ export function JeepneyShuttleGallery({
       ) : null}
 
       {highlights.length ? (
-        <div
-          className="relative touch-pan-y"
-          onTouchStart={onGalleryTouchStart}
-          onTouchEnd={onGalleryTouchEnd}
-        >
-          <div className="relative overflow-hidden rounded-2xl bg-[#0b1d33]/5">
-            <div className="invisible pointer-events-none" aria-hidden>
-              {renderGalleryPage(safeGalleryPage, false)}
-            </div>
-
-            <div
-              className="absolute inset-0 origin-center will-change-transform"
-              style={{
-                transform: `scale(${
-                  galleryTransitioning && galleryZoomRun ? GALLERY_SCALE : 1
-                })`,
-                opacity: galleryTransitioning && galleryZoomRun ? 0 : 1,
-                transitionProperty: galleryTransitioning ? "transform, opacity" : "none",
-                transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                zIndex: 1,
-                pointerEvents: galleryTransitioning ? "none" : "auto",
-              }}
-            >
-              {renderGalleryPage(
-                galleryTransitioning ? (galleryFrom as number) : safeGalleryPage,
-                !galleryTransitioning,
-              )}
-            </div>
-
-            {galleryTransitioning ? (
-              <div
-                className="absolute inset-0 origin-center will-change-transform"
-                style={{
-                  transform: `scale(${galleryZoomRun ? 1 : GALLERY_SCALE})`,
-                  opacity: galleryZoomRun ? 1 : 0,
-                  transitionProperty: "transform, opacity",
-                  transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                  transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                  zIndex: 2,
-                  pointerEvents: "none",
-                }}
-              >
-                {renderGalleryPage(galleryTo as number, false)}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-5 flex items-center justify-between gap-3 sm:mt-6">
-            <button
-              type="button"
-              onClick={galleryPrev}
-              disabled={!canGalleryPrev || galleryBusy}
-              aria-label="Previous jeepney photos"
-              className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-            >
-              <ChevronLeftIcon className="h-5 w-5" />
-            </button>
-            <GalleryPager
-              count={pageCount}
-              active={counterPage}
-              tone="dark"
-              onSelect={(index) => {
-                if (!galleryBusy) setGalleryPage(index);
-              }}
-            />
-            <button
-              type="button"
-              onClick={galleryNext}
-              disabled={!canGalleryNext || galleryBusy}
-              aria-label="Next jeepney photos"
-              className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-            >
-              <ChevronRightIcon className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+        <ScubaGalleryStage
+          images={slides}
+          active={safeIndex}
+          onActive={setGalleryIndex}
+          onOpen={setLightbox}
+          canManage={canEdit}
+          busy={busy}
+          contained
+          onDelete={(id) => void onDelete(id)}
+        />
       ) : null}
 
       {lightbox != null && highlights[lightbox] ? (

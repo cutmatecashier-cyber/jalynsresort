@@ -21,6 +21,44 @@ import { Reveal } from "./Reveal";
 const inputClass =
   "mt-1 w-full rounded-lg border border-ink/12 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
 
+const CATEGORY_FALLBACKS: Record<string, string> = {
+  massage:
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1400&q=80",
+  packages:
+    "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=1400&q=80",
+  beauty:
+    "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=1400&q=80",
+  "hair removal":
+    "https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1400&q=80",
+  "body scrubs":
+    "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&w=1400&q=80",
+};
+
+function fallbackForCategory(label: string) {
+  return CATEGORY_FALLBACKS[label.trim().toLowerCase()] ?? CATEGORY_FALLBACKS.massage;
+}
+
+function CategoryCover({ label, imageUrl }: { label: string; imageUrl: string | null }) {
+  const fallback = fallbackForCategory(label);
+  const resolved = imageUrl ? spaMediaUrl(imageUrl) : "";
+  const [src, setSrc] = useState(resolved || fallback);
+
+  useEffect(() => {
+    setSrc(resolved || fallback);
+  }, [resolved, fallback]);
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="absolute inset-0 h-full w-full object-cover"
+      onError={() => {
+        if (src !== fallback) setSrc(fallback);
+      }}
+    />
+  );
+}
+
 type Props = {
   canEdit: boolean;
 };
@@ -284,16 +322,8 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
               key={current.id}
               className="grid lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]"
             >
-              <div className="relative hidden min-h-[14rem] overflow-hidden lg:block xl:min-h-[16rem]">
-                {current.image_url ? (
-                  <img
-                    src={spaMediaUrl(current.image_url)}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-mist" />
-                )}
+              <div className="relative hidden min-h-[14rem] overflow-hidden bg-[#0b1d33] lg:block xl:min-h-[16rem]">
+                <CategoryCover label={current.label} imageUrl={current.image_url} />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/50 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-4 xl:p-5">
                   <p className="font-display text-2xl text-white xl:text-[1.65rem]">

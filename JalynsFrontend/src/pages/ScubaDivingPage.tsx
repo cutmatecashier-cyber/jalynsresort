@@ -1,23 +1,20 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type FormEvent,
   type ReactNode,
-  type TouchEvent,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { GalleryPager } from "../components/GalleryPager";
+import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
   ArrowRightIcon,
   BangkaIcon,
   CertificateIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DayTripIcon,
   DiveIcon,
   GroupIcon,
@@ -143,37 +140,14 @@ const softCardClass =
 const darkCardClass =
   "rounded-2xl border border-white/10 bg-[#0b1d33] p-4 text-white shadow-[0_16px_40px_rgba(8,18,28,0.28)] sm:rounded-3xl sm:p-7";
 
-const GALLERY_TRANSITION_MS = 420;
-const GALLERY_SCALE = 0.92;
-
-
 function isFallbackGallery(images: ScubaImage[]) {
   return images.length > 0 && images.every((image) => image.path.startsWith("fallback-"));
-}
-
-function useGalleryPerView() {
-  const [perView, setPerView] = useState(4);
-
-  useEffect(() => {
-    const update = () => {
-      const width = window.innerWidth;
-      if (width < 768) setPerView(1);
-      else if (width < 1024) setPerView(2);
-      else setPerView(4);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return perView;
 }
 
 export function ScubaDivingPage() {
   const navigate = useNavigate();
   const { role, approvalStatus, can } = useAuth();
   const canManage = can.canManageScubaDiving(role, approvalStatus);
-  const perView = useGalleryPerView();
 
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
@@ -189,14 +163,7 @@ export function ScubaDivingPage() {
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);
-  const [galleryPage, setGalleryPage] = useState(0);
-  const [galleryBusy, setGalleryBusy] = useState(false);
-  const [galleryFrom, setGalleryFrom] = useState<number | null>(null);
-  const [galleryTo, setGalleryTo] = useState<number | null>(null);
-  const [galleryZoomRun, setGalleryZoomRun] = useState(false);
-  const galleryTouch = useRef<{ x: number; y: number } | null>(null);
-  const galleryUnlockTimer = useRef<number | null>(null);
-  const galleryRaf = useRef<number | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const [bgEditor, setBgEditor] = useState<BgKind | null>(null);
   const [rateForm, setRateForm] = useState<RateForm | null>(null);
@@ -220,21 +187,7 @@ export function ScubaDivingPage() {
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_SCUBA_CONTENT : null);
   const displayGallery = gallery.length ? gallery : DEFAULT_SCUBA_GALLERY;
 
-  const galleryPages = useMemo(() => {
-    if (!displayGallery.length) return [] as ScubaImage[][];
-    const pages: ScubaImage[][] = [];
-    for (let i = 0; i < displayGallery.length; i += perView) {
-      pages.push(displayGallery.slice(i, i + perView));
-    }
-    return pages;
-  }, [displayGallery, perView]);
-
-  const pageCount = Math.max(1, galleryPages.length);
-  const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
-  const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
-  const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
-  const galleryTransitioning = galleryFrom != null && galleryTo != null;
+  const safeGalleryIndex = Math.min(galleryIndex, Math.max(0, displayGallery.length - 1));
 
   const loadPricing = useCallback(async () => {
     const [rateResult, courseResult] = await Promise.all([fetchDivingRates(), fetchPadiCourses()]);
@@ -291,33 +244,8 @@ export function ScubaDivingPage() {
   useEffect(() => subscribeScubaTables(() => void loadPricing()), [loadPricing]);
 
   useEffect(() => {
-    setGalleryPage((current) => Math.min(current, Math.max(0, pageCount - 1)));
-    setGalleryFrom(null);
-    setGalleryTo(null);
-    setGalleryZoomRun(false);
-    setGalleryBusy(false);
-  }, [pageCount]);
-
-  useEffect(() => {
-    const focus = galleryTo ?? safeGalleryPage;
-    const nextPage = galleryPages[focus + 1];
-    const prevPage = galleryPages[focus - 1];
-    for (const image of [...(nextPage ?? []), ...(prevPage ?? [])]) {
-      const preload = new Image();
-      preload.src = image.url;
-    }
-  }, [galleryPages, safeGalleryPage, galleryTo]);
-
-  useEffect(() => {
-    return () => {
-      if (galleryUnlockTimer.current != null) {
-        window.clearTimeout(galleryUnlockTimer.current);
-      }
-      if (galleryRaf.current != null) {
-        window.cancelAnimationFrame(galleryRaf.current);
-      }
-    };
-  }, []);
+    setGalleryIndex((current) => Math.min(current, Math.max(0, displayGallery.length - 1)));
+  }, [displayGallery.length]);
 
   useEffect(() => {
     if (lightbox == null) return;
@@ -337,139 +265,6 @@ export function ScubaDivingPage() {
       window.removeEventListener("keydown", onKey);
     };
   }, [lightbox, displayGallery.length]);
-
-  function goGallery(direction: -1 | 1) {
-    if (galleryBusy) return;
-    const from = safeGalleryPage;
-    const to = from + direction;
-    if (to < 0 || to >= pageCount) return;
-
-    setGalleryBusy(true);
-    setGalleryFrom(from);
-    setGalleryTo(to);
-    setGalleryZoomRun(false);
-
-    if (galleryRaf.current != null) window.cancelAnimationFrame(galleryRaf.current);
-    galleryRaf.current = window.requestAnimationFrame(() => {
-      galleryRaf.current = window.requestAnimationFrame(() => {
-        setGalleryZoomRun(true);
-        setGalleryPage(to);
-        galleryRaf.current = null;
-      });
-    });
-
-    if (galleryUnlockTimer.current != null) {
-      window.clearTimeout(galleryUnlockTimer.current);
-    }
-    galleryUnlockTimer.current = window.setTimeout(() => {
-      setGalleryFrom(null);
-      setGalleryTo(null);
-      setGalleryZoomRun(false);
-      setGalleryBusy(false);
-      galleryUnlockTimer.current = null;
-    }, GALLERY_TRANSITION_MS);
-  }
-
-  function galleryPrev() {
-    goGallery(-1);
-  }
-
-  function galleryNext() {
-    goGallery(1);
-  }
-
-  function onGalleryTouchStart(event: TouchEvent<HTMLDivElement>) {
-    const touch = event.touches[0];
-    if (!touch) return;
-    galleryTouch.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function onGalleryTouchEnd(event: TouchEvent<HTMLDivElement>) {
-    const start = galleryTouch.current;
-    galleryTouch.current = null;
-    if (!start || galleryBusy) return;
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) < 48) return;
-    if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
-    if (dx < 0) galleryNext();
-    else galleryPrev();
-  }
-
-  function renderGalleryPage(pageIndex: number, interactive: boolean) {
-    const page = galleryPages[pageIndex] ?? [];
-    const slots = Array.from({ length: perView }, (_, offset) => page[offset] ?? null);
-    return (
-      <div
-        className={`grid h-full w-full gap-3 md:gap-4 ${
-          perView === 1 ? "grid-cols-1" : perView === 2 ? "grid-cols-2" : "grid-cols-4"
-        }`}
-      >
-        {slots.map((image, offset) => {
-          if (!image) {
-            return (
-              <div
-                key={`empty-${pageIndex}-${offset}`}
-                className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full sm:max-h-none"
-                aria-hidden
-              />
-            );
-          }
-          const absoluteIndex = pageIndex * perView + offset;
-          return (
-            <div
-              key={image.path}
-              className="group relative overflow-hidden rounded-2xl bg-[#0b1d33]/10"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (!interactive || galleryBusy) return;
-                  setLightbox(absoluteIndex);
-                }}
-                className="block w-full"
-                tabIndex={interactive ? 0 : -1}
-              >
-                <img
-                  src={image.url}
-                  alt={image.alt}
-                  loading={Math.abs(pageIndex - safeGalleryPage) <= 1 ? "eager" : "lazy"}
-                  decoding="async"
-                  draggable={false}
-                  className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full object-cover sm:max-h-none"
-                />
-              </button>
-              {interactive && canManage && !image.path.startsWith("fallback-") ? (
-                <div className="absolute inset-x-0 bottom-0 z-10 flex gap-2 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setReplacePath(image.path);
-                      replaceInput.current?.click();
-                    }}
-                    className="btn-press rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-60"
-                  >
-                    Replace
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onDeleteGallery(image.path)}
-                    className="btn-press rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   async function saveRate(event: FormEvent) {
     event.preventDefault();
@@ -1039,123 +834,49 @@ export function ScubaDivingPage() {
         </section>
 
         <section className="px-4 pb-10 sm:px-6 sm:pb-14 md:px-8 md:pb-16 lg:px-10 xl:px-12">
-          <div className={softCardClass}>
-            <Reveal className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
-              <div>
-                <p className="text-[0.68rem] font-semibold tracking-[0.28em] text-[#0b1d33]/80 uppercase">
-                  Underwater
-                </p>
-                <h2 className="mt-2 font-display text-[1.65rem] text-[#0b1d33] sm:mt-3 sm:text-4xl md:text-5xl">
-                  Scuba Diving Gallery
-                </h2>
+          <div>
+            <p className="text-[0.62rem] font-semibold tracking-[0.32em] text-white/75 uppercase">
+              Underwater
+            </p>
+            <h2 className="mt-2 font-display text-[1.85rem] leading-tight text-white sm:text-4xl lg:text-5xl">
+              Scuba Diving Gallery
+            </h2>
+            {canManage ? (
+              <div className="mt-4">
+                <input
+                  ref={galleryInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => void onGalleryFiles(event.target.files)}
+                />
+                <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
+                  {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
+                </AdminEditButton>
               </div>
-              {canManage ? (
-                <div>
-                  <input
-                    ref={galleryInput}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => void onGalleryFiles(event.target.files)}
-                  />
-                  <AdminEditButton
-                    surface="light"
-                    disabled={busy}
-                    onClick={() => galleryInput.current?.click()}
-                  >
-                    {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
-                  </AdminEditButton>
-                </div>
-              ) : null}
-            </Reveal>
-
+            ) : null}
             {canManage && isFallbackGallery(displayGallery) ? (
-              <p className="mb-4 text-sm text-[#0b1d33]/75 sm:mb-5">
+              <p className="mt-3 text-sm text-white/70">
                 Showing default photos until you upload gallery images.
               </p>
             ) : null}
+          </div>
 
-            <div
-              className="relative touch-pan-y"
-              onTouchStart={onGalleryTouchStart}
-              onTouchEnd={onGalleryTouchEnd}
-            >
-              <div className="relative overflow-hidden rounded-2xl bg-[#0b1d33]/5">
-                {/* Invisible size lock — keeps layout stable while images zoom */}
-                <div className="invisible pointer-events-none" aria-hidden>
-                  {renderGalleryPage(safeGalleryPage, false)}
-                </div>
-
-                {/* Settled / outgoing layer */}
-                <div
-                  className="absolute inset-0 origin-center will-change-transform"
-                  style={{
-                    transform: `scale(${
-                      galleryTransitioning && galleryZoomRun ? GALLERY_SCALE : 1
-                    })`,
-                    opacity: galleryTransitioning && galleryZoomRun ? 0 : 1,
-                    transitionProperty: galleryTransitioning ? "transform, opacity" : "none",
-                    transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                    transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                    zIndex: 1,
-                    pointerEvents: galleryTransitioning ? "none" : "auto",
-                  }}
-                >
-                  {renderGalleryPage(
-                    galleryTransitioning ? (galleryFrom as number) : safeGalleryPage,
-                    !galleryTransitioning,
-                  )}
-                </div>
-
-                {/* Incoming layer */}
-                {galleryTransitioning ? (
-                  <div
-                    className="absolute inset-0 origin-center will-change-transform"
-                    style={{
-                      transform: `scale(${galleryZoomRun ? 1 : GALLERY_SCALE})`,
-                      opacity: galleryZoomRun ? 1 : 0,
-                      transitionProperty: "transform, opacity",
-                      transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                      transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                      zIndex: 2,
-                      pointerEvents: "none",
-                    }}
-                  >
-                    {renderGalleryPage(galleryTo as number, false)}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="mt-5 flex items-center justify-between gap-3 sm:mt-6">
-                <button
-                  type="button"
-                  onClick={galleryPrev}
-                  disabled={!canGalleryPrev || galleryBusy}
-                  aria-label="Previous gallery images"
-                  className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-                >
-                  <ChevronLeftIcon className="h-5 w-5" />
-                </button>
-                <GalleryPager
-                  count={pageCount}
-                  active={counterPage}
-                  tone="dark"
-                  onSelect={(index) => {
-                    if (!galleryBusy) setGalleryPage(index);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={galleryNext}
-                  disabled={!canGalleryNext || galleryBusy}
-                  aria-label="Next gallery images"
-                  className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-                >
-                  <ChevronRightIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+          <div className="mt-6 sm:mt-8">
+            <ScubaGalleryStage
+              images={displayGallery}
+              active={safeGalleryIndex}
+              onActive={setGalleryIndex}
+              onOpen={setLightbox}
+              canManage={canManage}
+              busy={busy}
+              onReplace={(path) => {
+                setReplacePath(path);
+                replaceInput.current?.click();
+              }}
+              onDelete={(path) => void onDeleteGallery(path)}
+            />
 
             <input
               ref={replaceInput}

@@ -1,19 +1,11 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-  type TouchEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
 import { GalleryPager } from "../components/GalleryPager";
-import { ChevronLeftIcon, ChevronRightIcon } from "../components/Icons";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
+import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
 import { SpaTreatmentsSection } from "../components/SpaTreatmentsSection";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -36,38 +28,16 @@ import {
 
 type BgKind = "hero" | "content";
 
-const GALLERY_TRANSITION_MS = 420;
-const GALLERY_SCALE = 0.92;
-
 const softCardClass =
-  "rounded-2xl border border-white/35 bg-white/50 p-4 shadow-[0_16px_40px_rgba(8,18,28,0.12)] backdrop-blur-xl sm:rounded-3xl sm:bg-white/45 sm:p-7";
+  "overflow-hidden rounded-2xl border border-white/35 bg-white/50 p-4 shadow-[0_16px_40px_rgba(8,18,28,0.12)] backdrop-blur-xl sm:rounded-3xl sm:bg-white/45 sm:p-7";
 
 function isFallbackGallery(images: SpaGalleryImage[]) {
   return images.length > 0 && images.every((image) => image.path.startsWith("fallback-"));
 }
 
-function useGalleryPerView() {
-  const [perView, setPerView] = useState(4);
-
-  useEffect(() => {
-    const update = () => {
-      const width = window.innerWidth;
-      if (width < 768) setPerView(1);
-      else if (width < 1024) setPerView(2);
-      else setPerView(4);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return perView;
-}
-
 export function SpaPage() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditSpa(role, approvalStatus);
-  const perView = useGalleryPerView();
 
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
@@ -80,11 +50,7 @@ export function SpaPage() {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const [gallery, setGallery] = useState<SpaGalleryImage[]>([]);
-  const [galleryPage, setGalleryPage] = useState(0);
-  const [galleryBusy, setGalleryBusy] = useState(false);
-  const [galleryFrom, setGalleryFrom] = useState<number | null>(null);
-  const [galleryTo, setGalleryTo] = useState<number | null>(null);
-  const [galleryZoomRun, setGalleryZoomRun] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [replacePath, setReplacePath] = useState<string | null>(null);
 
@@ -92,28 +58,11 @@ export function SpaPage() {
   const contentInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
-  const galleryTouch = useRef<{ x: number; y: number } | null>(null);
-  const galleryUnlockTimer = useRef<number | null>(null);
-  const galleryRaf = useRef<number | null>(null);
 
   const displayHero = heroUrl ?? (imagesReady ? DEFAULT_SPA_HERO : null);
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_SPA_CONTENT : null);
   const displayGallery = gallery.length ? gallery : DEFAULT_SPA_GALLERY;
-
-  const galleryPages = useMemo(() => {
-    const pages: SpaGalleryImage[][] = [];
-    for (let i = 0; i < displayGallery.length; i += perView) {
-      pages.push(displayGallery.slice(i, i + perView));
-    }
-    return pages.length ? pages : [[]];
-  }, [displayGallery, perView]);
-
-  const pageCount = Math.max(1, galleryPages.length);
-  const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
-  const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
-  const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
-  const galleryTransitioning = galleryFrom != null && galleryTo != null;
+  const safeGalleryIndex = Math.min(galleryIndex, Math.max(0, displayGallery.length - 1));
 
   const loadImages = useCallback(async () => {
     const [hero, content, galleryImages] = await Promise.all([
@@ -143,150 +92,8 @@ export function SpaPage() {
   }, []);
 
   useEffect(() => {
-    setGalleryPage(0);
-    setGalleryFrom(null);
-    setGalleryTo(null);
-    setGalleryZoomRun(false);
-    setGalleryBusy(false);
-  }, [perView, gallery.length]);
-
-  useEffect(() => {
-    return () => {
-      if (galleryUnlockTimer.current != null) window.clearTimeout(galleryUnlockTimer.current);
-      if (galleryRaf.current != null) window.cancelAnimationFrame(galleryRaf.current);
-    };
-  }, []);
-
-  function goGalleryPage(next: number) {
-    if (galleryBusy) return;
-    const clamped = Math.max(0, Math.min(pageCount - 1, next));
-    const current = galleryTo ?? safeGalleryPage;
-    if (clamped === current) return;
-
-    setGalleryBusy(true);
-    setGalleryFrom(current);
-    setGalleryTo(clamped);
-    setGalleryZoomRun(false);
-
-    if (galleryRaf.current != null) window.cancelAnimationFrame(galleryRaf.current);
-    galleryRaf.current = window.requestAnimationFrame(() => {
-      galleryRaf.current = window.requestAnimationFrame(() => {
-        setGalleryZoomRun(true);
-        galleryRaf.current = null;
-      });
-    });
-
-    if (galleryUnlockTimer.current != null) window.clearTimeout(galleryUnlockTimer.current);
-    galleryUnlockTimer.current = window.setTimeout(() => {
-      setGalleryPage(clamped);
-      setGalleryFrom(null);
-      setGalleryTo(null);
-      setGalleryZoomRun(false);
-      setGalleryBusy(false);
-      galleryUnlockTimer.current = null;
-    }, GALLERY_TRANSITION_MS);
-  }
-
-  function galleryPrev() {
-    goGalleryPage((galleryTo ?? safeGalleryPage) - 1);
-  }
-
-  function galleryNext() {
-    goGalleryPage((galleryTo ?? safeGalleryPage) + 1);
-  }
-
-  function onGalleryTouchStart(event: TouchEvent) {
-    const touch = event.touches[0];
-    if (!touch) return;
-    galleryTouch.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function onGalleryTouchEnd(event: TouchEvent) {
-    const start = galleryTouch.current;
-    galleryTouch.current = null;
-    if (!start || galleryBusy) return;
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) < 48) return;
-    if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
-    if (dx < 0) galleryNext();
-    else galleryPrev();
-  }
-
-  function renderGalleryPage(pageIndex: number, interactive: boolean) {
-    const page = galleryPages[pageIndex] ?? [];
-    const slots = Array.from({ length: perView }, (_, offset) => page[offset] ?? null);
-    return (
-      <div
-        className={`grid h-full w-full gap-3 md:gap-4 ${
-          perView === 1 ? "grid-cols-1" : perView === 2 ? "grid-cols-2" : "grid-cols-4"
-        }`}
-      >
-        {slots.map((image, offset) => {
-          if (!image) {
-            return (
-              <div
-                key={`empty-${pageIndex}-${offset}`}
-                className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full sm:max-h-none"
-                aria-hidden
-              />
-            );
-          }
-          const absoluteIndex = pageIndex * perView + offset;
-          return (
-            <div
-              key={image.path}
-              className="group relative overflow-hidden rounded-2xl bg-[#0b1d33]/10"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (!interactive || galleryBusy) return;
-                  setLightbox(absoluteIndex);
-                }}
-                className="block w-full"
-                tabIndex={interactive ? 0 : -1}
-              >
-                <img
-                  src={image.url}
-                  alt={image.alt}
-                  loading={Math.abs(pageIndex - safeGalleryPage) <= 1 ? "eager" : "lazy"}
-                  decoding="async"
-                  draggable={false}
-                  className="aspect-[4/3] max-h-[min(20rem,52vh)] w-full object-cover sm:max-h-none"
-                />
-              </button>
-              {interactive && canEdit && !image.path.startsWith("fallback-") ? (
-                <div className="absolute inset-x-0 bottom-0 z-10 flex gap-2 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setReplacePath(image.path);
-                      replaceInput.current?.click();
-                    }}
-                    className="btn-press rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-60"
-                  >
-                    Replace
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onDeleteGallery(image.path)}
-                    className="btn-press rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
+    setGalleryIndex((current) => Math.min(current, Math.max(0, displayGallery.length - 1)));
+  }, [displayGallery.length]);
 
   async function onHeroFile(fileList: FileList | null) {
     const file = fileList?.[0];
@@ -520,83 +327,20 @@ export function SpaPage() {
                   </p>
                 ) : null}
 
-                <div
-                  className="relative touch-pan-y"
-                  onTouchStart={onGalleryTouchStart}
-                  onTouchEnd={onGalleryTouchEnd}
-                >
-                  <div className="relative overflow-hidden rounded-2xl bg-[#0b1d33]/5">
-                    <div className="pointer-events-none invisible" aria-hidden>
-                      {renderGalleryPage(safeGalleryPage, false)}
-                    </div>
-
-                    <div
-                      className="absolute inset-0 origin-center will-change-transform"
-                      style={{
-                        transform: `scale(${
-                          galleryTransitioning && galleryZoomRun ? GALLERY_SCALE : 1
-                        })`,
-                        opacity: galleryTransitioning && galleryZoomRun ? 0 : 1,
-                        transitionProperty: galleryTransitioning ? "transform, opacity" : "none",
-                        transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                        transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                        zIndex: 1,
-                        pointerEvents: galleryTransitioning ? "none" : "auto",
-                      }}
-                    >
-                      {renderGalleryPage(
-                        galleryTransitioning ? (galleryFrom as number) : safeGalleryPage,
-                        !galleryTransitioning,
-                      )}
-                    </div>
-
-                    {galleryTransitioning ? (
-                      <div
-                        className="absolute inset-0 origin-center will-change-transform"
-                        style={{
-                          transform: `scale(${galleryZoomRun ? 1 : GALLERY_SCALE})`,
-                          opacity: galleryZoomRun ? 1 : 0,
-                          transitionProperty: "transform, opacity",
-                          transitionDuration: `${GALLERY_TRANSITION_MS}ms`,
-                          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                          zIndex: 2,
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {renderGalleryPage(galleryTo as number, false)}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between gap-3 sm:mt-6">
-                    <button
-                      type="button"
-                      onClick={galleryPrev}
-                      disabled={!canGalleryPrev || galleryBusy}
-                      aria-label="Previous gallery images"
-                      className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-                    >
-                      <ChevronLeftIcon className="h-5 w-5" />
-                    </button>
-                    <GalleryPager
-                      count={pageCount}
-                      active={counterPage}
-                      tone="dark"
-                      onSelect={(index) => {
-                        if (!galleryBusy) setGalleryPage(index);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={galleryNext}
-                      disabled={!canGalleryNext || galleryBusy}
-                      aria-label="Next gallery images"
-                      className="btn-press inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] transition hover:bg-[#0b1d33] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-11"
-                    >
-                      <ChevronRightIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
+                <ScubaGalleryStage
+                  images={displayGallery}
+                  active={safeGalleryIndex}
+                  onActive={setGalleryIndex}
+                  onOpen={setLightbox}
+                  canManage={canEdit}
+                  busy={busy}
+                  contained
+                  onReplace={(path) => {
+                    setReplacePath(path);
+                    replaceInput.current?.click();
+                  }}
+                  onDelete={(path) => void onDeleteGallery(path)}
+                />
 
                 <input
                   ref={replaceInput}

@@ -785,7 +785,7 @@ export function Rooms() {
               </Reveal>
             </section>
 
-            <section className={`${cardClass} mt-8 p-6 sm:mt-10 sm:p-8 lg:p-10`}>
+            <section className={`${cardClass} mt-8 overflow-hidden p-6 sm:mt-10 sm:p-8 lg:p-10`}>
               <Reveal variant="up">
                 <div className="space-y-4 text-sm leading-relaxed text-ink/75 sm:text-base">
                   <p>
