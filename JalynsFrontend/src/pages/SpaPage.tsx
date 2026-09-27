@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
-import { GalleryPager } from "../components/GalleryPager";
+import { GalleryLightbox } from "../components/GalleryLightbox";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
@@ -362,38 +362,13 @@ export function SpaPage() {
         </div>
       </div>
 
-      {lightbox != null && displayGallery[lightbox] ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setLightbox(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Gallery image"
-        >
-          <img
-            src={displayGallery[lightbox].url}
-            alt={displayGallery[lightbox].alt}
-            className="max-h-[86vh] max-w-full rounded-xl object-contain"
-            onClick={(event) => event.stopPropagation()}
-          />
-          <button
-            type="button"
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white"
-          >
-            Close
-          </button>
-          {displayGallery.length > 1 ? (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2" onClick={(event) => event.stopPropagation()}>
-              <GalleryPager
-                count={displayGallery.length}
-                active={lightbox}
-                tone="light"
-                onSelect={setLightbox}
-              />
-            </div>
-          ) : null}
-        </div>
+      {lightbox != null ? (
+        <GalleryLightbox
+          images={displayGallery}
+          index={lightbox}
+          onClose={() => setLightbox(null)}
+          onSelect={setLightbox}
+        />
       ) : null}
 
       {bgEditor ? (

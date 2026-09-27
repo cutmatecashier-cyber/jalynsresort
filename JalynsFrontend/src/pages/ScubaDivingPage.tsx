@@ -8,7 +8,7 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
-import { GalleryPager } from "../components/GalleryPager";
+import { GalleryLightbox } from "../components/GalleryLightbox";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
@@ -1214,38 +1214,13 @@ export function ScubaDivingPage() {
 
       <Footer />
 
-      {lightbox != null && displayGallery[lightbox] ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
-          onClick={() => setLightbox(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Gallery image"
-        >
-          <img
-            src={displayGallery[lightbox].url}
-            alt={displayGallery[lightbox].alt}
-            className="max-h-[86vh] max-w-full rounded-xl object-contain"
-            onClick={(event) => event.stopPropagation()}
-          />
-          <button
-            type="button"
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white"
-          >
-            Close
-          </button>
-          {displayGallery.length > 1 ? (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2" onClick={(event) => event.stopPropagation()}>
-              <GalleryPager
-                count={displayGallery.length}
-                active={lightbox}
-                tone="light"
-                onSelect={setLightbox}
-              />
-            </div>
-          ) : null}
-        </div>
+      {lightbox != null ? (
+        <GalleryLightbox
+          images={displayGallery}
+          index={lightbox}
+          onClose={() => setLightbox(null)}
+          onSelect={setLightbox}
+        />
       ) : null}
 
       {bgEditor ? (

@@ -7,7 +7,7 @@ import {
   type RoomHighlight,
 } from "../lib/rooms";
 import { AdminEditButton } from "./AdminEditButton";
-import { GalleryPager } from "./GalleryPager";
+import { GalleryLightbox } from "./GalleryLightbox";
 import { broadcastContentChanged } from "./ContentSync";
 import { ScubaGalleryStage } from "./ScubaGalleryStage";
 
@@ -184,41 +184,16 @@ export function JeepneyShuttleGallery({
         onChange={(event) => void onReplace(event.target.files)}
       />
 
-      {lightbox != null && highlights[lightbox] ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
-          onClick={() => setLightbox(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Jeepney gallery image"
-        >
-          <img
-            src={roomsMediaUrl(highlights[lightbox].image)}
-            alt="Private jeepney and shuttle"
-            className="max-h-[86vh] max-w-full rounded-xl object-contain"
-            onClick={(event) => event.stopPropagation()}
-          />
-          <button
-            type="button"
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white"
-          >
-            Close
-          </button>
-          {highlights.length > 1 ? (
-            <div
-              className="absolute bottom-5 left-1/2 -translate-x-1/2"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <GalleryPager
-                count={highlights.length}
-                active={lightbox}
-                tone="light"
-                onSelect={setLightbox}
-              />
-            </div>
-          ) : null}
-        </div>
+      {lightbox != null ? (
+        <GalleryLightbox
+          images={highlights.map((item) => ({
+            url: roomsMediaUrl(item.image),
+            alt: "Private jeepney and shuttle",
+          }))}
+          index={lightbox}
+          onClose={() => setLightbox(null)}
+          onSelect={setLightbox}
+        />
       ) : null}
     </section>
   );
