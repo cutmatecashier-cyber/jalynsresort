@@ -98,7 +98,11 @@ function inventoryFor(
   };
 }
 
-export function BookingBar() {
+export function BookingBar({
+  onSearchedChange,
+}: {
+  onSearchedChange?: (open: boolean) => void;
+}) {
   const navigate = useNavigate();
   const minCheckIn = todayIso();
   const [checkIn, setCheckIn] = useState("");
@@ -115,7 +119,13 @@ export function BookingBar() {
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const onSearchedChangeRef = useRef(onSearchedChange);
+  onSearchedChangeRef.current = onSearchedChange;
   const resultsScrollRef = useWheelScrollContain<HTMLDivElement>(searched && results.length > 2);
+
+  useEffect(() => {
+    onSearchedChangeRef.current?.(searched);
+  }, [searched]);
 
   const checkInTime = availability?.checkInTime || DEFAULT_CHECK_IN_TIME;
   const checkOutTime = availability?.checkOutTime || DEFAULT_CHECK_OUT_TIME;
@@ -151,7 +161,9 @@ export function BookingBar() {
 
   useEffect(() => {
     if (!searched) return;
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const narrow = window.matchMedia("(max-width: 1023px)").matches;
+    if (!narrow) return;
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [searched, results]);
 
   function roomFits(room: Room, start: string, end: string, snapshot: RoomAvailabilitySnapshot | null) {
@@ -473,63 +485,70 @@ export function BookingBar() {
       {searched ? (
         <div
           ref={resultsRef}
-          className="mt-3 overflow-hidden rounded-2xl border border-white/50 bg-white/95 text-ink shadow-[0_16px_40px_rgba(12,18,16,0.16)]"
+          className="mt-3 scroll-mt-24 overflow-hidden rounded-2xl border border-white/50 bg-white/95 text-ink shadow-[0_16px_40px_rgba(12,18,16,0.16)]"
         >
-          <div className="border-b border-ink/8 px-4 py-3">
-            <p className="text-[0.65rem] font-semibold tracking-[0.16em] text-stone uppercase">
-              {results.length === 0 ? "No rooms available" : "Available rooms"}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-ink">
-              {formatStayDate(checkIn)} – {formatStayDate(checkOut)}
-            </p>
-            <p className="mt-0.5 text-xs text-ink/55">
+          <div className="flex flex-col gap-1 border-b border-ink/8 px-4 py-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:px-5">
+            <div className="min-w-0">
+              <p className="text-[0.65rem] font-semibold tracking-[0.16em] text-stone uppercase">
+                {results.length === 0 ? "No rooms available" : "Available rooms"}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-ink">
+                {formatStayDate(checkIn)} – {formatStayDate(checkOut)}
+              </p>
+            </div>
+            <p className="text-xs leading-relaxed text-ink/55 sm:max-w-md sm:text-right">
               {scheduleHint(checkInTime, checkOutTime)}. A checkout morning stays open for a new
               check-in at {formatClockLabel(checkInTime)}.
             </p>
           </div>
           {results.length === 0 ? (
-            <p role="status" className="px-4 py-4 text-sm leading-relaxed text-amber-950">
+            <p role="status" className="px-4 py-4 text-sm leading-relaxed text-amber-950 sm:px-5">
               No rooms are available from {formatStayDate(checkIn)} to {formatStayDate(checkOut)}.
               Every room type is booked for at least part of that stay.
             </p>
           ) : (
             <div
               ref={resultsScrollRef}
-              className="max-h-[min(22rem,46vh)] divide-y divide-ink/8 overflow-y-auto overscroll-contain"
+              className="max-h-[min(13rem,32svh)] overflow-y-auto overscroll-contain lg:max-h-[16.75rem]"
             >
-              {results.map(({ room, remaining, quantity }) => {
-                const priced = applyVoucherToPrice(room.price_per_night || "", voucher);
-                const cover = roomsMediaUrl(room.images[0] ?? "");
-                return (
-                  <div key={room.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
-                    <div className="h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-mist sm:h-18 sm:w-24">
-                      {cover ? (
-                        <img src={cover} alt="" className="h-full w-full object-cover" />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-display text-base leading-tight text-ink sm:text-lg">
-                        {room.name}
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-sky-deep sm:text-sm">
-                        {remaining} of {quantity} {quantity === 1 ? "room" : "rooms"} available
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-ink/55">
-                        {room.max_capacity || "Capacity on request"}
-                        {priced.display ? ` · ${priced.display} / night` : ""}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void selectRoom(room.id)}
-                      disabled={selectingId != null}
-                      className="btn-press inline-flex shrink-0 items-center justify-center rounded-full bg-sky-deep px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-sky disabled:opacity-60 sm:px-4 sm:text-sm"
+              <div className="grid grid-cols-1 divide-y divide-ink/8 lg:grid-cols-2 lg:gap-3 lg:divide-y-0 lg:p-4 xl:grid-cols-3">
+                {results.map(({ room, remaining, quantity }) => {
+                  const priced = applyVoucherToPrice(room.price_per_night || "", voucher);
+                  const cover = roomsMediaUrl(room.images[0] ?? "");
+                  return (
+                    <div
+                      key={room.id}
+                      className="flex items-center gap-3 px-3 py-3 sm:px-4 lg:rounded-xl lg:border lg:border-ink/8 lg:bg-white lg:px-3 lg:py-3"
                     >
-                      {selectingId === room.id ? "Opening…" : "Select"}
-                    </button>
-                  </div>
-                );
-              })}
+                      <div className="h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-mist lg:h-20 lg:w-28">
+                        {cover ? (
+                          <img src={cover} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-display text-base leading-tight text-ink lg:text-lg lg:whitespace-normal">
+                          {room.name}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-sky-deep sm:text-sm">
+                          {remaining} of {quantity} {quantity === 1 ? "room" : "rooms"} available
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-ink/55 lg:whitespace-normal">
+                          {room.max_capacity || "Capacity on request"}
+                          {priced.display ? ` · ${priced.display} / night` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void selectRoom(room.id)}
+                        disabled={selectingId != null}
+                        className="btn-press inline-flex shrink-0 items-center justify-center rounded-full bg-sky-deep px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-sky disabled:opacity-60 sm:px-4 sm:text-sm"
+                      >
+                        {selectingId === room.id ? "Opening…" : "Select"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

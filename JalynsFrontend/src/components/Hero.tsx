@@ -81,6 +81,7 @@ export function Hero() {
   const [tick, setTick] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
   const [roomsVoucher, setRoomsVoucher] = useState<RoomsVoucher>({ ...DEFAULT_ROOMS_VOUCHER });
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
 
   const [bgOpen, setBgOpen] = useState(false);
   const [editorSlides, setEditorSlides] = useState<HomeHeroSlide[]>(DEFAULT_HOME_SLIDES);
@@ -263,7 +264,12 @@ export function Hero() {
   }
 
   return (
-    <section id="home" className="relative min-h-[100svh] overflow-hidden text-white">
+    <section
+      id="home"
+      className={`relative min-h-[100svh] text-white ${
+        availabilityOpen ? "max-lg:overflow-visible lg:overflow-hidden" : "overflow-hidden"
+      }`}
+    >
       <div
         className="absolute inset-0 will-change-transform"
         style={{ transform: `translate3d(0, ${parallaxY}px, 0) scale(1.08)` }}
@@ -292,7 +298,11 @@ export function Hero() {
 
       <Navbar />
 
-      <div className="relative z-10 flex min-h-[100svh] w-full flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:justify-end lg:px-10 xl:px-12">
+      <div
+        className={`relative z-10 flex w-full flex-col px-5 pt-[4.75rem] pb-6 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 lg:min-h-[100svh] lg:justify-end lg:px-10 lg:pb-8 xl:px-12 ${
+          availabilityOpen ? "min-h-0 justify-start" : "min-h-[100svh] justify-start"
+        }`}
+      >
         <div className="order-1 mt-16 max-w-5xl shrink-0 self-start text-left sm:mt-0">
           <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.12em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.16em]">
             Family Friendly, Modern Dive Resort &amp; Restaurant in Puerto Galera, Philippines
@@ -307,7 +317,9 @@ export function Hero() {
             </span>
           </h1>
           <div
-            className="animate-fade-up mt-2.5 max-w-2xl space-y-3 text-[0.8125rem] leading-relaxed text-white/85 sm:mt-4 sm:space-y-3.5 sm:text-base md:text-[1.05rem]"
+            className={`animate-fade-up mt-2.5 max-w-2xl space-y-3 text-[0.8125rem] leading-relaxed text-white/85 sm:mt-4 sm:space-y-3.5 sm:text-base md:text-[1.05rem] ${
+              availabilityOpen ? "lg:hidden" : ""
+            }`}
             style={{ animationDelay: "0.16s" }}
           >
             <p>
@@ -348,10 +360,14 @@ export function Hero() {
         </div>
 
         <div
-          className="animate-fade-up order-3 mt-auto w-full pb-1 sm:order-2 sm:mt-8 sm:max-w-xl sm:pb-0 md:mt-10 md:max-w-3xl"
+          className={`animate-fade-up order-3 w-full pb-1 sm:order-2 sm:pb-0 ${
+            availabilityOpen
+              ? "mt-5 sm:mt-6"
+              : "mt-auto sm:mt-8 sm:max-w-xl md:mt-10 md:max-w-3xl"
+          }`}
           style={{ animationDelay: "0.1s" }}
         >
-          <BookingBar />
+          <BookingBar onSearchedChange={setAvailabilityOpen} />
         </div>
 
         <div
