@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   deleteRoomHighlightById,
+  replaceRoomHighlight,
   roomsMediaUrl,
   uploadRoomHighlights,
   type RoomHighlight,
@@ -34,7 +35,9 @@ export function JeepneyShuttleGallery({
 }: JeepneyShuttleGalleryProps) {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [replaceId, setReplaceId] = useState<string | null>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
+  const replaceInput = useRef<HTMLInputElement>(null);
   const safeIndex = Math.min(galleryIndex, Math.max(0, highlights.length - 1));
   const slides = highlights.map((item) => ({
     url: roomsMediaUrl(item.image),
@@ -85,6 +88,26 @@ export function JeepneyShuttleGallery({
     }
   }
 
+  async function onReplace(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || !replaceId) return;
+    setBusy(true);
+    onError(null);
+    onProgress("Replacing photo…");
+    try {
+      const next = await replaceRoomHighlight(replaceId, file);
+      onChange(next);
+      broadcastContentChanged();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not replace photo.");
+    } finally {
+      setReplaceId(null);
+      setBusy(false);
+      onProgress(null);
+      if (replaceInput.current) replaceInput.current.value = "";
+    }
+  }
+
   async function onDelete(id: string) {
     setBusy(true);
     onError(null);
@@ -102,18 +125,16 @@ export function JeepneyShuttleGallery({
   if (!highlights.length && !canEdit) return null;
 
   return (
-    <div className="mt-6">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
-        <div>
-          <p className="text-[0.68rem] font-semibold tracking-[0.28em] text-[#0b1d33]/80 uppercase">
-            Shuttle
-          </p>
-          <h4 className="mt-2 font-display text-[1.35rem] text-[#0b1d33] sm:text-2xl md:text-3xl">
-            Jeepney &amp; pier gallery
-          </h4>
-        </div>
+    <section className="mt-8 sm:mt-10">
+      <div className="text-center">
+        <p className="text-[0.62rem] font-semibold tracking-[0.32em] text-white/75 uppercase">
+          Shuttle
+        </p>
+        <h2 className="mt-2 font-display text-[1.85rem] leading-tight text-white sm:text-4xl lg:text-5xl">
+          Jeepney &amp; pier gallery
+        </h2>
         {canEdit ? (
-          <div>
+          <div className="mt-4">
             <input
               ref={galleryInput}
               type="file"
@@ -122,11 +143,7 @@ export function JeepneyShuttleGallery({
               className="hidden"
               onChange={(event) => void onUpload(event.target.files)}
             />
-            <AdminEditButton
-              surface="light"
-              disabled={busy}
-              onClick={() => galleryInput.current?.click()}
-            >
+            <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
               {uploadProgress?.startsWith("Uploading")
                 ? uploadProgress
                 : "Upload jeepney / shuttle photos"}
@@ -136,23 +153,36 @@ export function JeepneyShuttleGallery({
       </div>
 
       {!highlights.length && canEdit ? (
-        <p className="rounded-2xl border border-dashed border-ink/15 bg-white/40 px-4 py-8 text-center text-sm text-ink/55">
+        <p className="mt-4 text-sm text-white/70">
           Upload jeepney or shuttle photos to show with this section.
         </p>
       ) : null}
 
       {highlights.length ? (
-        <ScubaGalleryStage
-          images={slides}
-          active={safeIndex}
-          onActive={setGalleryIndex}
-          onOpen={setLightbox}
-          canManage={canEdit}
-          busy={busy}
-          contained
-          onDelete={(id) => void onDelete(id)}
-        />
+        <div className="mt-6 sm:mt-8">
+          <ScubaGalleryStage
+            images={slides}
+            active={safeIndex}
+            onActive={setGalleryIndex}
+            onOpen={setLightbox}
+            canManage={canEdit}
+            busy={busy}
+            onReplace={(id) => {
+              setReplaceId(id);
+              replaceInput.current?.click();
+            }}
+            onDelete={(id) => void onDelete(id)}
+          />
+        </div>
       ) : null}
+
+      <input
+        ref={replaceInput}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => void onReplace(event.target.files)}
+      />
 
       {lightbox != null && highlights[lightbox] ? (
         <div
@@ -190,6 +220,6 @@ export function JeepneyShuttleGallery({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }

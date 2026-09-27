@@ -21,7 +21,16 @@ type ScubaGalleryStageProps = {
 };
 
 const motion =
-  "transition-[left,transform,filter,opacity] duration-500 ease-in-out motion-reduce:transition-none";
+  "transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
+
+function circularOffset(index: number, active: number, total: number) {
+  let offset = index - active;
+  if (total <= 1) return offset;
+  const half = total / 2;
+  if (offset > half) offset -= total;
+  if (offset < -half) offset += total;
+  return offset;
+}
 
 export function ScubaGalleryStage({
   images,
@@ -37,6 +46,7 @@ export function ScubaGalleryStage({
   const count = images.length;
   const safe = count ? Math.min(Math.max(active, 0), count - 1) : 0;
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const lastOffsets = useRef<Record<string, number>>({});
   const [compact, setCompact] = useState(false);
 
   useEffect(() => {
@@ -48,10 +58,17 @@ export function ScubaGalleryStage({
   }, []);
 
   function step(direction: -1 | 1) {
-    const next = safe + direction;
-    if (next < 0 || next >= count) return;
-    onActive(next);
+    if (count < 2) return;
+    onActive((safe + direction + count) % count);
   }
+
+  useEffect(() => {
+    const next: Record<string, number> = {};
+    images.forEach((image, index) => {
+      next[image.path] = circularOffset(index, safe, count);
+    });
+    lastOffsets.current = next;
+  });
 
   function onTouchStart(event: TouchEvent<HTMLDivElement>) {
     const point = event.touches[0];
@@ -71,18 +88,24 @@ export function ScubaGalleryStage({
     step(dx < 0 ? 1 : -1);
   }
 
-  function place(offset: number) {
-    if (offset === 0) return "50%";
-    if (contained) {
-      if (compact) return offset < 0 ? "20%" : "80%";
-      if (offset === -1) return "22%";
-      if (offset === 1) return "78%";
-      return offset < 0 ? "0%" : "100%";
+  function slideTransform(offset: number, scale: number) {
+    let center = 0.5;
+    if (offset !== 0) {
+      if (contained) {
+        center = compact ? (offset < 0 ? 0.2 : 0.8) : offset === -1 ? 0.22 : offset === 1 ? 0.78 : offset < 0 ? 0 : 1;
+      } else if (compact) {
+        center = offset < 0 ? 0.08 : 0.92;
+      } else if (offset === -1) {
+        center = 0.13;
+      } else if (offset === 1) {
+        center = 0.87;
+      } else {
+        center = offset < 0 ? -0.18 : 1.18;
+      }
     }
-    if (compact) return offset < 0 ? "8%" : "92%";
-    if (offset === -1) return "13%";
-    if (offset === 1) return "87%";
-    return offset < 0 ? "-18%" : "118%";
+    const width = compact ? 0.78 : 0.58;
+    const tx = (center / width - 0.5) * 100;
+    return `translate3d(${tx}%, -50%, 0) scale(${scale})`;
   }
 
   if (!count) return null;
@@ -102,7 +125,9 @@ export function ScubaGalleryStage({
           />
         <div className="absolute inset-0">
           {images.map((image, index) => {
-            const offset = index - safe;
+            const offset = circularOffset(index, safe, count);
+            const previous = lastOffsets.current[image.path];
+            const jumped = previous != null && Math.abs(offset - previous) > 1;
             const center = offset === 0;
             const visible = Math.abs(offset) <= 1;
             const manageable = canManage && !image.path.startsWith("fallback-");
@@ -110,13 +135,14 @@ export function ScubaGalleryStage({
               <div
                 key={image.path}
                 aria-hidden={!visible}
-                className={`absolute top-1/2 overflow-hidden rounded-[22px] border border-white/20 shadow-[0_18px_40px_rgba(2,10,20,0.38)] ${motion} ${
-                  compact ? "w-[78%]" : "w-[58%]"
-                } ${center ? "z-20 shadow-[0_28px_60px_rgba(2,10,20,0.5)]" : "z-10"}`}
+                className={`absolute top-1/2 left-0 overflow-hidden rounded-[22px] border border-white/20 shadow-[0_18px_40px_rgba(2,10,20,0.38)] ${
+                  jumped ? "transition-none" : motion
+                } ${visible ? "will-change-transform" : ""} ${compact ? "w-[78%]" : "w-[58%]"} ${
+                  center ? "z-20 shadow-[0_28px_60px_rgba(2,10,20,0.5)]" : "z-10"
+                }`}
                 style={{
-                  left: place(offset),
-                  transform: `translate(-50%, -50%) scale(${center ? 1 : sideScale})`,
-                  filter: center ? "blur(0px)" : "blur(6px)",
+                  transform: slideTransform(offset, center ? 1 : sideScale),
+                  filter: center || !visible ? "none" : "blur(4px)",
                   opacity: Math.abs(offset) > 1 ? 0 : center ? 1 : 0.92,
                   pointerEvents: visible ? "auto" : "none",
                 }}
@@ -144,7 +170,7 @@ export function ScubaGalleryStage({
                   <span className="pointer-events-none absolute inset-0 bg-[#071525]/20" />
                 )}
                 {center && manageable && (onReplace || onDelete) ? (
-                  <div className="absolute inset-x-0 bottom-8 z-10 flex justify-center gap-2 bg-gradient-to-t from-black/70 to-transparent p-3">
+                  <div className="absolute inset-x-0 top-3 z-10 flex justify-center gap-2">
                     {onReplace ? (
                       <button
                         type="button"
@@ -171,12 +197,47 @@ export function ScubaGalleryStage({
             );
           })}
 
+          {count === 2
+            ? images.map((image, index) => {
+                const offset = circularOffset(index, safe, count);
+                if (offset === 0) return null;
+                const side = -offset;
+                return (
+                  <div
+                    key={`${image.path}-side`}
+                    className={`absolute top-1/2 left-0 z-10 overflow-hidden rounded-[22px] border border-white/20 shadow-[0_18px_40px_rgba(2,10,20,0.38)] transition-none ${
+                      compact ? "w-[78%]" : "w-[58%]"
+                    }`}
+                    style={{
+                      transform: slideTransform(side, sideScale),
+                      filter: "blur(4px)",
+                      opacity: 0.92,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Show ${image.alt || "photo"}`}
+                      onClick={() => onActive(index)}
+                      className="block w-full"
+                    >
+                      <img
+                        src={image.url}
+                        alt=""
+                        draggable={false}
+                        className="aspect-[16/10] w-full object-cover"
+                      />
+                    </button>
+                    <span className="pointer-events-none absolute inset-0 bg-[#071525]/20" />
+                  </div>
+                );
+              })
+            : null}
+
           {count > 1 ? (
             <>
               <button
                 type="button"
                 onClick={() => step(-1)}
-                disabled={safe === 0}
                 aria-label="Previous photo"
                 className={`absolute top-1/2 z-30 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-md transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-30 sm:h-11 sm:w-11 ${
                   contained ? "left-[8%] sm:left-[10%]" : "left-[2%] sm:left-[4%]"
@@ -187,7 +248,6 @@ export function ScubaGalleryStage({
               <button
                 type="button"
                 onClick={() => step(1)}
-                disabled={safe === count - 1}
                 aria-label="Next photo"
                 className={`absolute top-1/2 z-30 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-md transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-30 sm:h-11 sm:w-11 ${
                   contained ? "right-[8%] sm:right-[10%]" : "right-[2%] sm:right-[4%]"

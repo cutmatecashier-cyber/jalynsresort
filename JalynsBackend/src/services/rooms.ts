@@ -831,6 +831,23 @@ export async function addRoomHighlight(image: string): Promise<RoomHighlight[]> 
   return listRoomHighlights()
 }
 
+export async function replaceRoomHighlight(id: string, image: string): Promise<RoomHighlight[]> {
+  const url = asString(image)
+  if (!url) throw new Error('Image URL is required.')
+  const highlightId = asString(id)
+  if (!highlightId) throw new Error('Highlight photo not found.')
+
+  const { data, error } = await supabaseAdmin
+    .from('room_highlights')
+    .update({ image: url })
+    .eq('id', highlightId)
+    .select('id')
+  if (error) throw new Error(roomsDbErrorMessage(error, 'Could not replace highlight photo.'))
+  if (!data?.length) throw new Error('Highlight photo not found.')
+  await touchRevision()
+  return listRoomHighlights()
+}
+
 export async function deleteRoomHighlight(id: string): Promise<RoomHighlight[]> {
   const { data, error } = await supabaseAdmin
     .from('room_highlights')

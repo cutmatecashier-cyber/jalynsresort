@@ -28,9 +28,6 @@ import {
 
 type BgKind = "hero" | "content";
 
-const softCardClass =
-  "overflow-hidden rounded-2xl border border-white/35 bg-white/50 p-4 shadow-[0_16px_40px_rgba(8,18,28,0.12)] backdrop-blur-xl sm:rounded-3xl sm:bg-white/45 sm:p-7";
-
 function isFallbackGallery(images: SpaGalleryImage[]) {
   return images.length > 0 && images.every((image) => image.path.startsWith("fallback-"));
 }
@@ -288,45 +285,36 @@ export function SpaPage() {
             <SpaTreatmentsSection canEdit={canEdit} />
 
             <section className="mt-7 sm:mt-9">
-              <div className={softCardClass}>
-                <Reveal className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
-                  <div>
-                    <p className="text-[0.68rem] font-semibold tracking-[0.28em] text-[#0b1d33]/80 uppercase">
-                      Atmosphere
-                    </p>
-                    <h2 className="mt-2 font-display text-[1.65rem] text-[#0b1d33] sm:mt-3 sm:text-4xl md:text-5xl">
-                      Soft light. Quiet hands.
-                    </h2>
+              <div className="text-center">
+                <p className="text-[0.62rem] font-semibold tracking-[0.32em] text-white/75 uppercase">
+                  Atmosphere
+                </p>
+                <h2 className="mt-2 font-display text-[1.85rem] leading-tight text-white sm:text-4xl lg:text-5xl">
+                  Soft light. Quiet hands.
+                </h2>
+                {canEdit ? (
+                  <div className="mt-4">
+                    <input
+                      ref={galleryInput}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => void onGalleryFiles(event.target.files)}
+                    />
+                    <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
+                      {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
+                    </AdminEditButton>
                   </div>
-                  {canEdit ? (
-                    <div>
-                      <input
-                        ref={galleryInput}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => void onGalleryFiles(event.target.files)}
-                      />
-                      <AdminEditButton
-                        surface="light"
-                        disabled={busy}
-                        onClick={() => galleryInput.current?.click()}
-                      >
-                        {uploadProgress?.startsWith("Uploading")
-                          ? uploadProgress
-                          : "Upload images"}
-                      </AdminEditButton>
-                    </div>
-                  ) : null}
-                </Reveal>
-
+                ) : null}
                 {canEdit && isFallbackGallery(displayGallery) ? (
-                  <p className="mb-4 text-sm text-[#0b1d33]/75 sm:mb-5">
+                  <p className="mt-3 text-sm text-white/70">
                     Showing default photos until you upload gallery images.
                   </p>
                 ) : null}
+              </div>
 
+              <div className="mt-6 sm:mt-8">
                 <ScubaGalleryStage
                   images={displayGallery}
                   active={safeGalleryIndex}
@@ -334,22 +322,21 @@ export function SpaPage() {
                   onOpen={setLightbox}
                   canManage={canEdit}
                   busy={busy}
-                  contained
                   onReplace={(path) => {
                     setReplacePath(path);
                     replaceInput.current?.click();
                   }}
                   onDelete={(path) => void onDeleteGallery(path)}
                 />
-
-                <input
-                  ref={replaceInput}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(event) => void onReplaceGallery(event.target.files)}
-                />
               </div>
+
+              <input
+                ref={replaceInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => void onReplaceGallery(event.target.files)}
+              />
             </section>
 
             <Reveal delay={100} variant="up">

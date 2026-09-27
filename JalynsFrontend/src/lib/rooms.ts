@@ -605,6 +605,31 @@ export async function uploadRoomHighlights(files: File[]): Promise<RoomHighlight
   return highlights;
 }
 
+export async function replaceRoomHighlight(id: string, file: File): Promise<RoomHighlight[]> {
+  const optimized = await optimizeImageFile(file, {
+    maxWidth: 2200,
+    maxHeight: 2200,
+    quality: 0.92,
+    maxBytes: 5_000_000,
+  });
+  const body = new FormData();
+  body.append("image", optimized);
+  const res = await fetch(`${getApiUrl()}/api/rooms/highlights/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: await adminAuthHeaders(false),
+    body,
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    highlights?: RoomHighlight[];
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not replace highlight photo."));
+  const highlights = normalizeHighlights(data.highlights);
+  notifyRoomsUpdated(undefined, undefined, highlights);
+  return highlights;
+}
+
 export async function deleteRoomHighlightById(id: string): Promise<RoomHighlight[]> {
   const res = await fetch(`${getApiUrl()}/api/rooms/highlights/${encodeURIComponent(id)}`, {
     method: "DELETE",

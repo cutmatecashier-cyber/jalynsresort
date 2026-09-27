@@ -834,7 +834,7 @@ export function ScubaDivingPage() {
         </section>
 
         <section className="px-4 pb-10 sm:px-6 sm:pb-14 md:px-8 md:pb-16 lg:px-10 xl:px-12">
-          <div>
+          <div className="text-center">
             <p className="text-[0.62rem] font-semibold tracking-[0.32em] text-white/75 uppercase">
               Underwater
             </p>

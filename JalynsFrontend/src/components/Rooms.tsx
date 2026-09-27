@@ -785,7 +785,7 @@ export function Rooms() {
               </Reveal>
             </section>
 
-            <section className={`${cardClass} mt-8 overflow-hidden p-6 sm:mt-10 sm:p-8 lg:p-10`}>
+            <section className={`${cardClass} mt-8 p-6 sm:mt-10 sm:p-8 lg:p-10`}>
               <Reveal variant="up">
                 <div className="space-y-4 text-sm leading-relaxed text-ink/75 sm:text-base">
                   <p>
@@ -806,19 +806,19 @@ export function Rooms() {
                     .
                   </p>
                 </div>
-
-                <JeepneyShuttleGallery
-                  highlights={highlights}
-                  canEdit={canEdit}
-                  onChange={setHighlights}
-                  onError={setError}
-                  onProgress={setUploadProgress}
-                  busy={busy}
-                  setBusy={setBusy}
-                  uploadProgress={uploadProgress}
-                />
               </Reveal>
             </section>
+
+            <JeepneyShuttleGallery
+              highlights={highlights}
+              canEdit={canEdit}
+              onChange={setHighlights}
+              onError={setError}
+              onProgress={setUploadProgress}
+              busy={busy}
+              setBusy={setBusy}
+              uploadProgress={uploadProgress}
+            />
 
             {canEdit && voucher.enabled && voucher.percent > 0 ? (
               <div className="mt-6 mb-2 rounded-2xl border border-amber-300/60 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 sm:px-5">

@@ -9,6 +9,7 @@ import {
   deleteRoom,
   deleteRoomHighlight,
   deleteRoomImage,
+  replaceRoomHighlight,
   getRoomsVoucher,
   listRoomHighlights,
   listRooms,
@@ -288,6 +289,43 @@ roomsRouter.post('/highlights', async (req, res) => {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not upload highlight photos.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+roomsRouter.put('/highlights/:id', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit highlight photos.'))) {
+      return
+    }
+    upload.single('image')(req, res, (err: unknown) => {
+      void (async () => {
+        if (err) {
+          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          res.status(400).json({ success: false, message })
+          return
+        }
+        if (!req.file) {
+          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          return
+        }
+        try {
+          const url = await uploadPublicImage({
+            bucket: SITE_BUCKETS.rooms,
+            folder: 'highlights',
+            file: req.file,
+          })
+          const highlights = await replaceRoomHighlight(req.params.id, url)
+          res.json({ success: true, highlights })
+        } catch (inner) {
+          const message =
+            inner instanceof Error ? inner.message : 'Could not replace highlight photo.'
+          res.status(clientErrorStatus(message)).json({ success: false, message })
+        }
+      })()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not replace highlight photo.'
     return res.status(500).json({ success: false, message })
   }
 })
