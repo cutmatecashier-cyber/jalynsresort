@@ -16,6 +16,7 @@ export function refreshLocalContent() {
   notifyHomeHeroUpdated();
   notifyHomeSectionUpdated("whystay");
   notifyHomeSectionUpdated("news");
+  notifyHomeSectionUpdated("restaurant");
   void fetchRoomsCatalog().then((catalog) =>
     notifyRoomsUpdated(catalog.rooms, catalog.voucher, catalog.highlights),
   );

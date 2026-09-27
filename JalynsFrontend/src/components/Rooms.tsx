@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { GalleryPager } from "./GalleryPager";
 import { useAuth } from "../context/AuthContext";
 import {
   createRoomWithImage,
@@ -34,15 +35,25 @@ import {
   uploadRoomImages,
   uploadRoomsContentBackgroundWithResult,
   uploadRoomsHeroWithResult,
+  fetchRoomAvailability,
   type Room,
+  type RoomAvailabilitySnapshot,
   type RoomFormInput,
   type RoomHighlight,
   type RoomsVoucher,
   type RoomStatus,
 } from "../lib/rooms";
+import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
+import {
+  DEFAULT_CHECK_IN_TIME,
+  DEFAULT_CHECK_OUT_TIME,
+  formatClockLabel,
+} from "../lib/roomAvailability";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
-import { broadcastContentChanged } from "./ContentSync";
+import { BookingSettingsCard } from "./BookingSettingsCard";
+import { ExtraPersonSettings } from "./ExtraPersonSettings";
+import { broadcastContentChanged, CONTENT_CHANGED_EVENT } from "./ContentSync";
 import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { JeepneyShuttleGallery } from "./JeepneyShuttleGallery";
@@ -62,6 +73,7 @@ const emptyForm = (): RoomFormInput => ({
   extra_person_charge: "",
   rules_policies: "",
   status: "available",
+  quantity: 1,
   amenities: [],
 });
 
@@ -243,9 +255,14 @@ function RoomImageCarousel({
         </div>
       ) : null}
 
-      <p className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[#0b1d33]/10 bg-white/95 px-3 py-1 text-sm font-semibold tracking-wide text-[#0b1d33] tabular-nums shadow-sm">
-        {safeIndex + 1} / {total}
-      </p>
+      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
+        <GalleryPager
+          count={total}
+          active={safeIndex}
+          tone="light"
+          onSelect={setIndex}
+        />
+      </div>
     </div>
   );
 }
@@ -261,6 +278,7 @@ export function Rooms() {
   const [voucherEnabled, setVoucherEnabled] = useState(false);
   const [voucherPercentText, setVoucherPercentText] = useState("");
   const [highlights, setHighlights] = useState<RoomHighlight[]>([]);
+  const [availability, setAvailability] = useState<RoomAvailabilitySnapshot | null>(null);
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
@@ -309,6 +327,11 @@ export function Rooms() {
     setHighlights(catalog.highlights);
   }, []);
 
+  const loadAvailability = useCallback(async () => {
+    const snapshot = await fetchRoomAvailability();
+    if (snapshot) setAvailability(snapshot);
+  }, []);
+
   const loadBackgrounds = useCallback(async () => {
     const [hero, content] = await Promise.all([
       fetchRoomsHero(),
@@ -324,7 +347,8 @@ export function Rooms() {
   useEffect(() => {
     void loadRooms();
     void loadBackgrounds();
-  }, [loadRooms, loadBackgrounds]);
+    void loadAvailability();
+  }, [loadRooms, loadBackgrounds, loadAvailability]);
 
   useEffect(() => {
     document.title = "Rooms & Apartments | Jalyn's Resort & Restaurant";
@@ -358,10 +382,16 @@ export function Rooms() {
         void loadRooms();
       }
       void loadBackgrounds();
+      void loadAvailability();
     };
     window.addEventListener(ROOMS_UPDATED_EVENT, onUpdated);
-    return () => window.removeEventListener(ROOMS_UPDATED_EVENT, onUpdated);
-  }, [loadRooms, loadBackgrounds]);
+    const onContent = () => void loadAvailability();
+    window.addEventListener(CONTENT_CHANGED_EVENT, onContent);
+    return () => {
+      window.removeEventListener(ROOMS_UPDATED_EVENT, onUpdated);
+      window.removeEventListener(CONTENT_CHANGED_EVENT, onContent);
+    };
+  }, [loadRooms, loadBackgrounds, loadAvailability]);
 
   useEffect(() => {
     if (!manageOpen && !bgEditor) return;
@@ -425,6 +455,7 @@ export function Rooms() {
       extra_person_charge: room.extra_person_charge ?? "",
       rules_policies: room.rules_policies ?? "",
       status: room.status === "unavailable" ? "unavailable" : "available",
+      quantity: room.quantity > 0 ? room.quantity : 1,
       amenities: Array.isArray(room.amenities) ? [...room.amenities] : [],
     });
     setAmenitiesText(amenitiesToText(Array.isArray(room.amenities) ? room.amenities : []));
@@ -505,12 +536,13 @@ export function Rooms() {
       name: form.name ?? "",
       description: form.description ?? "",
       size: form.size ?? "",
-      max_capacity: form.max_capacity ?? "",
+      max_capacity: formatMaxGuests(parseMaxGuests(form.max_capacity)),
       beds: form.beds ?? "",
       price_per_night: form.price_per_night ?? "",
       extra_person_charge: form.extra_person_charge ?? "",
       rules_policies: form.rules_policies ?? "",
       status: form.status === "unavailable" ? "unavailable" : "available",
+      quantity: form.quantity > 0 ? form.quantity : 1,
       amenities: textToAmenities(amenitiesText),
     };
     try {
@@ -818,6 +850,12 @@ export function Rooms() {
             ) : null}
 
             <div className="mt-8 space-y-8 sm:mt-10 sm:space-y-10">
+              <p className="text-sm leading-relaxed text-ink/70">
+                Check-in {formatClockLabel(availability?.checkInTime || DEFAULT_CHECK_IN_TIME)} ·
+                Check-out {formatClockLabel(availability?.checkOutTime || DEFAULT_CHECK_OUT_TIME)}.
+                A date closes only when every room of that type is already booked. Guests can check
+                in on a checkout day when the previous guest has left.
+              </p>
               {rooms.map((room, i) => (
                 <article
                   key={room.id}
@@ -907,8 +945,14 @@ export function Rooms() {
                             <dt className="text-[0.62rem] font-semibold tracking-wide text-ink/45 uppercase">
                               Extra person
                             </dt>
-                            <dd className="mt-0.5 truncate font-medium text-ink">
-                              {room.extra_person_charge || "—"}
+                            <dd className="mt-0.5 truncate font-medium text-ink">By age, past capacity</dd>
+                          </div>
+                          <div>
+                            <dt className="text-[0.62rem] font-semibold tracking-wide text-ink/45 uppercase">
+                              Quantity
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-ink">
+                              {room.quantity} {room.quantity === 1 ? "room" : "rooms"}
                             </dd>
                           </div>
                           <div>
@@ -1134,6 +1178,9 @@ export function Rooms() {
                     </button>
                   </div>
 
+                  <BookingSettingsCard onSchedule={() => void loadAvailability()} />
+                  <ExtraPersonSettings />
+
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1166,7 +1213,13 @@ export function Rooms() {
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-ink">{room.name}</p>
                             <p className="truncate text-xs text-ink/55">
-                              {[room.size, room.max_capacity, room.price_per_night, room.status]
+                              {[
+                                room.size,
+                                room.max_capacity,
+                                `${room.quantity} ${room.quantity === 1 ? "room" : "rooms"}`,
+                                room.price_per_night,
+                                room.status,
+                              ]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </p>
@@ -1227,13 +1280,26 @@ export function Rooms() {
                       />
                     </label>
                     <label className="block">
-                      <span className="text-sm font-semibold text-ink">Maximum capacity</span>
+                      <span className="text-sm font-semibold text-ink">Maximum guest capacity</span>
                       <input
-                        value={form.max_capacity ?? ""}
-                        onChange={(e) => setForm((f) => ({ ...f, max_capacity: e.target.value }))}
-                        placeholder="e.g. 2 guests"
+                        type="number"
+                        min={1}
+                        max={30}
+                        required
+                        value={parseMaxGuests(form.max_capacity)}
+                        onChange={(e) => {
+                          const next = Number(e.target.value);
+                          const count = Number.isFinite(next)
+                            ? Math.min(30, Math.max(1, Math.round(next)))
+                            : 2;
+                          setForm((f) => ({ ...f, max_capacity: formatMaxGuests(count) }));
+                        }}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className={inputClass}
                       />
+                      <span className="mt-1 block text-xs font-medium text-ink/45">
+                        Guests included in the room rate. Anyone past this number is an extra guest.
+                      </span>
                     </label>
                     <label className="block">
                       <span className="text-sm font-semibold text-ink">Beds</span>
@@ -1262,9 +1328,12 @@ export function Rooms() {
                         onChange={(e) =>
                           setForm((f) => ({ ...f, extra_person_charge: e.target.value }))
                         }
-                        placeholder="e.g. ₱500 / extra guest"
+                        placeholder="Optional note"
                         className={inputClass}
                       />
+                      <span className="mt-1 block text-xs font-medium text-ink/45">
+                        Booking totals use Extra person settings. This note is not added to the price.
+                      </span>
                     </label>
                     <label className="block">
                       <span className="text-sm font-semibold text-ink">Status</span>
@@ -1281,6 +1350,32 @@ export function Rooms() {
                         <option value="available">Available</option>
                         <option value="unavailable">Unavailable</option>
                       </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold text-ink">Quantity</span>
+                      <input
+                        type="number"
+                        required
+                        min={1}
+                        max={99}
+                        step={1}
+                        value={form.quantity}
+                        onChange={(e) => {
+                          const next = Number(e.target.value);
+                          setForm((f) => ({
+                            ...f,
+                            quantity: Number.isFinite(next)
+                              ? Math.min(99, Math.max(1, Math.round(next)))
+                              : 1,
+                          }));
+                        }}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={inputClass}
+                      />
+                      <span className="mt-1 block text-xs font-medium text-ink/45">
+                        Physical rooms of this type. Five standard rooms means five guests can book
+                        the same dates.
+                      </span>
                     </label>
                     <label className="block sm:col-span-2">
                       <span className="text-sm font-semibold text-ink">

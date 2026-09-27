@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
+import { GalleryPager } from "../components/GalleryPager";
 import { Navbar } from "../components/Navbar";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
@@ -669,9 +670,17 @@ export function NewsDetailPage() {
               />
 
               {gallery.length > 1 ? (
-                <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white tabular-nums">
-                  {lightbox + 1} / {gallery.length}
-                </p>
+                <div
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <GalleryPager
+                    count={gallery.length}
+                    active={lightbox}
+                    tone="light"
+                    onSelect={setLightbox}
+                  />
+                </div>
               ) : null}
             </div>,
             document.body,

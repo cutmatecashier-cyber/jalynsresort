@@ -6,7 +6,7 @@ export type HomeHeroSlide = {
   alt: string
 }
 
-export type HomeSectionKey = 'whystay' | 'news'
+export type HomeSectionKey = 'whystay' | 'news' | 'restaurant'
 
 export type HomeSections = Record<HomeSectionKey, string>
 
@@ -41,9 +41,11 @@ export const DEFAULT_HOME_SECTIONS: HomeSections = {
   whystay:
     'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2400&q=80',
   news: 'https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=2400&q=80',
+  restaurant:
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=2400&q=80',
 }
 
-const SECTION_KEYS: HomeSectionKey[] = ['whystay', 'news']
+const SECTION_KEYS: HomeSectionKey[] = ['whystay', 'news', 'restaurant']
 
 type StoreShape = {
   slides: HomeHeroSlide[]
@@ -61,6 +63,10 @@ function normalizeSections(raw: unknown): HomeSections {
       typeof input.news === 'string' && input.news.trim()
         ? input.news.trim()
         : DEFAULT_HOME_SECTIONS.news,
+    restaurant:
+      typeof input.restaurant === 'string' && input.restaurant.trim()
+        ? input.restaurant.trim()
+        : DEFAULT_HOME_SECTIONS.restaurant,
   }
 }
 
@@ -91,7 +97,7 @@ const store = createJsonCloudStore<StoreShape>({
     if (!Array.isArray(row.slides) && !row.sections) {
       return {
         slides: [],
-        sections: { whystay: '', news: '' },
+        sections: { whystay: '', news: '', restaurant: '' },
       }
     }
     return {
@@ -106,7 +112,7 @@ const store = createJsonCloudStore<StoreShape>({
   }),
   emptyValue: () => ({
     slides: [],
-    sections: { whystay: '', news: '' },
+    sections: { whystay: '', news: '', restaurant: '' },
   }),
   hasContent: (value) =>
     Array.isArray(value.slides) &&

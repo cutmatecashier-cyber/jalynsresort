@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
+import { HomeRestaurant } from "../components/HomeRestaurant";
 import { HomeRooms } from "../components/HomeRooms";
+import { HomeScuba } from "../components/HomeScuba";
 import { News } from "../components/News";
 import { Services } from "../components/Services";
 import { Testimonials } from "../components/Testimonials";
@@ -31,6 +33,8 @@ export function HomePage() {
       <Hero />
       <Services />
       <HomeRooms />
+      <HomeRestaurant />
+      <HomeScuba />
       <Testimonials />
       <Gallery />
       <News />

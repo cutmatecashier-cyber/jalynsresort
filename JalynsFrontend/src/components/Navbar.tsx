@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
 import { fetchRoomBookings } from "../lib/rooms";
+import { BrandLogo } from "./BrandLogo";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CONTENT_CHANGED_EVENT } from "./ContentSync";
 
@@ -328,7 +329,7 @@ export function Navbar() {
           }`}
         >
           <div
-            className={`mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 ${
+            className={`flex w-full items-center justify-between gap-3 px-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 ${
               embedded
                 ? "py-2.5 sm:py-3"
                 : solid || forceSolid
@@ -343,32 +344,7 @@ export function Navbar() {
                 className="group block max-w-full text-white"
                 onClick={() => setOpen(false)}
               >
-                <span
-                  className={`font-script block leading-none ${
-                    embedded
-                      ? "text-[1.55rem] sm:text-[1.75rem] md:text-[1.9rem]"
-                      : `transition-[font-size] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                          solid
-                            ? "text-[1.55rem] sm:text-[1.75rem] md:text-[1.9rem]"
-                            : "text-[1.85rem] sm:text-[2.25rem] md:text-[2.55rem] lg:text-[2.75rem]"
-                        }`
-                  }`}
-                >
-                  Jalyn&apos;s
-                </span>
-                <span
-                  className={`mt-0.5 block truncate font-medium tracking-[0.16em] text-white/65 uppercase sm:tracking-[0.2em] ${
-                    embedded
-                      ? "text-[0.55rem] opacity-75 sm:text-[0.58rem]"
-                      : `transition-[font-size,opacity] duration-300 ${
-                          solid
-                            ? "text-[0.55rem] opacity-75 sm:text-[0.58rem]"
-                            : "text-[0.58rem] sm:text-[0.65rem] md:text-[0.7rem]"
-                        }`
-                  }`}
-                >
-                  Resort &amp; Restaurant
-                </span>
+                <BrandLogo size={embedded || solid ? "compact" : "nav"} align="start" />
               </Link>
               {showMember ? (
                 <span

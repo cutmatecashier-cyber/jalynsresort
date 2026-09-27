@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
+import { GalleryPager } from "../components/GalleryPager";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
   ArrowRightIcon,
@@ -231,10 +232,6 @@ export function ScubaDivingPage() {
   const pageCount = Math.max(1, galleryPages.length);
   const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
   const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const counterStart = displayGallery.length ? counterPage * perView + 1 : 0;
-  const counterEnd = displayGallery.length
-    ? Math.min(counterPage * perView + perView, displayGallery.length)
-    : 0;
   const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
   const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
   const galleryTransitioning = galleryFrom != null && galleryTo != null;
@@ -654,11 +651,6 @@ export function ScubaDivingPage() {
 
   const tablesMissing =
     ratesError === MISSING_SCUBA_TABLES || coursesError === MISSING_SCUBA_TABLES;
-
-  const counterLabel =
-    perView === 1
-      ? `${counterStart}/${displayGallery.length}`
-      : `${counterStart}–${counterEnd} / ${displayGallery.length}`;
 
   return (
     <main className="overflow-x-clip bg-[#05080f] text-ink">
@@ -1140,9 +1132,14 @@ export function ScubaDivingPage() {
                 >
                   <ChevronLeftIcon className="h-5 w-5" />
                 </button>
-                <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-[#0b1d33] tabular-nums">
-                  {counterLabel}
-                </p>
+                <GalleryPager
+                  count={pageCount}
+                  active={counterPage}
+                  tone="dark"
+                  onSelect={(index) => {
+                    if (!galleryBusy) setGalleryPage(index);
+                  }}
+                />
                 <button
                   type="button"
                   onClick={galleryNext}
@@ -1512,6 +1509,16 @@ export function ScubaDivingPage() {
           >
             Close
           </button>
+          {displayGallery.length > 1 ? (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2" onClick={(event) => event.stopPropagation()}>
+              <GalleryPager
+                count={displayGallery.length}
+                active={lightbox}
+                tone="light"
+                onSelect={setLightbox}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

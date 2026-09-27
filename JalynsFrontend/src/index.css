@@ -1,9 +1,27 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Ravie";
+  src: url("/fonts/Ravie.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Arial Nova";
+  src: url("/fonts/ArialNova.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-display: "Instrument Serif", Georgia, serif;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-script: "Great Vibes", cursive;
+  --font-logo: "Ravie", cursive;
+  --font-logo-tag: "Arial Nova", Arial, sans-serif;
 
   --color-ink: #0c1210;
   --color-ink-soft: #1a2420;

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
+import { asQuantity, loadBookingSettings, quantityFor, clearRoomQuantities, removeRoomQuantity, setRoomQuantity } from './bookingSettings.js'
 import { bumpContentRevision } from './contentRevision.js'
 
 export type RoomStatus = 'available' | 'unavailable'
@@ -15,6 +16,8 @@ export type Room = {
   extra_person_charge: string
   rules_policies: string
   status: RoomStatus
+  /** Physical rooms of this type. Availability is counted against this. */
+  quantity: number
   amenities: string[]
   images: string[]
   sort_order: number
@@ -52,6 +55,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Air conditioned',
       'Ceiling Fans',
@@ -81,6 +85,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Garden view',
       'Wireless Internet',
@@ -114,6 +119,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Pool view',
       'Wireless Internet',
@@ -143,6 +149,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Pool view',
       'Poolside terrace',
@@ -174,6 +181,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Garden view',
       'Wireless Internet',
@@ -204,6 +212,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Pool view',
       'Wireless Internet',
@@ -235,6 +244,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Pool view',
       'Wireless Internet',
@@ -267,6 +277,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Pool view',
       'Ceiling Fans',
@@ -299,6 +310,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: '',
     rules_policies: '',
     status: 'available',
+    quantity: 1,
     amenities: [
       'Bay view',
       'Wireless Internet',
@@ -427,6 +439,7 @@ function mapRoom(row: RoomRow): Room {
     extra_person_charge: asString(row.extra_person_charge),
     rules_policies: asString(row.rules_policies),
     status: asStatus(row.status),
+    quantity: 1,
     amenities: asAmenities(row.amenities),
     images: asImages(row.images),
     sort_order:
@@ -534,6 +547,7 @@ export type RoomInput = {
   extra_person_charge?: string
   rules_policies?: string
   status?: RoomStatus | string
+  quantity?: number
   amenities?: string[]
   images?: string[]
   sort_order?: number
@@ -556,6 +570,7 @@ function applyPatch(room: Room, patch: RoomInput): Room {
   if (typeof patch.status === 'string' && patch.status.trim()) {
     next.status = asStatus(patch.status)
   }
+  if (patch.quantity != null) next.quantity = asQuantity(patch.quantity, next.quantity || 1)
   if (Array.isArray(patch.amenities)) next.amenities = asAmenities(patch.amenities)
   if (Array.isArray(patch.images)) {
     const images = asImages(patch.images)
@@ -570,8 +585,20 @@ function applyPatch(room: Room, patch: RoomInput): Room {
   return next
 }
 
+async function attachQuantities(rooms: Room[]): Promise<Room[]> {
+  try {
+    const settings = await loadBookingSettings()
+    return rooms.map((room) => ({
+      ...room,
+      quantity: quantityFor(settings, room.id),
+    }))
+  } catch {
+    return rooms.map((room) => ({ ...room, quantity: asQuantity(room.quantity, 1) }))
+  }
+}
+
 export async function listRooms(): Promise<Room[]> {
-  return seedRoomsIfEmpty()
+  return attachQuantities(await seedRoomsIfEmpty())
 }
 
 export async function getRoomsVoucher(): Promise<RoomsVoucher> {
@@ -636,6 +663,7 @@ export async function createRoom(input: RoomInput & { image?: string }): Promise
     extra_person_charge: asString(input.extra_person_charge),
     rules_policies: asString(input.rules_policies),
     status: asStatus(input.status),
+    quantity: asQuantity(input.quantity, 1),
     amenities: asAmenities(input.amenities),
     images,
     sort_order:
@@ -646,6 +674,7 @@ export async function createRoom(input: RoomInput & { image?: string }): Promise
 
   const { error } = await supabaseAdmin.from('rooms').insert(roomToRow(room))
   if (error) throw new Error(roomsDbErrorMessage(error, 'Could not create room.'))
+  await setRoomQuantity(room.id, room.quantity)
   await touchRevision()
   return listRooms()
 }
@@ -656,7 +685,7 @@ export async function addRoom(input: { name?: string; image: string }): Promise<
 }
 
 export async function updateRoom(id: string, patch: RoomInput & { image?: string }): Promise<Room[]> {
-  const rooms = await seedRoomsIfEmpty()
+  const rooms = await listRooms()
   const current = rooms.find((r) => r.id === id)
   if (!current) throw new Error('Room not found.')
 
@@ -670,6 +699,7 @@ export async function updateRoom(id: string, patch: RoomInput & { image?: string
   const next = applyPatch(current, merged)
   const { error } = await supabaseAdmin.from('rooms').update(roomToRow(next)).eq('id', id)
   if (error) throw new Error(roomsDbErrorMessage(error, 'Could not update room.'))
+  await setRoomQuantity(id, next.quantity)
   await touchRevision()
   return listRooms()
 }
@@ -681,6 +711,7 @@ export async function deleteRoom(id: string): Promise<Room[]> {
 
   const { error } = await supabaseAdmin.from('rooms').delete().eq('id', id)
   if (error) throw new Error(roomsDbErrorMessage(error, 'Could not delete room.'))
+  await removeRoomQuantity(id)
   await touchRevision()
   return listRooms()
 }
@@ -762,8 +793,9 @@ export async function resetRooms(): Promise<Room[]> {
   const seed = cloneDefaults()
   const { error } = await supabaseAdmin.from('rooms').insert(seed.map(roomToRow))
   if (error) throw new Error(roomsDbErrorMessage(error, 'Could not restore default rooms.'))
+  await clearRoomQuantities()
   await touchRevision()
-  return seed
+  return listRooms()
 }
 
 export async function listRoomHighlights(): Promise<RoomHighlight[]> {

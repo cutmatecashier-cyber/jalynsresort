@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { BrandLogo } from "./BrandLogo";
 
 type AuthShellProps = {
   title: string;
@@ -44,7 +45,7 @@ const bubbles = [
 /** Shared auth layout — sky blue / black / white, aligned with homepage fonts. */
 export function AuthShell({ title, subtitle, children }: AuthShellProps) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div
         className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-70"
         style={{
@@ -61,20 +62,17 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
         <span key={index} className={bubble.className} aria-hidden="true" />
       ))}
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-lg flex-col justify-start px-5 pt-10 pb-10 sm:max-w-xl sm:justify-center sm:px-6 sm:py-10 md:max-w-2xl md:pt-0">
-        <Link to="/" className="mb-6 block text-center sm:mb-10">
-          <span className="font-script block text-[2rem] leading-none text-white sm:text-[2.75rem] md:text-[3.25rem] lg:text-[3.75rem]">
-            Jalyn&apos;s
-          </span>
-          <span className="-mt-0.5 block text-[0.58rem] font-medium tracking-[0.18em] text-white/75 uppercase sm:mt-1.5 sm:text-[0.72rem] sm:tracking-[0.24em] sm:text-white/70 md:text-[0.8rem] md:tracking-[0.26em] lg:text-[0.88rem]">
-            Resort &amp; Restaurant
-          </span>
-        </Link>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-lg flex-col px-5 pt-16 pb-12 sm:max-w-xl sm:px-6 sm:pt-20 sm:pb-14 md:max-w-2xl md:pt-24 md:pb-16">
+        <div className="my-auto w-full">
+          <Link to="/" className="mb-8 block text-center md:mb-10">
+            <BrandLogo size="auth" />
+          </Link>
 
-        <div className="w-full rounded-2xl border border-white/20 bg-white/85 p-6 text-ink shadow-sm backdrop-blur-xl sm:p-8">
-          <h1 className="font-display text-3xl tracking-tight text-ink sm:text-4xl">{title}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-stone sm:text-[0.95rem]">{subtitle}</p>
-          <div className="mt-6 sm:mt-7">{children}</div>
+          <div className="w-full rounded-2xl border border-white/20 bg-white/85 p-6 text-ink shadow-sm backdrop-blur-xl sm:p-8">
+            <h1 className="font-display text-3xl tracking-tight text-ink sm:text-4xl">{title}</h1>
+            <p className="mt-2 text-sm leading-relaxed text-stone sm:text-[0.95rem]">{subtitle}</p>
+            <div className="mt-6 sm:mt-7">{children}</div>
+          </div>
         </div>
       </div>
     </div>

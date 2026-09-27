@@ -2,7 +2,9 @@ import multer from 'multer'
 import { Router } from 'express'
 import { sendAppEmail } from '../config/mail.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
+import { loadBookingSettings, saveBookingSchedule, saveExtraPersonRules } from '../services/bookingSettings.js'
 import { loadContactSettings } from '../services/contactSettings.js'
+import { formatClockLabel } from '../services/roomAvailability.js'
 import {
   addRoomHighlight,
   addRoomImages,
@@ -50,7 +52,7 @@ const upload = multer({
 })
 
 function clientErrorStatus(message: string) {
-  return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep /i.test(
+  return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid/i.test(
     message,
   )
     ? 400
@@ -109,8 +111,16 @@ function bodyToRoomInput(body: Record<string, unknown>): RoomInput {
     rules_policies: typeof body.rules_policies === 'string' ? body.rules_policies : undefined,
     status: typeof body.status === 'string' ? body.status : 'available',
     amenities,
+    quantity: parseQuantity(body.quantity),
     sort_order: Number.isFinite(sort_order) ? sort_order : undefined,
   }
+}
+
+function parseQuantity(raw: unknown): number | undefined {
+  if (raw == null || raw === '') return undefined
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
+  if (!Number.isFinite(n)) return undefined
+  return Math.min(99, Math.max(1, Math.round(n)))
 }
 
 roomsRouter.get('/', async (_req, res) => {
@@ -125,6 +135,68 @@ roomsRouter.get('/', async (_req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not load rooms.'
     return res.status(500).json({ success: false, message })
+  }
+})
+
+roomsRouter.get('/availability', async (_req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store')
+    const [rooms, bookings, settings] = await Promise.all([
+      listRooms(),
+      listRoomBookings(),
+      loadBookingSettings(),
+    ])
+    return res.json({
+      success: true,
+      checkInTime: settings.checkInTime,
+      checkOutTime: settings.checkOutTime,
+      extraPersonRules: settings.extraPersonRules,
+      rooms: rooms.map((room) => ({
+        id: room.id,
+        quantity: room.quantity,
+        status: room.status,
+        stays: bookings
+          .filter((booking) => booking.room_id === room.id && booking.status !== 'completed')
+          .map((booking) => ({ checkIn: booking.check_in, checkOut: booking.check_out })),
+      })),
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load availability.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+roomsRouter.put('/booking-settings', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can update booking settings.'))) {
+      return
+    }
+    const settings = await saveBookingSchedule({
+      checkInTime: req.body?.checkInTime,
+      checkOutTime: req.body?.checkOutTime,
+    })
+    return res.json({
+      success: true,
+      checkInTime: settings.checkInTime,
+      checkOutTime: settings.checkOutTime,
+      extraPersonRules: settings.extraPersonRules,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not update booking settings.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+roomsRouter.put('/extra-person-rules', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can update extra-person rates.'))) {
+      return
+    }
+    const rules = await saveExtraPersonRules(req.body?.rules)
+    return res.json({ success: true, extraPersonRules: rules })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not update extra-person rates.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
   }
 })
 
@@ -178,6 +250,17 @@ roomsRouter.post('/bookings', async (req, res) => {
     const guestsRaw = req.body.guests
     const guests =
       typeof guestsRaw === 'number' ? guestsRaw : Number(String(guestsRaw ?? '').trim())
+    const adultsRaw = req.body.adults
+    const adults =
+      typeof adultsRaw === 'number' ? adultsRaw : Number(String(adultsRaw ?? '').trim())
+    const kidsRaw = req.body.kids
+    const kids = typeof kidsRaw === 'number' ? kidsRaw : Number(String(kidsRaw ?? '').trim())
+    const extraGuests = Array.isArray(req.body.extraGuests)
+      ? req.body.extraGuests.map((item: { kind?: unknown; age?: unknown }) => ({
+          kind: item?.kind === 'adult' ? ('adult' as const) : ('kid' as const),
+          age: typeof item?.age === 'number' ? item.age : Number(item?.age),
+        }))
+      : []
     const nightsRaw = req.body.nights
     const nights =
       typeof nightsRaw === 'number' ? nightsRaw : Number(String(nightsRaw ?? '').trim())
@@ -199,6 +282,9 @@ roomsRouter.post('/bookings', async (req, res) => {
       checkIn,
       checkOut,
       guests,
+      adults: Number.isInteger(adults) ? adults : undefined,
+      kids: Number.isInteger(kids) ? kids : undefined,
+      extraGuests,
       fullName,
       email,
       phone,
@@ -228,15 +314,33 @@ roomsRouter.post('/bookings', async (req, res) => {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
 
+        const schedule = await loadBookingSettings()
+        const checkInLabel = `${booking.check_in} ${formatClockLabel(schedule.checkInTime)}`
+        const checkOutLabel = `${booking.check_out} ${formatClockLabel(schedule.checkOutTime)}`
+
         const text = [
           `Room booking request`,
           ``,
           `Ref: ${booking.id}`,
           `Room: ${booking.room_name} (${booking.room_id})`,
-          `Check-in: ${booking.check_in}`,
-          `Check-out: ${booking.check_out}`,
+          `Check-in: ${checkInLabel}`,
+          `Check-out: ${checkOutLabel}`,
           `Nights: ${booking.nights}`,
-          `Guests: ${booking.guests}`,
+          `Adults: ${booking.adults}`,
+          `Kids: ${booking.kids}`,
+          `Total guests: ${booking.guests}`,
+          booking.extra_guests.length
+            ? `Extra guests: ${booking.extra_guests
+                .map((guest) =>
+                  guest.kind === 'adult'
+                    ? `adult (10+) ₱${guest.charge.toLocaleString('en-PH')}/night`
+                    : `${guest.age} years old (child) ₱${guest.charge.toLocaleString('en-PH')}/night`,
+                )
+                .join(', ')}`
+            : null,
+          booking.extra_person_total > 0
+            ? `Extra person charge: ₱${booking.extra_person_total.toLocaleString('en-PH')}`
+            : null,
           booking.estimated_total ? `Estimated total: ${booking.estimated_total}` : null,
           ``,
           `Guest: ${booking.full_name}`,
@@ -256,10 +360,25 @@ roomsRouter.post('/bookings', async (req, res) => {
               <p style="margin:0 0 12px;color:#6b756f">Ref: ${escapeHtml(booking.id)}</p>
               <h3 style="margin:16px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#6b756f">Booking Information</h3>
               <p><strong>Room:</strong> ${escapeHtml(booking.room_name)}</p>
-              <p><strong>Check-in:</strong> ${escapeHtml(booking.check_in)}</p>
-              <p><strong>Check-out:</strong> ${escapeHtml(booking.check_out)}</p>
+              <p><strong>Check-in:</strong> ${escapeHtml(checkInLabel)}</p>
+              <p><strong>Check-out:</strong> ${escapeHtml(checkOutLabel)}</p>
               <p><strong>Nights:</strong> ${booking.nights}</p>
-              <p><strong>Guests:</strong> ${booking.guests}</p>
+              <p><strong>Adults:</strong> ${booking.adults}</p>
+              <p><strong>Kids:</strong> ${booking.kids}</p>
+              <p><strong>Total guests:</strong> ${booking.guests}</p>
+              ${
+                booking.extra_guests.length
+                  ? `<p><strong>Extra guests:</strong> ${escapeHtml(
+                      booking.extra_guests
+                        .map((guest) =>
+                          guest.kind === 'adult'
+                            ? `adult (10+) — ₱${guest.charge.toLocaleString('en-PH')}/night`
+                            : `${guest.age} years old (child) — ₱${guest.charge.toLocaleString('en-PH')}/night`,
+                        )
+                        .join(', '),
+                    )}</p>`
+                  : ''
+              }
               ${
                 booking.estimated_total
                   ? `<p><strong>Estimated total:</strong> ${escapeHtml(booking.estimated_total)}</p>`

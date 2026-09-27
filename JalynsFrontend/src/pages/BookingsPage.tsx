@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
+import { BookingSettingsCard } from "../components/BookingSettingsCard";
+import { ExtraPersonSettings } from "../components/ExtraPersonSettings";
 import { CONTENT_CHANGED_EVENT, CONTENT_SYNC_CHANNEL } from "../components/ContentSync";
 import { useAuth } from "../context/AuthContext";
 import {
+  clockToMinutes,
+  DEFAULT_CHECK_IN_TIME,
+  DEFAULT_CHECK_OUT_TIME,
+  formatClockLabel,
+  nightOccupancy,
+} from "../lib/roomAvailability";
+import {
   fetchRoomBookings,
+  fetchRooms,
   formatRoomPrice,
   updateRoomBookingStatus,
+  type Room,
   type RoomBooking,
   type RoomBookingStatus,
 } from "../lib/rooms";
@@ -122,6 +133,12 @@ export function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ListFilter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [schedule, setSchedule] = useState({
+    checkInTime: DEFAULT_CHECK_IN_TIME,
+    checkOutTime: DEFAULT_CHECK_OUT_TIME,
+  });
+  const [inventoryDate, setInventoryDate] = useState(todayIso);
   const signatureRef = useRef(bookingsSignature(readBookingsCache()));
 
   const allowed = can.canManageBookings(role, approvalStatus);
@@ -151,9 +168,21 @@ export function BookingsPage() {
 
   useEffect(() => {
     if (!allowed) return;
+    void fetchRooms()
+      .then(setRooms)
+      .catch(() => setRooms([]));
+  }, [allowed]);
+
+  useEffect(() => {
+    if (!allowed) return;
     void loadBookings();
 
-    const refresh = () => void loadBookings({ quiet: true });
+    const refresh = () => {
+      void loadBookings({ quiet: true });
+      void fetchRooms()
+        .then(setRooms)
+        .catch(() => undefined);
+    };
     window.addEventListener(CONTENT_CHANGED_EVENT, refresh);
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
@@ -249,10 +278,55 @@ export function BookingsPage() {
             Bookings
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone sm:text-[0.95rem]">
-            Guest room requests appear here live. New stays are confirmed automatically — mark
-            them complete after checkout.
+            Guest room requests appear here live. Stays count against each room type&apos;s quantity
+            until checkout, using the check-in and check-out times below.
           </p>
         </header>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,22rem)_minmax(0,22rem)_minmax(0,1fr)]">
+          <BookingSettingsCard onSchedule={setSchedule} />
+          <ExtraPersonSettings />
+          <div className="rounded-2xl border border-ink/10 bg-white p-4">
+            <p className="text-sm font-semibold text-ink">Rooms left by date</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink/55">
+              A night is full only when overlapping reservations reach that room type&apos;s
+              quantity. Checkout at {formatClockLabel(schedule.checkOutTime)} frees the room for
+              check-in at {formatClockLabel(schedule.checkInTime)}.
+            </p>
+            <label className="mt-3 block text-xs font-semibold text-ink/70">
+              Date
+              <input
+                type="date"
+                value={inventoryDate}
+                onChange={(event) => setInventoryDate(event.target.value)}
+                className="mt-1.5 w-full max-w-xs rounded-xl border border-ink/12 bg-white px-3.5 py-2.5 text-sm text-ink outline-none"
+              />
+            </label>
+            <ul className="mt-3 divide-y divide-ink/8">
+              {rooms.map((room) => {
+                const stays = bookings
+                  .filter((booking) => booking.room_id === room.id && booking.status !== "completed")
+                  .map((booking) => ({ checkIn: booking.check_in, checkOut: booking.check_out }));
+                const used = nightOccupancy(
+                  stays,
+                  inventoryDate,
+                  clockToMinutes(schedule.checkInTime),
+                  clockToMinutes(schedule.checkOutTime),
+                );
+                const left = Math.max(0, room.quantity - used);
+                const closed = room.status === "unavailable";
+                return (
+                  <li key={room.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="min-w-0 truncate font-medium text-ink">{room.name}</span>
+                    <span className={left === 0 || closed ? "text-ink/45" : "font-semibold text-ink"}>
+                      {closed ? "Unavailable" : left === 0 ? "Fully booked" : `${left} of ${room.quantity} left`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
 
         <div
           className="animate-fade-up mt-7 flex flex-wrap gap-2"
@@ -352,12 +426,16 @@ export function BookingsPage() {
                           {b.room_name}
                         </td>
                         <td className="px-5 py-4 align-middle whitespace-nowrap text-stone">
-                          {formatStayDate(b.check_in)}
+                          {formatStayDate(b.check_in)} · {formatClockLabel(schedule.checkInTime)}
                           <span className="text-ink/25"> – </span>
-                          {formatStayDate(b.check_out)}
+                          {formatStayDate(b.check_out)} · {formatClockLabel(schedule.checkOutTime)}
                           <span className="mt-0.5 block text-xs text-stone/75">
-                            {b.nights} {b.nights === 1 ? "night" : "nights"} · {b.guests}{" "}
-                            {b.guests === 1 ? "guest" : "guests"}
+                            {b.nights} {b.nights === 1 ? "night" : "nights"} · {b.adults}{" "}
+                            {b.adults === 1 ? "adult" : "adults"}
+                            {b.kids > 0 ? ` · ${b.kids} ${b.kids === 1 ? "kid" : "kids"}` : ""}
+                            {b.extra_person_total > 0
+                              ? ` · extra ${formatMoneyDisplay(String(b.extra_person_total))}`
+                              : ""}
                           </span>
                         </td>
                         <td className="px-5 py-4 align-middle font-semibold whitespace-nowrap text-ink">
@@ -420,9 +498,14 @@ export function BookingsPage() {
                         Stay
                       </dt>
                       <dd className="mt-0.5 text-ink">
-                        {formatStayDate(b.check_in)} – {formatStayDate(b.check_out)} · {b.nights}{" "}
-                        {b.nights === 1 ? "night" : "nights"} · {b.guests}{" "}
-                        {b.guests === 1 ? "guest" : "guests"}
+                        {formatStayDate(b.check_in)} · {formatClockLabel(schedule.checkInTime)} –{" "}
+                        {formatStayDate(b.check_out)} · {formatClockLabel(schedule.checkOutTime)} ·{" "}
+                        {b.nights} {b.nights === 1 ? "night" : "nights"} · {b.adults}{" "}
+                        {b.adults === 1 ? "adult" : "adults"}
+                        {b.kids > 0 ? ` · ${b.kids} ${b.kids === 1 ? "kid" : "kids"}` : ""}
+                        {b.extra_person_total > 0
+                          ? ` · extra ${formatMoneyDisplay(String(b.extra_person_total))}`
+                          : ""}
                       </dd>
                     </div>
                     <div className="col-span-2">

@@ -1,38 +1,43 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { scrollToTopInstant } from "../components/ScrollToTop";
-import { broadcastContentChanged, refreshLocalContent } from "../components/ContentSync";
+import { broadcastContentChanged, CONTENT_CHANGED_EVENT, refreshLocalContent } from "../components/ContentSync";
+import { StayDateField } from "../components/StayCalendar";
 import {
   DEFAULT_ROOMS,
   DEFAULT_ROOMS_VOUCHER,
   applyVoucherToPrice,
+  fetchRoomAvailability,
   fetchRoomsCatalog,
   formatPesoAmount,
   roomsMediaUrl,
   submitRoomBooking,
   type Room,
+  type RoomAvailabilitySnapshot,
   type RoomsVoucher,
 } from "../lib/rooms";
-
-function todayIso() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDaysIso(iso: string, days: number) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import {
+  DEFAULT_EXTRA_PERSON_RULES,
+  extraChargeForStay,
+  extraSlots,
+  parseMaxGuests,
+  quoteExtraGuests,
+} from "../lib/guestPricing";
+import {
+  addDaysIso,
+  clockToMinutes,
+  DEFAULT_CHECK_IN_TIME,
+  DEFAULT_CHECK_OUT_TIME,
+  findNextOpenNight,
+  formatClockLabel,
+  isNightFullyBooked,
+  roomsRemaining,
+  stayFits,
+  todayIso,
+} from "../lib/roomAvailability";
 
 function RoomPrice({
   price,
@@ -133,7 +138,19 @@ function RoomDetails({
           Extra person
         </dt>
         <dd className={`mt-0.5 truncate font-medium text-ink ${compact ? "text-[0.8rem]" : ""}`}>
-          {room.extra_person_charge || "—"}
+          By age, past capacity
+        </dd>
+      </div>
+      <div>
+        <dt
+          className={`font-semibold tracking-wide text-ink/45 uppercase ${
+            compact ? "text-[0.55rem]" : "text-[0.62rem]"
+          }`}
+        >
+          Quantity
+        </dt>
+        <dd className={`mt-0.5 font-medium text-ink ${compact ? "text-[0.8rem]" : ""}`}>
+          {room.quantity} {room.quantity === 1 ? "room" : "rooms"}
         </dd>
       </div>
       <div>
@@ -156,6 +173,47 @@ function RoomDetails({
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-ink/12 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
+
+function CountStepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-ink/12 bg-white px-3.5 py-2.5">
+      <span className="text-sm font-semibold text-ink">{label}</span>
+      <span className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={value <= min}
+          onClick={() => onChange(value - 1)}
+          className="btn-press inline-flex h-8 w-8 items-center justify-center rounded-full border border-ink/15 text-base leading-none disabled:opacity-40"
+          aria-label={`Decrease ${label}`}
+        >
+          −
+        </button>
+        <span className="w-6 text-center text-sm font-semibold tabular-nums text-ink">{value}</span>
+        <button
+          type="button"
+          disabled={value >= max}
+          onClick={() => onChange(value + 1)}
+          className="btn-press inline-flex h-8 w-8 items-center justify-center rounded-full border border-ink/15 text-base leading-none disabled:opacity-40"
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+      </span>
+    </div>
+  );
+}
 
 type Step = "pick" | "form" | "review" | "done";
 
@@ -180,13 +238,32 @@ function nightsBetween(checkInIso: string, checkOutIso: string): number {
   return Math.round(ms / (1000 * 60 * 60 * 24));
 }
 
+type StayHandoff = {
+  checkIn?: string;
+  checkOut?: string;
+  adults?: number;
+};
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 /** Full-page room booking — choose a room first, then guest & stay details. */
 export function RoomBookingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const handed = (location.state ?? null) as StayHandoff | null;
   const presetRoomId = searchParams.get("room");
+  const queryCheckIn = isIsoDate(handed?.checkIn) ? handed.checkIn : (searchParams.get("checkIn") ?? "");
+  const queryCheckOut = isIsoDate(handed?.checkOut) ? handed.checkOut : (searchParams.get("checkOut") ?? "");
 
   const minCheckIn = todayIso();
+  const hasQueryStay =
+    /^\d{4}-\d{2}-\d{2}$/.test(queryCheckIn) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(queryCheckOut) &&
+    queryCheckIn >= minCheckIn &&
+    queryCheckOut > queryCheckIn;
   const [catalog, setCatalog] = useState<Room[]>(() =>
     DEFAULT_ROOMS.map((r) => ({ ...r, amenities: [...r.amenities], images: [...r.images] })),
   );
@@ -194,14 +271,22 @@ export function RoomBookingPage() {
   const [loading, setLoading] = useState(true);
   const [pickedId, setPickedId] = useState<string | null>(presetRoomId);
   const [step, setStep] = useState<Step>("pick");
-  const [checkIn, setCheckIn] = useState(minCheckIn);
-  const [checkOut, setCheckOut] = useState(addDaysIso(minCheckIn, 1));
-  const [guests, setGuests] = useState("2");
+  const [checkIn, setCheckIn] = useState(hasQueryStay ? queryCheckIn : minCheckIn);
+  const [checkOut, setCheckOut] = useState(
+    hasQueryStay ? queryCheckOut : addDaysIso(hasQueryStay ? queryCheckIn : minCheckIn, 1),
+  );
+  const queryAdults = Number.isInteger(handed?.adults) ? Number(handed?.adults) : Number(searchParams.get("adults"));
+  const [adults, setAdults] = useState(
+    Number.isInteger(queryAdults) && queryAdults >= 1 && queryAdults <= 12 ? queryAdults : 2,
+  );
+  const [kids, setKids] = useState(0);
+  const [extraAges, setExtraAges] = useState<string[]>([]);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<RoomAvailabilitySnapshot | null>(null);
 
   const bookable = useMemo(
     () => catalog.filter((r) => r.status !== "unavailable"),
@@ -212,6 +297,71 @@ export function RoomBookingPage() {
     () => bookable.find((r) => r.id === pickedId) ?? null,
     [bookable, pickedId],
   );
+
+  const inventory = useMemo(() => {
+    const row = availability?.rooms.find((item) => item.id === selectedRoom?.id);
+    const checkInTime = availability?.checkInTime || DEFAULT_CHECK_IN_TIME;
+    const checkOutTime = availability?.checkOutTime || DEFAULT_CHECK_OUT_TIME;
+    return {
+      checkInTime,
+      checkOutTime,
+      checkInMinutes: clockToMinutes(checkInTime),
+      checkOutMinutes: clockToMinutes(checkOutTime),
+      quantity: row?.quantity ?? selectedRoom?.quantity ?? 1,
+      stays: row?.stays ?? [],
+    };
+  }, [availability, selectedRoom]);
+
+  const stayOpen = stayFits(
+    inventory.stays,
+    checkIn,
+    checkOut,
+    inventory.quantity,
+    inventory.checkInMinutes,
+    inventory.checkOutMinutes,
+  );
+  const remaining = stayOpen
+    ? roomsRemaining(
+        inventory.stays,
+        checkIn,
+        checkOut,
+        inventory.quantity,
+        inventory.checkInMinutes,
+        inventory.checkOutMinutes,
+      )
+    : 0;
+
+  const capacity = parseMaxGuests(selectedRoom?.max_capacity);
+  const guestSlots = useMemo(
+    () => extraSlots(adults, kids, capacity),
+    [adults, kids, capacity],
+  );
+  const extraRules = availability?.extraPersonRules?.length
+    ? availability.extraPersonRules
+    : DEFAULT_EXTRA_PERSON_RULES;
+  const extraQuotes = quoteExtraGuests(
+    guestSlots,
+    extraAges.map((value) => {
+      if (value.trim() === "") return null;
+      const age = Number(value);
+      return Number.isInteger(age) ? age : null;
+    }),
+    extraRules,
+  );
+  const stayNights = nightsBetween(checkIn, checkOut);
+  const extraPerNight = extraQuotes.reduce((sum, guest) => sum + (guest.charge ?? 0), 0);
+  const extraAgesReady = extraQuotes.every((guest) => guest.charge != null);
+  const extraTotal = extraAgesReady ? extraChargeForStay(extraPerNight, stayNights) : 0;
+  const extraKidCount = guestSlots.filter((slot) => slot.kind === "kid").length;
+  const extraAdultCount = guestSlots.length - extraKidCount;
+  const totalGuests = adults + kids;
+
+  useEffect(() => {
+    setExtraAges((current) => {
+      if (current.length === guestSlots.length) return current;
+      return guestSlots.map((_, index) => current[index] ?? "");
+    });
+  }, [guestSlots]);
 
   const staySummary = useMemo(() => {
     const nights = nightsBetween(checkIn, checkOut);
@@ -238,6 +388,52 @@ export function RoomBookingPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      void fetchRoomAvailability().then((snapshot) => {
+        if (!cancelled && snapshot) setAvailability(snapshot);
+      });
+    };
+    load();
+    window.addEventListener(CONTENT_CHANGED_EVENT, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(CONTENT_CHANGED_EVENT, load);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasQueryStay) return;
+    setCheckIn(queryCheckIn);
+    setCheckOut(queryCheckOut);
+  }, [hasQueryStay, queryCheckIn, queryCheckOut]);
+
+  useEffect(() => {
+    if (!availability || !selectedRoom || (step !== "form" && step !== "review")) return;
+    const { stays, quantity, checkInMinutes, checkOutMinutes } = inventory;
+    if (
+      checkIn < minCheckIn ||
+      isNightFullyBooked(stays, checkIn, quantity, checkInMinutes, checkOutMinutes)
+    ) {
+      const nextIn = findNextOpenNight(
+        stays,
+        checkIn < minCheckIn ? minCheckIn : checkIn,
+        quantity,
+        checkInMinutes,
+        checkOutMinutes,
+      );
+      if (nextIn && nextIn !== checkIn) {
+        setCheckIn(nextIn);
+        setCheckOut(addDaysIso(nextIn, 1));
+      }
+      return;
+    }
+    if (!stayFits(stays, checkIn, checkOut, quantity, checkInMinutes, checkOutMinutes)) {
+      setCheckOut(addDaysIso(checkIn, 1));
+    }
+  }, [availability, selectedRoom, step, checkIn, checkOut, inventory, minCheckIn]);
 
   useEffect(() => {
     if (loading) return;
@@ -271,7 +467,6 @@ export function RoomBookingPage() {
       setStep("pick");
       return false;
     }
-    const guestCount = Number(guests);
     if (!checkIn || !checkOut) {
       setError("Check-in and check-out dates are required.");
       return false;
@@ -280,8 +475,37 @@ export function RoomBookingPage() {
       setError("Check-out must be after check-in.");
       return false;
     }
-    if (!Number.isFinite(guestCount) || guestCount < 1) {
-      setError("Enter the number of guests.");
+    if (
+      !stayFits(
+        inventory.stays,
+        checkIn,
+        checkOut,
+        inventory.quantity,
+        inventory.checkInMinutes,
+        inventory.checkOutMinutes,
+      )
+    ) {
+      setError("Those dates are fully booked for this room type.");
+      return false;
+    }
+    if (adults < 1 || adults > 12) {
+      setError("Enter at least 1 adult (up to 12).");
+      return false;
+    }
+    if (kids < 0 || kids > 12) {
+      setError("Kids must be between 0 and 12.");
+      return false;
+    }
+    if (adults + kids > 20) {
+      setError("A room can be booked for up to 20 guests.");
+      return false;
+    }
+    if (extraQuotes.some((guest) => guest.kind === "kid" && guest.charge == null)) {
+      setError(
+        extraKidCount === 1
+          ? "Please provide the age of the extra child."
+          : "Please provide the age of each extra child.",
+      );
       return false;
     }
     if (!fullName.trim()) {
@@ -310,24 +534,25 @@ export function RoomBookingPage() {
     setError(null);
     if (!validateForm() || !selectedRoom) return;
 
-    const guestCount = Number(guests);
     setBusy(true);
     try {
       const priceDisplay = staySummary.priced?.display ?? selectedRoom.price_per_night ?? null;
-      const totalDisplay =
-        staySummary.total != null ? formatPesoAmount(staySummary.total) : null;
+      const grandTotal = staySummary.total != null ? staySummary.total + extraTotal : null;
       await submitRoomBooking({
         roomId: selectedRoom.id,
         roomName: selectedRoom.name,
         checkIn,
         checkOut,
-        guests: guestCount,
+        guests: totalGuests,
+        adults,
+        kids,
+        extraGuests: extraQuotes.map((guest) => ({ kind: guest.kind, age: guest.age })),
         fullName: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
         nights: staySummary.nights > 0 ? staySummary.nights : undefined,
         pricePerNight: priceDisplay,
-        estimatedTotal: totalDisplay,
+        estimatedTotal: grandTotal != null ? formatPesoAmount(grandTotal) : null,
         voucherPercent: staySummary.priced?.percent ?? null,
       });
       setStep("done");
@@ -361,7 +586,7 @@ export function RoomBookingPage() {
           </h1>
           <p className="animate-fade-up mt-3 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
             {step === "pick"
-              ? "Pick an available room first. Next you’ll enter stay dates and guest details."
+              ? "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
               : step === "review"
                 ? "Check everything carefully, then confirm to send your booking request."
                 : step === "done"
@@ -568,45 +793,180 @@ export function RoomBookingPage() {
                     Booking Information
                   </h3>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="block text-sm font-semibold text-ink">
-                      Check-in Date <span className="text-red-600">*</span>
-                      <input
-                        type="date"
-                        required
-                        min={minCheckIn}
-                        value={checkIn}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setCheckIn(next);
-                          if (checkOut <= next) setCheckOut(addDaysIso(next, 1));
-                        }}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className="block text-sm font-semibold text-ink">
-                      Check-out Date <span className="text-red-600">*</span>
-                      <input
-                        type="date"
-                        required
-                        min={addDaysIso(checkIn || minCheckIn, 1)}
-                        value={checkOut}
-                        onChange={(e) => setCheckOut(e.target.value)}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className="block text-sm font-semibold text-ink sm:col-span-2">
-                      Number of Guests <span className="text-red-600">*</span>
-                      <input
-                        type="number"
-                        required
-                        min={1}
-                        max={20}
-                        step={1}
-                        value={guests}
-                        onChange={(e) => setGuests(e.target.value)}
-                        className={inputClass}
-                      />
-                    </label>
+                    <StayDateField
+                      label="Check-in Date"
+                      required
+                      value={checkIn}
+                      rangeEnd={checkOut}
+                      minIso={minCheckIn}
+                      hint={`From ${formatClockLabel(inventory.checkInTime)}`}
+                      isDateDisabled={(iso) =>
+                        isNightFullyBooked(
+                          inventory.stays,
+                          iso,
+                          inventory.quantity,
+                          inventory.checkInMinutes,
+                          inventory.checkOutMinutes,
+                        )
+                      }
+                      isRangeEndDisabled={(start, end) =>
+                        !stayFits(
+                          inventory.stays,
+                          start,
+                          end,
+                          inventory.quantity,
+                          inventory.checkInMinutes,
+                          inventory.checkOutMinutes,
+                        )
+                      }
+                      onChange={(next) => {
+                        setCheckIn(next);
+                        setCheckOut((current) => {
+                          if (
+                            current > next &&
+                            stayFits(
+                              inventory.stays,
+                              next,
+                              current,
+                              inventory.quantity,
+                              inventory.checkInMinutes,
+                              inventory.checkOutMinutes,
+                            )
+                          ) {
+                            return current;
+                          }
+                          return addDaysIso(next, 1);
+                        });
+                      }}
+                      onRangeEnd={setCheckOut}
+                    />
+                    <StayDateField
+                      label="Check-out Date"
+                      required
+                      value={checkOut}
+                      minIso={addDaysIso(checkIn || minCheckIn, 1)}
+                      hint={`Until ${formatClockLabel(inventory.checkOutTime)}`}
+                      isDateDisabled={(iso) =>
+                        !stayFits(
+                          inventory.stays,
+                          checkIn,
+                          iso,
+                          inventory.quantity,
+                          inventory.checkInMinutes,
+                          inventory.checkOutMinutes,
+                        )
+                      }
+                      onChange={setCheckOut}
+                    />
+                    <p className="text-xs leading-relaxed text-ink/55 sm:col-span-2">
+                      {remaining} of {inventory.quantity}{" "}
+                      {inventory.quantity === 1 ? "room" : "rooms"} available for these dates.
+                      Checkout mornings stay open for a new check-in.
+                    </p>
+                    <div className="sm:col-span-2">
+                      <p className="text-sm font-semibold text-ink">
+                        Guests <span className="text-red-600">*</span>
+                      </p>
+                      <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                        <CountStepper
+                          label="Adults"
+                          value={adults}
+                          min={1}
+                          max={Math.min(12, 20 - kids)}
+                          onChange={setAdults}
+                        />
+                        <CountStepper
+                          label="Kids"
+                          value={kids}
+                          min={0}
+                          max={Math.min(12, 20 - adults)}
+                          onChange={setKids}
+                        />
+                      </div>
+                      <p className="mt-2 text-sm text-ink/70">
+                        Total guests: <span className="font-semibold text-ink">{totalGuests}</span>
+                        <span className="text-ink/45">
+                          {" "}
+                          · Room capacity: {capacity} {capacity === 1 ? "guest" : "guests"}
+                        </span>
+                      </p>
+                      {guestSlots.length === 0 ? (
+                        <p className="mt-1 text-xs leading-relaxed text-ink/55">
+                          This party fits the room rate. No extra-person charge.
+                        </p>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                          <p className="text-sm text-ink">
+                            Selected guests: <span className="font-semibold">{totalGuests}</span>
+                            <span className="text-ink/55">
+                              {" "}
+                              · Extra {guestSlots.length === 1 ? "guest" : "guests"}:{" "}
+                              {guestSlots.length}
+                            </span>
+                          </p>
+                          {extraAdultCount > 0 ? (
+                            <p className="mt-1 text-sm text-ink/75">
+                              Extra {extraAdultCount === 1 ? "adult is" : "adults are"} charged the
+                              10+ rate. No age is needed.
+                            </p>
+                          ) : null}
+                          {extraKidCount > 0 ? (
+                            <p className="mt-1 text-sm text-ink/75">
+                              {extraKidCount === 1
+                                ? "Please provide the age of the extra child."
+                                : "Please provide the age of each extra child."}
+                            </p>
+                          ) : null}
+                          {extraKidCount > 0 ? (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {guestSlots.map((slot, index) =>
+                                slot.kind === "kid" ? (
+                                  <label
+                                    key={`${slot.kind}-${index}`}
+                                    className="block text-sm font-semibold text-ink"
+                                  >
+                                    Extra child{" "}
+                                    {guestSlots
+                                      .slice(0, index + 1)
+                                      .filter((item) => item.kind === "kid").length}{" "}
+                                    age
+                                    <input
+                                      type="number"
+                                      required
+                                      min={0}
+                                      max={120}
+                                      step={1}
+                                      inputMode="numeric"
+                                      value={extraAges[index] ?? ""}
+                                      onChange={(event) => {
+                                        const next = event.target.value;
+                                        setExtraAges((current) => {
+                                          const copy = guestSlots.map(
+                                            (_, item) => current[item] ?? "",
+                                          );
+                                          copy[index] = next;
+                                          return copy;
+                                        });
+                                      }}
+                                      placeholder="Years old"
+                                      className={inputClass}
+                                    />
+                                  </label>
+                                ) : null,
+                              )}
+                            </div>
+                          ) : null}
+                          <p className="mt-3 text-sm font-semibold text-ink">
+                            Extra person charge:{" "}
+                            {extraAgesReady
+                              ? `${formatPesoAmount(extraPerNight)} per night × ${stayNights} ${
+                                  stayNights === 1 ? "night" : "nights"
+                                } = ${formatPesoAmount(extraTotal)}`
+                              : "Enter each child's age"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </section>
 
@@ -739,6 +1099,9 @@ export function RoomBookingPage() {
                         </dt>
                         <dd className="mt-1 text-sm font-semibold text-ink">
                           {formatDisplayDate(checkIn)}
+                          <span className="mt-0.5 block text-xs font-medium text-ink/55">
+                            {formatClockLabel(inventory.checkInTime)}
+                          </span>
                         </dd>
                       </div>
                       <div className="rounded-2xl border border-ink/8 bg-foam px-3.5 py-3">
@@ -747,6 +1110,9 @@ export function RoomBookingPage() {
                         </dt>
                         <dd className="mt-1 text-sm font-semibold text-ink">
                           {formatDisplayDate(checkOut)}
+                          <span className="mt-0.5 block text-xs font-medium text-ink/55">
+                            {formatClockLabel(inventory.checkOutTime)}
+                          </span>
                         </dd>
                       </div>
                       <div className="rounded-2xl border border-ink/8 bg-foam px-3.5 py-3">
@@ -761,7 +1127,13 @@ export function RoomBookingPage() {
                         <dt className="text-[0.62rem] font-semibold tracking-wide text-ink/45 uppercase">
                           Guests
                         </dt>
-                        <dd className="mt-1 text-sm font-semibold text-ink">{guests}</dd>
+                        <dd className="mt-1 text-sm font-semibold text-ink">
+                          {adults} {adults === 1 ? "adult" : "adults"}
+                          {kids > 0 ? ` · ${kids} ${kids === 1 ? "kid" : "kids"}` : ""}
+                          <span className="mt-0.5 block text-xs font-medium text-ink/55">
+                            Total {totalGuests}
+                          </span>
+                        </dd>
                       </div>
                     </dl>
                   </section>
@@ -789,37 +1161,68 @@ export function RoomBookingPage() {
                       </div>
                       <div className="flex items-start justify-between gap-3">
                         <span className="text-ink/65">
-                          × {staySummary.nights}{" "}
+                          Room price · {staySummary.nights}{" "}
                           {staySummary.nights === 1 ? "night" : "nights"}
                         </span>
                         <span className="font-medium text-ink/70">
-                          {staySummary.total != null
-                            ? formatPesoAmount(staySummary.total)
-                            : "—"}
+                          {staySummary.total != null ? formatPesoAmount(staySummary.total) : "—"}
                         </span>
                       </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-ink/65">
+                          Extra person
+                          {guestSlots.length > 0 && stayNights > 0
+                            ? ` · ${formatPesoAmount(extraPerNight)} / night × ${stayNights}`
+                            : ""}
+                        </span>
+                        <span className="font-medium text-ink/70">{formatPesoAmount(extraTotal)}</span>
+                      </div>
+                      {extraQuotes.map((guest, index) => (
+                        <div
+                          key={`review-extra-${index}`}
+                          className="flex items-start justify-between gap-3 text-xs text-ink/55"
+                        >
+                          <span>
+                            {guest.kind === "adult"
+                              ? `Extra adult ${extraQuotes.slice(0, index + 1).filter((item) => item.kind === "adult").length} · 10+ rate`
+                              : `Extra child ${extraQuotes.slice(0, index + 1).filter((item) => item.kind === "kid").length} · ${guest.age} years old`}
+                            {guest.charge != null && stayNights > 0
+                              ? ` · ${formatPesoAmount(guest.charge)} / night × ${stayNights}`
+                              : ""}
+                          </span>
+                          <span>
+                            {guest.charge != null
+                              ? formatPesoAmount(guest.charge * (stayNights > 0 ? stayNights : 0))
+                              : "—"}
+                          </span>
+                        </div>
+                      ))}
                       <div className="flex items-start justify-between gap-3 border-t border-ink/10 pt-2.5">
-                        <span className="font-semibold text-ink">Estimated total</span>
+                        <span className="font-semibold text-ink">Total</span>
                         <span className="font-display text-xl text-ink">
                           {staySummary.total != null
-                            ? formatPesoAmount(staySummary.total)
-                            : staySummary.priced?.display ?? "Contact for rates"}
+                            ? formatPesoAmount(staySummary.total + extraTotal)
+                            : extraTotal > 0
+                              ? `${staySummary.priced?.display ?? "Contact for rates"} + ${formatPesoAmount(extraTotal)}`
+                              : staySummary.priced?.display ?? "Contact for rates"}
                         </span>
                       </div>
-                      {staySummary.total == null ? (
-                        <p className="text-xs leading-relaxed text-stone">
-                          This room has no fixed nightly rate. Final amount will be confirmed by
-                          the resort.
-                        </p>
-                      ) : (
-                        <p className="text-xs leading-relaxed text-stone">
-                          Estimate based on room rate
-                          {staySummary.priced?.percent != null
-                            ? ` with ${staySummary.priced.percent}% voucher applied`
+                      <p className="text-xs leading-relaxed text-stone">
+                        {selectedRoom?.name || "Room"} · maximum capacity {capacity}{" "}
+                        {capacity === 1 ? "guest" : "guests"} · {adults}{" "}
+                        {adults === 1 ? "adult" : "adults"}
+                        {kids > 0 ? `, ${kids} ${kids === 1 ? "kid" : "kids"}` : ""} · {totalGuests}{" "}
+                        total
+                        {guestSlots.length > 0
+                          ? ` · ${guestSlots.length} extra`
+                          : " · no extra guests"}
+                        .
+                        {staySummary.total == null
+                          ? " This room has no fixed nightly rate. The resort will confirm the room price. Extra-person charges above are still added."
+                          : staySummary.priced?.percent != null
+                            ? ` Room price includes the ${staySummary.priced.percent}% voucher.`
                             : ""}
-                          . Extra person charges (if any) are not included.
-                        </p>
-                      )}
+                      </p>
                     </div>
                   </section>
 

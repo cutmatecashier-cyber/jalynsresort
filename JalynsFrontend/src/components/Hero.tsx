@@ -293,28 +293,34 @@ export function Hero() {
       <Navbar />
 
       <div className="relative z-10 flex min-h-[100svh] w-full flex-col justify-start px-5 pt-[4.75rem] pb-5 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 md:pb-14 lg:justify-end lg:px-10 xl:px-12">
-        <div className="order-1 mt-16 max-w-2xl shrink-0 self-start text-left sm:mt-0">
-          <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.18em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.28em]">
-            Welcome to Jalyn&apos;s Resort &amp; Restaurant
+        <div className="order-1 mt-16 max-w-5xl shrink-0 self-start text-left sm:mt-0">
+          <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.12em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.16em]">
+            Family Friendly, Modern Dive Resort &amp; Restaurant in Puerto Galera, Philippines
           </p>
           <h1
-            className="animate-fade-up mt-2.5 font-display text-[1.85rem] leading-[1.08] text-white sm:mt-4 sm:text-5xl md:text-6xl lg:text-[4.5rem]"
+            className="animate-fade-up mt-2.5 max-w-3xl font-display text-[1.65rem] leading-[1.12] text-white sm:mt-4 sm:text-4xl md:text-5xl lg:text-[3.25rem]"
             style={{ animationDelay: "0.08s" }}
           >
-            Your Paradise in Puerto Galera
+            Jalyn&apos;s Resort &amp; Restaurant, Puerto Galera
+            <span className="mt-1 block text-[1.15rem] leading-snug sm:mt-2 sm:text-2xl md:text-3xl lg:text-[2.15rem]">
+              Peaceful, Quiet and Family Friendly!
+            </span>
           </h1>
-          <p
-            className="animate-fade-up mt-2.5 max-w-lg text-[0.8125rem] leading-relaxed text-white/85 sm:mt-4 sm:text-base md:text-lg"
+          <div
+            className="animate-fade-up mt-2.5 max-w-2xl space-y-3 text-[0.8125rem] leading-relaxed text-white/85 sm:mt-4 sm:space-y-3.5 sm:text-base md:text-[1.05rem]"
             style={{ animationDelay: "0.16s" }}
           >
-            <span className="sm:hidden">
-              Comfortable rooms, delicious cuisine, and world-class diving in Puerto Galera.
-            </span>
-            <span className="hidden sm:inline">
-              Relax, dine, and explore the beauty of Puerto Galera with our comfortable rooms,
-              delicious cuisine, and world-class diving experiences.
-            </span>
-          </p>
+            <p>
+              If you&apos;re looking for tranquil, luxurious accommodation that&apos;s just far
+              enough away from the hustle and bustle of Sabang, look no further than Jalyn&apos;s
+              Resort &amp; Restaurant.
+            </p>
+            <p>
+              With three swimming pools, a highly-regarded restaurant, and stunning views over
+              Mangrove Cove, Jalyn&apos;s Resort has everything you need for an unforgettable
+              vacation in beautiful Puerto Galera.
+            </p>
+          </div>
 
           {roomsVoucher.enabled && roomsVoucher.percent > 0 ? (
             <div
@@ -342,7 +348,7 @@ export function Hero() {
         </div>
 
         <div
-          className="animate-fade-up order-3 mt-auto w-full -translate-y-24 pb-1 sm:order-2 sm:mt-8 sm:translate-y-0 sm:max-w-xl sm:pb-0 md:mt-10 md:max-w-3xl"
+          className="animate-fade-up order-3 mt-auto w-full pb-1 sm:order-2 sm:mt-8 sm:max-w-xl sm:pb-0 md:mt-10 md:max-w-3xl"
           style={{ animationDelay: "0.1s" }}
         >
           <BookingBar />

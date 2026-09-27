@@ -16,6 +16,7 @@ type Props = {
   section: HomeSectionKey;
   title: string;
   defaultUrl: string;
+  description?: string;
   className?: string;
 };
 
@@ -23,6 +24,7 @@ export function HomeSectionBgEditButton({
   section,
   title,
   defaultUrl,
+  description = "Upload a new photo for this section background.",
   className = "",
 }: Props) {
   const { role, approvalStatus, can } = useAuth();
@@ -119,9 +121,7 @@ export function HomeSectionBgEditButton({
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
                   <h2 className="font-display text-2xl">{title}</h2>
-                  <p className="mt-1.5 text-sm text-stone">
-                    Upload a new photo for this section background.
-                  </p>
+                  <p className="mt-1.5 text-sm text-stone">{description}</p>
                   <img
                     src={homeHeroMediaUrl(preview)}
                     alt=""

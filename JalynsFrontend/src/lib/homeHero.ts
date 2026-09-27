@@ -37,12 +37,14 @@ export const DEFAULT_HOME_SLIDES: HomeHeroSlide[] = [
 export const HOME_HERO_UPDATED_EVENT = "jalyns:home-hero-updated";
 export const HOME_SECTION_UPDATED_EVENT = "jalyns:home-section-updated";
 
-export type HomeSectionKey = "whystay" | "news";
+export type HomeSectionKey = "whystay" | "news" | "restaurant";
 
 export const DEFAULT_HOME_SECTIONS: Record<HomeSectionKey, string> = {
   whystay:
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2400&q=80",
   news: "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=2400&q=80",
+  restaurant:
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=2400&q=80",
 };
 
 export function homeHeroMediaUrl(url: string) {

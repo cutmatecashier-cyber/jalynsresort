@@ -1,5 +1,7 @@
 import { getApiUrl } from "./api";
 import { adminAuthHeaders } from "./adminAuth";
+import { normalizeExtraPersonRules, type ExtraPersonRule } from "./guestPricing";
+import { asQuantity } from "./roomAvailability";
 import { optimizeImageFile } from "./scuba";
 
 export type RoomStatus = "available" | "unavailable";
@@ -15,6 +17,7 @@ export type Room = {
   extra_person_charge: string;
   rules_policies: string;
   status: RoomStatus;
+  quantity: number;
   amenities: string[];
   images: string[];
   sort_order: number;
@@ -57,6 +60,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Air conditioned",
       "Ceiling Fans",
@@ -86,6 +90,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Garden view",
       "Wireless Internet",
@@ -119,6 +124,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Pool view",
       "Wireless Internet",
@@ -148,6 +154,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Pool view",
       "Poolside terrace",
@@ -179,6 +186,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Garden view",
       "Wireless Internet",
@@ -209,6 +217,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Pool view",
       "Wireless Internet",
@@ -240,6 +249,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Pool view",
       "Wireless Internet",
@@ -272,6 +282,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Pool view",
       "Ceiling Fans",
@@ -304,6 +315,7 @@ export const DEFAULT_ROOMS: Room[] = [
     extra_person_charge: "",
     rules_policies: "",
     status: "available",
+    quantity: 1,
     amenities: [
       "Bay view",
       "Wireless Internet",
@@ -375,6 +387,7 @@ function normalizeClientRoom(
       typeof row.extra_person_charge === "string" ? row.extra_person_charge : "",
     rules_policies: typeof row.rules_policies === "string" ? row.rules_policies : "",
     status: row.status === "unavailable" ? "unavailable" : "available",
+    quantity: asQuantity(row.quantity, 1),
     amenities: Array.isArray(row.amenities)
       ? row.amenities.filter((a): a is string => typeof a === "string" && Boolean(a.trim()))
       : [],
@@ -622,6 +635,10 @@ export type RoomBooking = {
   check_out: string;
   nights: number;
   guests: number;
+  adults: number;
+  kids: number;
+  extra_guests: Array<{ kind: "adult" | "kid"; age: number; charge: number }>;
+  extra_person_total: number;
   full_name: string;
   email: string;
   phone: string;
@@ -638,6 +655,9 @@ export type RoomBookingInput = {
   checkIn: string;
   checkOut: string;
   guests: number;
+  adults: number;
+  kids: number;
+  extraGuests?: Array<{ kind: "adult" | "kid"; age: number }>;
   fullName: string;
   email: string;
   phone: string;
@@ -646,6 +666,91 @@ export type RoomBookingInput = {
   estimatedTotal?: string | null;
   voucherPercent?: number | null;
 };
+
+export type RoomAvailabilitySnapshot = {
+  checkInTime: string;
+  checkOutTime: string;
+  extraPersonRules: ExtraPersonRule[];
+  rooms: Array<{
+    id: string;
+    quantity: number;
+    status: RoomStatus;
+    stays: Array<{ checkIn: string; checkOut: string }>;
+  }>;
+};
+
+export async function fetchRoomAvailability(): Promise<RoomAvailabilitySnapshot | null> {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/rooms/availability?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    const data = (await res.json()) as {
+      success?: boolean;
+      checkInTime?: string;
+      checkOutTime?: string;
+      extraPersonRules?: unknown;
+      rooms?: RoomAvailabilitySnapshot["rooms"];
+    };
+    if (!res.ok || !data.success) return null;
+    return {
+      checkInTime: typeof data.checkInTime === "string" ? data.checkInTime : "14:00",
+      checkOutTime: typeof data.checkOutTime === "string" ? data.checkOutTime : "11:00",
+      extraPersonRules: normalizeExtraPersonRules(data.extraPersonRules),
+      rooms: Array.isArray(data.rooms)
+        ? data.rooms.map((room) => ({
+            id: String(room.id),
+            quantity: asQuantity(room.quantity, 1),
+            status: room.status === "unavailable" ? "unavailable" : "available",
+            stays: Array.isArray(room.stays)
+              ? room.stays
+                  .map((stay) => ({
+                    checkIn: String(stay.checkIn || ""),
+                    checkOut: String(stay.checkOut || ""),
+                  }))
+                  .filter((stay) => stay.checkIn && stay.checkOut)
+              : [],
+          }))
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function updateExtraPersonRules(rules: ExtraPersonRule[]) {
+  const res = await fetch(`${getApiUrl()}/api/rooms/extra-person-rules`, {
+    method: "PUT",
+    headers: await adminAuthHeaders(true),
+    body: JSON.stringify({ rules }),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    extraPersonRules?: unknown;
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not update extra-person rates."));
+  return normalizeExtraPersonRules(data.extraPersonRules, rules);
+}
+
+export async function updateBookingSchedule(input: { checkInTime: string; checkOutTime: string }) {
+  const res = await fetch(`${getApiUrl()}/api/rooms/booking-settings`, {
+    method: "PUT",
+    headers: await adminAuthHeaders(true),
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not update booking settings."));
+  return {
+    checkInTime: data.checkInTime || input.checkInTime,
+    checkOutTime: data.checkOutTime || input.checkOutTime,
+  };
+}
 
 export async function submitRoomBooking(input: RoomBookingInput) {
   const res = await fetch(`${getApiUrl()}/api/rooms/bookings`, {
@@ -656,6 +761,24 @@ export async function submitRoomBooking(input: RoomBookingInput) {
   const data = (await res.json()) as { success?: boolean; message?: string };
   if (!res.ok) throw new Error(apiMessage(data, "Could not submit booking."));
   return data.message ?? "Booking request sent.";
+}
+
+function normalizeClientBooking(row: RoomBooking): RoomBooking {
+  const guests = Number(row.guests) > 0 ? Number(row.guests) : 1;
+  const adults = Number.isInteger(row.adults) && row.adults >= 0 ? row.adults : guests;
+  const kids = Number.isInteger(row.kids) && row.kids >= 0 ? row.kids : 0;
+  const extra = Array.isArray(row.extra_guests) ? row.extra_guests : [];
+  const extraTotal = Number(row.extra_person_total);
+  return {
+    ...row,
+    guests,
+    adults,
+    kids,
+    extra_guests: extra,
+    extra_person_total: Number.isFinite(extraTotal)
+      ? extraTotal
+      : extra.reduce((sum, guest) => sum + (Number(guest.charge) || 0), 0),
+  };
 }
 
 export async function fetchRoomBookings(): Promise<RoomBooking[]> {
@@ -669,7 +792,7 @@ export async function fetchRoomBookings(): Promise<RoomBooking[]> {
     bookings?: RoomBooking[];
   };
   if (!res.ok) throw new Error(apiMessage(data, "Could not load bookings."));
-  return Array.isArray(data.bookings) ? data.bookings : [];
+  return Array.isArray(data.bookings) ? data.bookings.map(normalizeClientBooking) : [];
 }
 
 export async function updateRoomBookingStatus(
@@ -687,7 +810,7 @@ export async function updateRoomBookingStatus(
     bookings?: RoomBooking[];
   };
   if (!res.ok) throw new Error(apiMessage(data, "Could not update booking."));
-  return Array.isArray(data.bookings) ? data.bookings : [];
+  return Array.isArray(data.bookings) ? data.bookings.map(normalizeClientBooking) : [];
 }
 
 export async function updateRoomsVoucher(input: {
@@ -812,6 +935,7 @@ export type RoomFormInput = {
   extra_person_charge: string;
   rules_policies: string;
   status: RoomStatus;
+  quantity: number;
   amenities: string[];
 };
 
@@ -833,6 +957,7 @@ export async function createRoomWithImage(file: File, input: RoomFormInput) {
   body.append("extra_person_charge", input.extra_person_charge ?? "");
   body.append("rules_policies", input.rules_policies ?? "");
   body.append("status", input.status === "unavailable" ? "unavailable" : "available");
+  body.append("quantity", String(asQuantity(input.quantity, 1)));
   body.append("amenities", JSON.stringify(Array.isArray(input.amenities) ? input.amenities : []));
   const res = await fetch(`${getApiUrl()}/api/rooms`, {
     method: "POST",
@@ -865,6 +990,7 @@ export async function updateRoomDetails(id: string, input: RoomFormInput) {
     extra_person_charge: input.extra_person_charge ?? "",
     rules_policies: input.rules_policies ?? "",
     status: input.status === "unavailable" ? "unavailable" : "available",
+    quantity: asQuantity(input.quantity, 1),
     amenities: Array.isArray(input.amenities) ? input.amenities : [],
   };
   const res = await fetch(`${getApiUrl()}/api/rooms/${encodeURIComponent(id)}`, {

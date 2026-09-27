@@ -12,6 +12,7 @@ import {
   type RoomHighlight,
 } from "../lib/rooms";
 import { AdminEditButton } from "./AdminEditButton";
+import { GalleryPager } from "./GalleryPager";
 import { broadcastContentChanged } from "./ContentSync";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 
@@ -82,18 +83,9 @@ export function JeepneyShuttleGallery({
   const pageCount = Math.max(1, galleryPages.length);
   const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
   const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const counterStart = highlights.length ? counterPage * perView + 1 : 0;
-  const counterEnd = highlights.length
-    ? Math.min(counterPage * perView + perView, highlights.length)
-    : 0;
   const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
   const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
   const galleryTransitioning = galleryFrom != null && galleryTo != null;
-
-  const counterLabel =
-    counterStart === counterEnd
-      ? `${counterStart}/${highlights.length}`
-      : `${counterStart}–${counterEnd} / ${highlights.length}`;
 
   useEffect(() => {
     setGalleryPage((current) => Math.min(current, Math.max(0, pageCount - 1)));
@@ -398,9 +390,14 @@ export function JeepneyShuttleGallery({
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
-            <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-[#0b1d33] tabular-nums">
-              {counterLabel}
-            </p>
+            <GalleryPager
+              count={pageCount}
+              active={counterPage}
+              tone="dark"
+              onSelect={(index) => {
+                if (!galleryBusy) setGalleryPage(index);
+              }}
+            />
             <button
               type="button"
               onClick={galleryNext}
@@ -435,6 +432,19 @@ export function JeepneyShuttleGallery({
           >
             Close
           </button>
+          {highlights.length > 1 ? (
+            <div
+              className="absolute bottom-5 left-1/2 -translate-x-1/2"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <GalleryPager
+                count={highlights.length}
+                active={lightbox}
+                tone="light"
+                onSelect={setLightbox}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

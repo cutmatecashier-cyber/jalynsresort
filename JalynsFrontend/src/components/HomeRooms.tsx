@@ -7,6 +7,7 @@ import {
   ROOMS_UPDATED_EVENT,
   type Room,
 } from "../lib/rooms";
+import { GalleryPager } from "./GalleryPager";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
 
@@ -192,24 +193,7 @@ export function HomeRooms() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2.5">
-                  <div className="hidden items-center gap-1.5 sm:flex" aria-hidden>
-                    {rooms.map((room, index) => (
-                      <button
-                        key={room.id}
-                        type="button"
-                        onClick={() => setActive(index)}
-                        className={`h-1.5 rounded-full transition ${
-                          index === active ? "w-6 bg-white" : "w-1.5 bg-white/40 hover:bg-white/70"
-                        }`}
-                        aria-label={`Show ${room.name}`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-sm font-medium tabular-nums text-white/80">
-                    {rooms.length ? `${active + 1} / ${rooms.length}` : "0 / 0"}
-                  </p>
-                </div>
+                <GalleryPager count={rooms.length} active={active} tone="light" onSelect={setActive} />
               </div>
             </div>
           </Reveal>

@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router-dom";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
+import { GalleryPager } from "../components/GalleryPager";
 import { ChevronLeftIcon, ChevronRightIcon } from "../components/Icons";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
@@ -110,16 +111,9 @@ export function SpaPage() {
   const pageCount = Math.max(1, galleryPages.length);
   const safeGalleryPage = Math.min(galleryPage, pageCount - 1);
   const counterPage = galleryTo != null ? galleryTo : safeGalleryPage;
-  const counterStart = counterPage * perView + 1;
-  const counterEnd = Math.min(displayGallery.length, (counterPage + 1) * perView);
   const canGalleryPrev = (galleryTo ?? safeGalleryPage) > 0;
   const canGalleryNext = (galleryTo ?? safeGalleryPage) < pageCount - 1;
   const galleryTransitioning = galleryFrom != null && galleryTo != null;
-
-  const counterLabel =
-    perView === 1
-      ? `${counterStart}/${displayGallery.length}`
-      : `${counterStart}–${counterEnd} / ${displayGallery.length}`;
 
   const loadImages = useCallback(async () => {
     const [hero, content, galleryImages] = await Promise.all([
@@ -584,9 +578,14 @@ export function SpaPage() {
                     >
                       <ChevronLeftIcon className="h-5 w-5" />
                     </button>
-                    <p className="min-w-[4.5rem] text-center text-sm font-semibold tracking-wide text-[#0b1d33] tabular-nums">
-                      {counterLabel}
-                    </p>
+                    <GalleryPager
+                      count={pageCount}
+                      active={counterPage}
+                      tone="dark"
+                      onSelect={(index) => {
+                        if (!galleryBusy) setGalleryPage(index);
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={galleryNext}
@@ -653,6 +652,16 @@ export function SpaPage() {
           >
             Close
           </button>
+          {displayGallery.length > 1 ? (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2" onClick={(event) => event.stopPropagation()}>
+              <GalleryPager
+                count={displayGallery.length}
+                active={lightbox}
+                tone="light"
+                onSelect={setLightbox}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
