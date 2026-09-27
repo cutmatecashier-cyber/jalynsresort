@@ -107,14 +107,22 @@ export function ExtraPersonSettings() {
                 emptyLabel="Any"
                 onChange={(next) => updateRule(rule.id, { maxAge: next })}
               />
-              <NumberStepper
-                label="Extra charge (₱)"
-                value={rule.charge}
-                min={0}
-                max={100000}
-                step={50}
-                onChange={(next) => updateRule(rule.id, { charge: next ?? 0 })}
-              />
+              <label className="block text-xs font-semibold text-ink/70">
+                Extra charge (₱)
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={rule.charge ? String(rule.charge) : ""}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, "").slice(0, 6);
+                    const amount = digits === "" ? 0 : Math.min(100000, Number(digits));
+                    updateRule(rule.id, { charge: amount });
+                  }}
+                  placeholder="0"
+                  className={inputClass}
+                />
+              </label>
               <label className="block text-xs font-semibold text-ink/70">
                 Applies to
                 <select

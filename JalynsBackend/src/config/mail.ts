@@ -25,6 +25,7 @@ export async function sendAppEmail(options: {
   subject: string
   text: string
   html?: string
+  replyTo?: string
 }) {
   if (!user || !pass || !from) {
     throw new Error('Email is not configured. Set SMTP_USER and SMTP_PASS in the backend .env')
@@ -33,6 +34,7 @@ export async function sendAppEmail(options: {
   await mailTransporter.sendMail({
     from: `"Jalyn's Resort" <${from}>`,
     to: options.to,
+    replyTo: options.replyTo,
     subject: options.subject,
     text: options.text,
     html: options.html ?? `<p>${options.text.replace(/\n/g, '<br/>')}</p>`,

@@ -126,7 +126,7 @@ function normalizeBooking(row: Partial<RoomBooking>): RoomBooking | null {
   const full_name = String(row.full_name || '').trim()
   const email = String(row.email || '').trim()
   const phone = String(row.phone || '').trim()
-  if (!id || !room_id || !room_name || !check_in || !check_out || !full_name || !email || !phone) {
+  if (!id || !room_id || !room_name || !check_in || !check_out || !full_name || !email) {
     return null
   }
   const guests = Number(row.guests)
@@ -267,7 +267,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   const checkOut = input.checkOut.trim()
   const fullName = input.fullName.trim()
   const email = input.email.trim()
-  const phone = input.phone.trim()
+  const phone = input.phone.replace(/\D/g, '').slice(0, 15)
   const guests = input.guests
 
   if (!roomId || !roomName) throw new Error('Room is required.')
@@ -283,7 +283,6 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('Enter a valid email address.')
   }
-  if (!phone) throw new Error('Contact number is required.')
 
   const nights = nightsBetween(checkIn, checkOut)
   if (nights < 1) throw new Error('Check-out must be after check-in.')

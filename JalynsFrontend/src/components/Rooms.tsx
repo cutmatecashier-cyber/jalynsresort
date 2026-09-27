@@ -36,25 +36,18 @@ import {
   uploadRoomImages,
   uploadRoomsContentBackgroundWithResult,
   uploadRoomsHeroWithResult,
-  fetchRoomAvailability,
   type Room,
-  type RoomAvailabilitySnapshot,
   type RoomFormInput,
   type RoomHighlight,
   type RoomsVoucher,
   type RoomStatus,
 } from "../lib/rooms";
 import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
-import {
-  DEFAULT_CHECK_IN_TIME,
-  DEFAULT_CHECK_OUT_TIME,
-  formatClockLabel,
-} from "../lib/roomAvailability";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
 import { BookingSettingsCard } from "./BookingSettingsCard";
 import { ExtraPersonSettings } from "./ExtraPersonSettings";
-import { broadcastContentChanged, CONTENT_CHANGED_EVENT } from "./ContentSync";
+import { broadcastContentChanged } from "./ContentSync";
 import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { JeepneyShuttleGallery } from "./JeepneyShuttleGallery";
@@ -279,7 +272,6 @@ export function Rooms() {
   const [voucherEnabled, setVoucherEnabled] = useState(false);
   const [voucherPercentText, setVoucherPercentText] = useState("");
   const [highlights, setHighlights] = useState<RoomHighlight[]>([]);
-  const [availability, setAvailability] = useState<RoomAvailabilitySnapshot | null>(null);
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
@@ -328,11 +320,6 @@ export function Rooms() {
     setHighlights(catalog.highlights);
   }, []);
 
-  const loadAvailability = useCallback(async () => {
-    const snapshot = await fetchRoomAvailability();
-    if (snapshot) setAvailability(snapshot);
-  }, []);
-
   const loadBackgrounds = useCallback(async () => {
     const [hero, content] = await Promise.all([
       fetchRoomsHero(),
@@ -348,8 +335,7 @@ export function Rooms() {
   useEffect(() => {
     void loadRooms();
     void loadBackgrounds();
-    void loadAvailability();
-  }, [loadRooms, loadBackgrounds, loadAvailability]);
+  }, [loadRooms, loadBackgrounds]);
 
   useEffect(() => {
     document.title = "Rooms & Apartments | Jalyn's Resort & Restaurant";
@@ -383,16 +369,12 @@ export function Rooms() {
         void loadRooms();
       }
       void loadBackgrounds();
-      void loadAvailability();
     };
     window.addEventListener(ROOMS_UPDATED_EVENT, onUpdated);
-    const onContent = () => void loadAvailability();
-    window.addEventListener(CONTENT_CHANGED_EVENT, onContent);
     return () => {
       window.removeEventListener(ROOMS_UPDATED_EVENT, onUpdated);
-      window.removeEventListener(CONTENT_CHANGED_EVENT, onContent);
     };
-  }, [loadRooms, loadBackgrounds, loadAvailability]);
+  }, [loadRooms, loadBackgrounds]);
 
   useEffect(() => {
     if (!manageOpen && !bgEditor) return;
@@ -851,12 +833,6 @@ export function Rooms() {
             ) : null}
 
             <div className="mt-8 space-y-8 sm:mt-10 sm:space-y-10">
-              <p className="text-sm leading-relaxed text-ink/70">
-                Check-in {formatClockLabel(availability?.checkInTime || DEFAULT_CHECK_IN_TIME)} ·
-                Check-out {formatClockLabel(availability?.checkOutTime || DEFAULT_CHECK_OUT_TIME)}.
-                A date closes only when every room of that type is already booked. Guests can check
-                in on a checkout day when the previous guest has left.
-              </p>
               {rooms.map((room, i) => (
                 <article
                   key={room.id}
@@ -1179,7 +1155,7 @@ export function Rooms() {
                     </button>
                   </div>
 
-                  <BookingSettingsCard onSchedule={() => void loadAvailability()} />
+                  <BookingSettingsCard />
                   <ExtraPersonSettings />
 
                   <div className="flex flex-wrap gap-2">

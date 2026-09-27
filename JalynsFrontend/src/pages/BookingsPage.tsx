@@ -368,7 +368,7 @@ export function BookingsPage() {
                             {b.email}
                           </span>
                           <span className="mt-0.5 block text-xs whitespace-nowrap text-stone/80">
-                            {b.phone}
+                            {b.phone || "—"}
                           </span>
                         </td>
                         <td className="px-5 py-4 align-middle whitespace-nowrap text-ink">
@@ -426,7 +426,7 @@ export function BookingsPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-ink">{b.full_name}</p>
                       <p className="mt-0.5 truncate text-sm text-stone">{b.email}</p>
-                      <p className="text-sm text-stone/80">{b.phone}</p>
+                      <p className="text-sm text-stone/80">{b.phone || "—"}</p>
                     </div>
                     <StatusBadge status={b.status} />
                   </div>

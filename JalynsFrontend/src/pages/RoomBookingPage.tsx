@@ -537,10 +537,6 @@ export function RoomBookingPage() {
       setError("Enter a valid email address.");
       return false;
     }
-    if (!phone.trim()) {
-      setError("Contact number is required.");
-      return false;
-    }
     return true;
   }
 
@@ -567,7 +563,7 @@ export function RoomBookingPage() {
       extraGuests: extraQuotes.map((guest) => ({ kind: guest.kind, age: guest.age })),
       fullName: fullName.trim(),
       email: email.trim(),
-      phone: phone.trim(),
+      phone: phone.replace(/\D/g, ""),
     });
   }
 
@@ -601,7 +597,7 @@ export function RoomBookingPage() {
               : step === "review"
                 ? "Review booking"
                 : step === "done"
-                  ? "Request sent"
+                  ? "Booking confirmed"
                   : "Complete your booking"}
           </h1>
           <p className="animate-fade-up mt-3 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
@@ -610,7 +606,7 @@ export function RoomBookingPage() {
               : step === "review"
                 ? "Check everything carefully, then pay with PayPal to confirm your booking."
                 : step === "done"
-                  ? "Payment received. Your booking is confirmed."
+                  ? "Payment received. A confirmation email is on its way."
                   : "Confirm your dates and how we can reach you."}
           </p>
         </div>
@@ -623,7 +619,7 @@ export function RoomBookingPage() {
               <p className="font-display text-2xl text-emerald-950 sm:text-3xl">Thank you</p>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-950/85 sm:text-base">
                 {fullName.trim()}, your stay in <strong>{selectedRoom.name}</strong> is confirmed.
-                We’ll contact you at <strong>{email.trim()}</strong>.
+                We sent the booking details to <strong>{email.trim()}</strong>.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link
@@ -1018,14 +1014,16 @@ export function RoomBookingPage() {
                       />
                     </label>
                     <label className="block text-sm font-semibold text-ink">
-                      Contact Number <span className="text-red-600">*</span>
+                      Contact Number{" "}
+                      <span className="font-normal text-ink/45">(optional)</span>
                       <input
-                        type="tel"
-                        required
+                        type="text"
+                        inputMode="numeric"
                         autoComplete="tel"
+                        maxLength={15}
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+63 9XX XXX XXXX"
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                        placeholder="09171234567"
                         className={inputClass}
                       />
                     </label>
@@ -1274,7 +1272,7 @@ export function RoomBookingPage() {
                         <dt className="text-[0.62rem] font-semibold tracking-wide text-ink/45 uppercase">
                           Contact number
                         </dt>
-                        <dd className="mt-0.5 font-semibold text-ink">{phone.trim()}</dd>
+                        <dd className="mt-0.5 font-semibold text-ink">{phone || "Not provided"}</dd>
                       </div>
                     </dl>
                   </section>
