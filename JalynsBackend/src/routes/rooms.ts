@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import multer from 'multer'
 import { Router } from 'express'
+import { createImageUpload } from '../lib/imageUpload.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import { loadBookingSettings, saveBookingSchedule, saveExtraPersonRules } from '../services/bookingSettings.js'
 import {
@@ -40,25 +40,7 @@ import { prepareRoomImage } from '../services/prepareRoomImage.js'
 
 export const roomsRouter = Router()
 
-function isAllowedRoomImage(file: Express.Multer.File) {
-  if (/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) return true
-  const name = file.originalname || ''
-  const mime = (file.mimetype || '').toLowerCase()
-  return /\.nef$/i.test(name) || mime.includes('nikon') || mime === 'image/nef' || mime === 'image/x-raw'
-}
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (_req, file, cb) => {
-    if (!isAllowedRoomImage(file)) {
-      cb(new Error('Only JPG, PNG, WEBP, GIF, or NEF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-  // Nikon RAW files are much larger than the JPEG preview we store.
-  limits: { fileSize: 80 * 1024 * 1024 },
-})
+const upload = createImageUpload()
 
 function clientErrorStatus(message: string) {
   return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid/i.test(

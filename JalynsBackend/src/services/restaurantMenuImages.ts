@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 export const MENU_IMAGE_BUCKET = 'restaurant-page'
 export const MENU_IMAGE_FOLDER = 'menu'
@@ -43,7 +44,8 @@ async function ensureBucket() {
 /**
  * Store dish photos in Supabase Storage (public URL) so they work online.
  */
-export async function uploadMenuDishImage(file: Express.Multer.File): Promise<string> {
+export async function uploadMenuDishImage(incoming: Express.Multer.File): Promise<string> {
+  const file = await prepareRoomImage(incoming)
   if (!file?.buffer?.length) {
     throw new Error('Please choose an image to upload.')
   }

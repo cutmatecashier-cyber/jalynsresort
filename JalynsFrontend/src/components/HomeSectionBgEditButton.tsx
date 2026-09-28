@@ -10,6 +10,7 @@ import {
   type HomeSectionKey,
 } from "../lib/homeHero";
 import { AdminEditButton } from "./AdminEditButton";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { broadcastContentChanged } from "./ContentSync";
 
 type Props = {
@@ -127,13 +128,11 @@ export function HomeSectionBgEditButton({
                     alt=""
                     className="mt-4 aspect-[16/9] w-full rounded-xl border border-ink/10 object-cover"
                   />
-                  <input
+                  <AdjustableFileInput
                     ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
                     capture="environment"
                     className="sr-only"
-                    onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
+                    onFiles={(picked) => void onUpload(picked[0] ?? null)}
                   />
                   {error ? (
                     <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">

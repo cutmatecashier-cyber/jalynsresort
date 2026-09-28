@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
@@ -242,8 +243,8 @@ export function ContactPage() {
     );
   }, []);
 
-  async function onHeroFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onHeroFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -260,8 +261,8 @@ export function ContactPage() {
     if (heroInput.current) heroInput.current.value = "";
   }
 
-  async function onContentFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onContentFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -896,15 +897,10 @@ export function ContactPage() {
                 Upload a new image to replace this background. Removing it restores the default photo.
                 Hero and content backgrounds are saved separately.
               </p>
-              <input
+              <AdjustableFileInput
                 ref={bgEditor === "hero" ? heroInput : contentInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(event) =>
-                  void (bgEditor === "hero"
-                    ? onHeroFile(event.target.files)
-                    : onContentFile(event.target.files))
+                onFiles={(picked) =>
+                  void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
                 }
               />
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">

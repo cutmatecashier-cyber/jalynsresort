@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -466,13 +467,11 @@ export function Hero() {
                     })}
                   </div>
 
-                  <input
+                  <AdjustableFileInput
                     ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
                     capture="environment"
                     className="sr-only"
-                    onChange={(e) => void onUploadFile(e.target.files?.[0] ?? null)}
+                    onFiles={(picked) => void onUploadFile(picked[0] ?? null)}
                   />
 
                   {bgError ? (

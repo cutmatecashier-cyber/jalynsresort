@@ -4,6 +4,7 @@ import { getApiUrl, resolveMediaUrl } from "../lib/api";
 import { optimizeImageFile } from "../lib/scuba";
 import { supabase } from "../lib/supabase";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { Reveal } from "./Reveal";
 
 const DESKTOP_DISH_COLS = 4;
@@ -1142,12 +1143,10 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
                             No photo yet
                           </div>
                         )}
-                        <input
+                        <AdjustableFileInput
                           id="item-image"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/gif"
                           className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-full file:border-0 file:bg-sky-deep file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky"
-                          onChange={(e) => onPickDishImage(e.target.files?.[0] ?? null)}
+                          onFiles={(picked) => onPickDishImage(picked[0] ?? null)}
                         />
                         <p className="text-xs text-ink/70">
                           JPG, PNG, or WEBP — photos are compressed automatically for faster upload.

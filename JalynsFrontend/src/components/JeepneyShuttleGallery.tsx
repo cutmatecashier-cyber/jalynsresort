@@ -4,9 +4,9 @@ import {
   replaceRoomHighlight,
   roomsMediaUrl,
   uploadRoomHighlights,
-  ROOM_IMAGE_ACCEPT,
   type RoomHighlight,
 } from "../lib/rooms";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { AdminEditButton } from "./AdminEditButton";
 import { GalleryLightbox } from "./GalleryLightbox";
 import { broadcastContentChanged } from "./ContentSync";
@@ -71,13 +71,13 @@ export function JeepneyShuttleGallery({
     };
   }, [lightbox, highlights.length]);
 
-  async function onUpload(files: FileList | null) {
+  async function onUpload(files: File[] | null) {
     if (!files?.length) return;
     setBusy(true);
     onError(null);
     onProgress("Uploading jeepney photos…");
     try {
-      const next = await uploadRoomHighlights(Array.from(files));
+      const next = await uploadRoomHighlights(files);
       onChange(next);
       broadcastContentChanged();
     } catch (err) {
@@ -89,7 +89,7 @@ export function JeepneyShuttleGallery({
     }
   }
 
-  async function onReplace(files: FileList | null) {
+  async function onReplace(files: File[] | null) {
     const file = files?.[0];
     if (!file || !replaceId) return;
     setBusy(true);
@@ -136,13 +136,10 @@ export function JeepneyShuttleGallery({
         </h2>
         {canEdit ? (
           <div className="mt-4">
-            <input
+            <AdjustableFileInput
               ref={galleryInput}
-              type="file"
-              accept={ROOM_IMAGE_ACCEPT}
               multiple
-              className="hidden"
-              onChange={(event) => void onUpload(event.target.files)}
+              onFiles={(picked) => void onUpload(picked)}
             />
             <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
               {uploadProgress?.startsWith("Uploading")
@@ -177,12 +174,9 @@ export function JeepneyShuttleGallery({
         </div>
       ) : null}
 
-      <input
+      <AdjustableFileInput
         ref={replaceInput}
-        type="file"
-        accept={ROOM_IMAGE_ACCEPT}
-        className="hidden"
-        onChange={(event) => void onReplace(event.target.files)}
+        onFiles={(picked) => void onReplace(picked)}
       />
 
       {lightbox != null ? (

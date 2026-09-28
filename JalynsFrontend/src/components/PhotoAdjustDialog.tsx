@@ -13,6 +13,8 @@ type PhotoAdjustDialogProps = {
   source: string;
   busy?: boolean;
   progress?: string | null;
+  fileName?: string;
+  initialCrop?: Crop;
   onCancel: () => void;
   onApply: (file: File) => void | Promise<void>;
 };
@@ -90,7 +92,7 @@ async function loadImage(source: string) {
   return { image, owned };
 }
 
-function renderAdjusted(image: HTMLImageElement, rotation: number, crop: Crop) {
+function renderAdjusted(image: HTMLImageElement, rotation: number, crop: Crop, fileName: string) {
   const srcW = image.naturalWidth;
   const srcH = image.naturalHeight;
   const rotW = rotation % 180 === 0 ? srcW : srcH;
@@ -121,7 +123,7 @@ function renderAdjusted(image: HTMLImageElement, rotation: number, crop: Crop) {
           reject(new Error("Could not save this photo."));
           return;
         }
-        resolve(new File([blob], "room-photo.jpg", { type: "image/jpeg", lastModified: Date.now() }));
+        resolve(new File([blob], fileName, { type: "image/jpeg", lastModified: Date.now() }));
       },
       "image/jpeg",
       0.92,
@@ -153,6 +155,8 @@ export function PhotoAdjustDialog({
   source,
   busy = false,
   progress,
+  fileName = "photo.jpg",
+  initialCrop = START_CROP,
   onCancel,
   onApply,
 }: PhotoAdjustDialogProps) {
@@ -161,7 +165,7 @@ export function PhotoAdjustDialog({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ mode: DragMode; x: number; y: number; crop: Crop } | null>(null);
   const [rotation, setRotation] = useState(0);
-  const [crop, setCrop] = useState<Crop>(START_CROP);
+  const [crop, setCrop] = useState<Crop>(initialCrop);
   const [preview, setPreview] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -173,7 +177,7 @@ export function PhotoAdjustDialog({
     setLoadError(null);
     setPreview("");
     setRotation(0);
-    setCrop(START_CROP);
+    setCrop(initialCrop);
     imageRef.current = null;
     void loadImage(source)
       .then((loaded) => {
@@ -194,7 +198,7 @@ export function PhotoAdjustDialog({
       cancelled = true;
       if (owned) URL.revokeObjectURL(owned);
     };
-  }, [source]);
+  }, [source, initialCrop]);
 
   useEffect(() => {
     if (busy) return;
@@ -210,7 +214,7 @@ export function PhotoAdjustDialog({
     if (!image || busy || working) return;
     const next = (rotation + delta + 360) % 360;
     setRotation(next);
-    setCrop(START_CROP);
+    setCrop(initialCrop);
     setPreview(previewUrl(image, next));
   }
 
@@ -249,7 +253,7 @@ export function PhotoAdjustDialog({
     setWorking(true);
     setSaveError(null);
     try {
-      await onApply(await renderAdjusted(image, rotation, crop));
+      await onApply(await renderAdjusted(image, rotation, crop, fileName));
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Could not save this photo.");
       setWorking(false);
@@ -260,7 +264,7 @@ export function PhotoAdjustDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[240] flex items-center justify-center bg-black/60 p-4"
       role="presentation"
       onClick={() => !locked && onCancel()}
     >

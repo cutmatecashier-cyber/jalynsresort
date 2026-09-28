@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { GalleryLightbox } from "../components/GalleryLightbox";
+import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
@@ -329,8 +330,8 @@ export function ScubaDivingPage() {
     setBusy(false);
   }
 
-  async function onHeroFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onHeroFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -347,8 +348,8 @@ export function ScubaDivingPage() {
     if (heroInput.current) heroInput.current.value = "";
   }
 
-  async function onContentFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onContentFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -391,12 +392,12 @@ export function ScubaDivingPage() {
     setBusy(false);
   }
 
-  async function onGalleryFiles(fileList: FileList | null) {
-    if (!fileList?.length) return;
+  async function onGalleryFiles(files: File[] | null) {
+    if (!files?.length) return;
     setBusy(true);
     setAdminError(null);
-    setUploadProgress(`Preparing ${fileList.length} image(s)…`);
-    const message = await uploadScubaGalleryImages(Array.from(fileList), (done, total) => {
+    setUploadProgress(`Preparing ${files.length} image(s)…`);
+    const message = await uploadScubaGalleryImages(files, (done, total) => {
       setUploadProgress(`Uploading ${done}/${total}…`);
     });
     if (message) setAdminError(message);
@@ -406,8 +407,8 @@ export function ScubaDivingPage() {
     if (galleryInput.current) galleryInput.current.value = "";
   }
 
-  async function onReplaceGallery(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onReplaceGallery(files: File[] | null) {
+    const file = files?.[0];
     if (!file || !replacePath) return;
     setBusy(true);
     setAdminError(null);
@@ -843,13 +844,10 @@ export function ScubaDivingPage() {
             </h2>
             {canManage ? (
               <div className="mt-4">
-                <input
+                <AdjustableFileInput
                   ref={galleryInput}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
                   multiple
-                  className="hidden"
-                  onChange={(event) => void onGalleryFiles(event.target.files)}
+                  onFiles={(picked) => void onGalleryFiles(picked)}
                 />
                 <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
                   {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
@@ -878,12 +876,9 @@ export function ScubaDivingPage() {
               onDelete={(path) => void onDeleteGallery(path)}
             />
 
-            <input
+            <AdjustableFileInput
               ref={replaceInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={(event) => void onReplaceGallery(event.target.files)}
+              onFiles={(picked) => void onReplaceGallery(picked)}
             />
           </div>
         </section>
@@ -1241,15 +1236,10 @@ export function ScubaDivingPage() {
             Upload a new image to replace this background. Removing it restores the default photo.
             Hero and content backgrounds are saved separately.
           </p>
-          <input
+          <AdjustableFileInput
             ref={bgEditor === "hero" ? heroInput : contentInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={(event) =>
-              void (bgEditor === "hero"
-                ? onHeroFile(event.target.files)
-                : onContentFile(event.target.files))
+            onFiles={(picked) =>
+              void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
             }
           />
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">

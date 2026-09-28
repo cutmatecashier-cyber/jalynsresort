@@ -1,5 +1,5 @@
-import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
+import { createImageUpload } from '../lib/imageUpload.js'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
 import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 import {
@@ -26,29 +26,9 @@ import {
 
 export const spaRouter = Router()
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 12 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-})
+const upload = createImageUpload({ files: 1 })
 
-const bgUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-})
+const bgUpload = createImageUpload({ files: 24 })
 
 async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
   if (!isServiceRoleConfigured()) {

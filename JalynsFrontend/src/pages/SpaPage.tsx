@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
 import { GalleryLightbox } from "../components/GalleryLightbox";
@@ -92,8 +93,8 @@ export function SpaPage() {
     setGalleryIndex((current) => Math.min(current, Math.max(0, displayGallery.length - 1)));
   }, [displayGallery.length]);
 
-  async function onHeroFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onHeroFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -110,8 +111,8 @@ export function SpaPage() {
     if (heroInput.current) heroInput.current.value = "";
   }
 
-  async function onContentFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onContentFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setAdminError(null);
@@ -154,12 +155,12 @@ export function SpaPage() {
     setBusy(false);
   }
 
-  async function onGalleryFiles(fileList: FileList | null) {
-    if (!fileList?.length) return;
+  async function onGalleryFiles(files: File[] | null) {
+    if (!files?.length) return;
     setBusy(true);
     setAdminError(null);
-    setUploadProgress(`Preparing ${fileList.length} image(s)…`);
-    const message = await uploadSpaGalleryImages(Array.from(fileList), (done, total) => {
+    setUploadProgress(`Preparing ${files.length} image(s)…`);
+    const message = await uploadSpaGalleryImages(files, (done, total) => {
       setUploadProgress(`Uploading ${done}/${total}…`);
     });
     if (message) setAdminError(message);
@@ -169,8 +170,8 @@ export function SpaPage() {
     if (galleryInput.current) galleryInput.current.value = "";
   }
 
-  async function onReplaceGallery(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onReplaceGallery(files: File[] | null) {
+    const file = files?.[0];
     if (!file || !replacePath) return;
     setBusy(true);
     setAdminError(null);
@@ -294,13 +295,10 @@ export function SpaPage() {
                 </h2>
                 {canEdit ? (
                   <div className="mt-4">
-                    <input
+                    <AdjustableFileInput
                       ref={galleryInput}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
                       multiple
-                      className="hidden"
-                      onChange={(event) => void onGalleryFiles(event.target.files)}
+                      onFiles={(picked) => void onGalleryFiles(picked)}
                     />
                     <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
                       {uploadProgress?.startsWith("Uploading") ? uploadProgress : "Upload images"}
@@ -330,12 +328,9 @@ export function SpaPage() {
                 />
               </div>
 
-              <input
+              <AdjustableFileInput
                 ref={replaceInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(event) => void onReplaceGallery(event.target.files)}
+                onFiles={(picked) => void onReplaceGallery(picked)}
               />
             </section>
 
@@ -389,15 +384,10 @@ export function SpaPage() {
             Upload a new image to replace this background. Removing it restores the default photo.
             Hero and content backgrounds are saved separately.
           </p>
-          <input
+          <AdjustableFileInput
             ref={bgEditor === "hero" ? heroInput : contentInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={(event) =>
-              void (bgEditor === "hero"
-                ? onHeroFile(event.target.files)
-                : onContentFile(event.target.files))
+            onFiles={(picked) =>
+              void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
             }
           />
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">

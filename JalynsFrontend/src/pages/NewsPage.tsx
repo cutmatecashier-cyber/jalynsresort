@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { broadcastContentChanged } from "../components/ContentSync";
 import { Footer } from "../components/Footer";
@@ -217,7 +218,7 @@ export function NewsPage() {
     };
   }, [modal, heroEditorOpen, deleteTarget, saving, deleting, heroBusy]);
 
-  async function onHeroFile(files: FileList | null) {
+  async function onHeroFile(files: File[] | null) {
     const file = files?.[0];
     if (!file) return;
     setHeroBusy(true);
@@ -324,7 +325,7 @@ export function NewsPage() {
     setPreview(URL.createObjectURL(next));
   }
 
-  async function onPickGallery(files: FileList | null) {
+  async function onPickGallery(files: File[] | null) {
     if (!files?.length) return;
     setGalleryUploading(true);
     setModalError(null);
@@ -747,12 +748,9 @@ export function NewsPage() {
                     {heroError}
                   </p>
                 ) : null}
-                <input
+                <AdjustableFileInput
                   ref={heroInput}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(event) => void onHeroFile(event.target.files)}
+                  onFiles={(picked) => void onHeroFile(picked)}
                 />
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -891,12 +889,10 @@ export function NewsPage() {
                           No image yet
                         </div>
                       )}
-                      <input
+                      <AdjustableFileInput
                         ref={fileRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
-                        onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
+                        onFiles={(picked) => onPickImage(picked[0] ?? null)}
                       />
                       <button
                         type="button"
@@ -931,13 +927,11 @@ export function NewsPage() {
                           ))}
                         </div>
                       ) : null}
-                      <input
+                      <AdjustableFileInput
                         ref={galleryFileRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
                         multiple
                         className="sr-only"
-                        onChange={(e) => void onPickGallery(e.target.files)}
+                        onFiles={(picked) => void onPickGallery(picked)}
                       />
                       <button
                         type="button"

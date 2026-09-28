@@ -14,6 +14,7 @@ import {
 } from "../lib/gallery";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { Reveal } from "./Reveal";
@@ -298,21 +299,17 @@ export function Gallery() {
                     />
                   </label>
 
-                  <input
+                  <AdjustableFileInput
                     ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
                     capture="environment"
                     className="sr-only"
-                    onChange={(e) => void onReplaceFile(e.target.files?.[0] ?? null)}
+                    onFiles={(picked) => void onReplaceFile(picked[0] ?? null)}
                   />
-                  <input
+                  <AdjustableFileInput
                     ref={addFileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
                     capture="environment"
                     className="sr-only"
-                    onChange={(e) => void onAddFile(e.target.files?.[0] ?? null)}
+                    onFiles={(picked) => void onAddFile(picked[0] ?? null)}
                   />
 
                   {error ? (

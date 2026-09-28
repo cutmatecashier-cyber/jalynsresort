@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
 import { NumberStepper } from "./NumberStepper";
 import { useAuth } from "../context/AuthContext";
@@ -542,8 +543,8 @@ export function Rooms() {
     setError(null);
   }
 
-  async function onHeroFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onHeroFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setError(null);
@@ -561,8 +562,8 @@ export function Rooms() {
     if (heroInput.current) heroInput.current.value = "";
   }
 
-  async function onContentFile(fileList: FileList | null) {
-    const file = fileList?.[0];
+  async function onContentFile(files: File[] | null) {
+    const file = files?.[0];
     if (!file) return;
     setBusy(true);
     setError(null);
@@ -1220,15 +1221,10 @@ export function Rooms() {
                 </p>
               ) : null}
               {uploadProgress ? <p className="mt-2 text-sm text-ink/60">{uploadProgress}</p> : null}
-              <input
+              <AdjustableFileInput
                 ref={bgEditor === "hero" ? heroInput : contentInput}
-                type="file"
-                accept={ROOM_IMAGE_ACCEPT}
-                className="hidden"
-                onChange={(event) =>
-                  void (bgEditor === "hero"
-                    ? onHeroFile(event.target.files)
-                    : onContentFile(event.target.files))
+                onFiles={(picked) =>
+                  void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
                 }
               />
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1557,13 +1553,10 @@ export function Rooms() {
                   {editorMode === "create" ? (
                     <div>
                       <p className="text-sm font-semibold text-ink">Primary image</p>
-                      <input
+                      <AdjustableFileInput
                         ref={createFileRef}
-                        type="file"
-                        accept={ROOM_IMAGE_ACCEPT}
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
+                        onFiles={(picked) => {
+                          const file = picked[0] ?? null;
                           setCreateFile(file);
                           if (createPreview) URL.revokeObjectURL(createPreview);
                           setCreatePreview(file ? URL.createObjectURL(file) : null);

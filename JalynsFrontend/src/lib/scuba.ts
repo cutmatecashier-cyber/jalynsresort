@@ -160,15 +160,25 @@ export async function optimizeImageFile(
   const maxBytes = options?.maxBytes ?? 8_000_000;
   const strict = Boolean(options?.strict);
 
-  // Browsers cannot decode Nikon RAW. Send the original file; the server extracts a JPEG.
-  if (/\.nef$/i.test(file.name) || /nikon-nef|(?:^|\/)nef$/i.test(file.type)) return file;
+  // Browsers cannot decode camera RAW or some phone formats. The server converts them.
+  if (
+    /\.(nef|nrw|cr2|cr3|arw|dng|orf|rw2|raf|srw|raw|pef|x3f|heic|heif|tiff?)$/i.test(file.name) ||
+    /nikon-nef|raw|(?:^|\/)nef$|heic|heif|tiff/i.test(file.type)
+  ) {
+    return file;
+  }
 
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
 
   const isJpeg = /^image\/jpe?g$/i.test(file.type);
   const isPng = file.type === "image/png";
 
-  const bitmap = await createImageBitmap(file);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
   try {
     let { width, height } = bitmap;
 

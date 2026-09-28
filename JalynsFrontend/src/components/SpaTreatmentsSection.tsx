@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { AdjustableFileInput } from "./AdjustableFileInput";
 import {
   createSpaCategory,
   createSpaService,
@@ -489,12 +490,10 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
                           No image yet
                         </div>
                       )}
-                      <input
+                      <AdjustableFileInput
                         ref={catFileRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
-                        onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
+                        onFiles={(picked) => onPickImage(picked[0] ?? null)}
                       />
                       <button
                         type="button"

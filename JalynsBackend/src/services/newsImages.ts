@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { supabaseAdmin } from '../config/supabase.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 export const NEWS_IMAGE_BUCKET = 'news-page'
 export const NEWS_IMAGE_FOLDER = 'posts'
@@ -37,7 +38,8 @@ async function ensureBucket() {
 /**
  * Optimize + store news photos in Supabase Storage (public URL) for online hosting.
  */
-export async function uploadNewsImage(file: Express.Multer.File): Promise<string> {
+export async function uploadNewsImage(incoming: Express.Multer.File): Promise<string> {
+  const file = await prepareRoomImage(incoming)
   if (!file?.buffer?.length) {
     throw new Error('Please choose an image to upload.')
   }

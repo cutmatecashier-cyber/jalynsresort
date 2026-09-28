@@ -1,5 +1,5 @@
-import multer from 'multer'
 import { Router } from 'express'
+import { createImageUpload } from '../lib/imageUpload.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   createCategory,
@@ -14,17 +14,7 @@ import { uploadMenuDishImage } from '../services/restaurantMenuImages.js'
 
 export const menuRouter = Router()
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-})
+const upload = createImageUpload({ files: 1 })
 
 const MENU_ADMIN_MESSAGE = 'Only approved admins can manage the restaurant menu.'
 

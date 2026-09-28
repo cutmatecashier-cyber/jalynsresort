@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js'
 import { createFolderBackgroundStore } from './pageBackgrounds.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 export const SCUBA_BUCKET = 'scuba-diving'
 export const SCUBA_HERO_FOLDER = 'hero'
@@ -211,7 +212,8 @@ export async function listGallery(): Promise<ScubaImage[]> {
 export async function uploadGalleryImages(files: Express.Multer.File[]): Promise<ScubaImage[]> {
   if (!files.length) throw new Error('Please choose at least one image to upload.')
   const uploaded: ScubaImage[] = []
-  for (const file of files) {
+  for (const incoming of files) {
+    const file = await prepareRoomImage(incoming)
     const base =
       sanitizeFileName((file.originalname || 'gallery').replace(/\.[^.]+$/, '')) || 'gallery'
     const ext = extFromMime(file.mimetype || 'image/webp')
@@ -231,7 +233,8 @@ export async function uploadGalleryImages(files: Express.Multer.File[]): Promise
   return uploaded
 }
 
-export async function replaceGalleryImage(path: string, file: Express.Multer.File) {
+export async function replaceGalleryImage(path: string, incoming: Express.Multer.File) {
+  const file = await prepareRoomImage(incoming)
   const safePath = String(path || '').trim()
   if (!safePath.startsWith(`${SCUBA_GALLERY_FOLDER}/`)) {
     throw new Error('Invalid gallery image path.')

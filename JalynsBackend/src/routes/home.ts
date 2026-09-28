@@ -1,5 +1,5 @@
-import multer from 'multer'
 import { Router } from 'express'
+import { createImageUpload } from '../lib/imageUpload.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   getHomeSection,
@@ -16,17 +16,7 @@ import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 
 export const homeRouter = Router()
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-  limits: { fileSize: 8 * 1024 * 1024 },
-})
+const upload = createImageUpload()
 
 const adminMsg = 'Only approved admins can edit the home background.'
 

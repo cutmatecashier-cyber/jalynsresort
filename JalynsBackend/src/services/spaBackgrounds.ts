@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js'
 import { createFolderBackgroundStore } from './pageBackgrounds.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 export const SPA_BUCKET = 'spa-page'
 export const SPA_HERO_FOLDER = 'hero'
@@ -117,7 +118,8 @@ export async function uploadSpaGalleryImages(
   if (!files.length) throw new Error('Please choose at least one image to upload.')
   await ensureBucket()
   const uploaded: SpaGalleryImage[] = []
-  for (const file of files) {
+  for (const incoming of files) {
+    const file = await prepareRoomImage(incoming)
     const base =
       sanitizeFileName((file.originalname || 'gallery').replace(/\.[^.]+$/, '')) || 'gallery'
     const ext = extFromMime(file.mimetype || 'image/jpeg')
@@ -137,7 +139,8 @@ export async function uploadSpaGalleryImages(
   return uploaded
 }
 
-export async function replaceSpaGalleryImage(path: string, file: Express.Multer.File) {
+export async function replaceSpaGalleryImage(path: string, incoming: Express.Multer.File) {
+  const file = await prepareRoomImage(incoming)
   const safePath = String(path || '').trim()
   if (!safePath.startsWith(`${SPA_GALLERY_FOLDER}/`)) {
     throw new Error('Invalid gallery image path.')

@@ -979,9 +979,9 @@ export async function removeRoomsContentBackground() {
   return removeBackground("/api/rooms/content-background");
 }
 
-/** Room, background, and jeepney uploads. Includes Nikon RAW (.NEF). */
+/** Any picture: JPG, PNG, WEBP, GIF, HEIC, TIFF, and camera RAW such as NEF. */
 export const ROOM_IMAGE_ACCEPT =
-  "image/jpeg,image/png,image/webp,image/gif,.nef,image/x-nikon-nef";
+  "image/jpeg,image/jpg,image/pjpeg,.jpg,.jpeg,.jpe,image/*,.png,.gif,.webp,.bmp,.tif,.tiff,.avif,.heic,.heif,.nef,.nrw,.cr2,.cr3,.arw,.dng,.orf,.rw2,.raf,.srw,.raw,.pef";
 
 export type RoomFormInput = {
   name: string;

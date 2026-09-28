@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 const readyBuckets = new Set<string>()
 
@@ -51,7 +52,8 @@ export type CloudUploadInput = {
  * Used by Home / Rooms / Gallery / Spa treatment / News / Restaurant admin edits.
  */
 export async function uploadPublicImage(input: CloudUploadInput): Promise<string> {
-  const { bucket, folder, file, stableName, upsert = false } = input
+  const { bucket, folder, stableName, upsert = false } = input
+  const file = await prepareRoomImage(input.file)
   if (!file?.buffer?.length) {
     throw new Error('Please choose an image to upload.')
   }

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js'
+import { prepareRoomImage } from './prepareRoomImage.js'
 
 export type PageBackground = { url: string | null; path: string | null }
 
@@ -58,8 +59,9 @@ export function createFolderBackgroundStore(options: {
 
   async function upload(
     folder: string,
-    file: Express.Multer.File,
+    incoming: Express.Multer.File,
   ): Promise<{ path: string; url: string }> {
+    const file = await prepareRoomImage(incoming)
     const ext = extFromMime(file.mimetype || 'image/jpeg')
     const stablePath = `${folder}/current.${ext}`
     const { error } = await supabaseAdmin.storage.from(bucket).upload(stablePath, file.buffer, {

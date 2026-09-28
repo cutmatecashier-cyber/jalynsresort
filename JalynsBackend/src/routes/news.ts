@@ -1,5 +1,5 @@
-import multer from 'multer'
 import { Router, type Request, type Response } from 'express'
+import { createImageUpload } from '../lib/imageUpload.js'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
 import {
   createNewsPost,
@@ -17,17 +17,7 @@ import { uploadNewsImage } from '../services/newsImages.js'
 
 export const newsRouter = Router()
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
-  limits: { fileSize: 12 * 1024 * 1024 },
-})
+const upload = createImageUpload()
 
 async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
   if (!isServiceRoleConfigured()) {

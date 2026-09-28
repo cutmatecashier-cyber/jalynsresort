@@ -13,10 +13,17 @@ type Reader = {
   u32: (offset: number) => number
 }
 
-function isNefFile(file: Express.Multer.File) {
+const DISPLAYABLE = /^image\/(jpe?g|png|webp|gif)$/i
+const RAW_NAME =
+  /\.(nef|nrw|cr2|cr3|arw|dng|orf|rw2|raf|srw|raw|pef|x3f)$/i
+
+function needsConvert(file: Express.Multer.File) {
   const name = file.originalname || ''
   const mime = (file.mimetype || '').toLowerCase()
-  return /\.nef$/i.test(name) || mime.includes('nikon') || mime === 'image/nef' || mime === 'image/x-raw'
+  if (RAW_NAME.test(name) || mime.includes('nikon') || mime.includes('raw') || mime === 'image/nef') {
+    return true
+  }
+  return !DISPLAYABLE.test(mime)
 }
 
 function readerFor(buffer: Buffer, littleEndian: boolean): Reader {
@@ -158,27 +165,45 @@ async function largestReadableJpeg(candidates: Buffer[]) {
   return best?.buffer ?? null
 }
 
-async function nefToJpeg(buffer: Buffer) {
-  const fromTiff = jpegsFromTiff(buffer)
-  const embedded = await largestReadableJpeg(fromTiff.length ? fromTiff : jpegsByScan(buffer))
-  if (!embedded) {
-    throw new Error('Could not read this NEF image. Try another photo.')
-  }
-  return sharp(embedded)
+async function encodeJpeg(buffer: Buffer) {
+  return sharp(buffer, { failOn: 'none' })
     .rotate()
     .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 86, mozjpeg: true })
     .toBuffer()
 }
 
+async function embeddedJpeg(buffer: Buffer) {
+  const fromTiff = jpegsFromTiff(buffer)
+  return largestReadableJpeg(fromTiff.length ? fromTiff : jpegsByScan(buffer))
+}
+
 /**
- * Room photos are shown in the browser, which cannot render Nikon RAW.
- * .NEF uploads are converted to JPEG; other allowed images pass through.
+ * Browsers cannot render camera RAW or some phone formats.
+ * JPG, PNG, WEBP, and GIF pass through. Everything else becomes a JPEG.
  */
 export async function prepareRoomImage(file: Express.Multer.File): Promise<Express.Multer.File> {
-  if (!file?.buffer?.length || !isNefFile(file)) return file
-  const jpeg = await nefToJpeg(file.buffer)
-  const base = (file.originalname || 'photo').replace(/\.nef$/i, '') || 'photo'
+  if (!file?.buffer?.length || !needsConvert(file)) return file
+
+  const raw = RAW_NAME.test(file.originalname || '')
+  let jpeg: Buffer | null = null
+  if (raw) {
+    const embedded = await embeddedJpeg(file.buffer)
+    if (embedded) jpeg = await encodeJpeg(embedded)
+  }
+  if (!jpeg) {
+    try {
+      jpeg = await encodeJpeg(file.buffer)
+    } catch {
+      const embedded = await embeddedJpeg(file.buffer)
+      if (embedded) jpeg = await encodeJpeg(embedded)
+    }
+  }
+  if (!jpeg?.length) {
+    throw new Error('Could not read this image. Try JPG, PNG, WEBP, or another photo.')
+  }
+
+  const base = (file.originalname || 'photo').replace(/\.[^.]+$/, '') || 'photo'
   return {
     ...file,
     buffer: jpeg,
