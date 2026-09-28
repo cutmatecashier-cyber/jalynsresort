@@ -4,6 +4,7 @@ import {
   replaceRoomHighlight,
   roomsMediaUrl,
   uploadRoomHighlights,
+  ROOM_IMAGE_ACCEPT,
   type RoomHighlight,
 } from "../lib/rooms";
 import { AdminEditButton } from "./AdminEditButton";
@@ -138,7 +139,7 @@ export function JeepneyShuttleGallery({
             <input
               ref={galleryInput}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept={ROOM_IMAGE_ACCEPT}
               multiple
               className="hidden"
               onChange={(event) => void onUpload(event.target.files)}
@@ -179,7 +180,7 @@ export function JeepneyShuttleGallery({
       <input
         ref={replaceInput}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={ROOM_IMAGE_ACCEPT}
         className="hidden"
         onChange={(event) => void onReplace(event.target.files)}
       />

@@ -6,10 +6,12 @@ import {
   useState,
   type FormEvent,
   type ReactNode,
+  type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
+import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
 import { NumberStepper } from "./NumberStepper";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -41,6 +43,7 @@ import {
   type RoomHighlight,
   type RoomsVoucher,
   type RoomStatus,
+  ROOM_IMAGE_ACCEPT,
 } from "../lib/rooms";
 import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
@@ -56,6 +59,18 @@ import { Reveal } from "./Reveal";
 
 type BgKind = "hero" | "content";
 type EditorMode = "list" | "create" | "edit";
+type PhotoAdjust = {
+  src: string;
+  ownedUrl: string | null;
+  purpose: "existing" | "replace" | "add";
+  index: number;
+  queue: File[];
+  ready: File[];
+};
+
+function isNikonNef(file: File) {
+  return /\.nef$/i.test(file.name) || /nikon-nef|(?:^|\/)nef$/i.test(file.type);
+}
 
 const emptyForm = (): RoomFormInput => ({
   name: "",
@@ -193,14 +208,43 @@ function RoomImageCarousel({
   name: string;
   className?: string;
 }) {
-  const [index, setIndex] = useState(0);
   const total = images.length;
-  const safeIndex = Math.min(index, Math.max(0, total - 1));
-  const src = images[safeIndex] ? roomsMediaUrl(images[safeIndex]) : "";
+  const loop = total > 1;
+  const [logical, setLogical] = useState(0);
+  const [track, setTrack] = useState(() => (images.length > 1 ? 1 : 0));
+  const [animate, setAnimate] = useState(true);
+  const safeIndex = Math.min(logical, Math.max(0, total - 1));
+  const slides = loop ? [images[total - 1], ...images, images[0]] : images;
 
   useEffect(() => {
-    setIndex(0);
+    setLogical(0);
+    setTrack(images.length > 1 ? 1 : 0);
+    setAnimate(false);
   }, [images.join("|")]);
+
+  useEffect(() => {
+    if (animate) return;
+    let inner = 0;
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => setAnimate(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
+  }, [animate]);
+
+  useEffect(() => {
+    if (total < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => {
+      const next = (safeIndex + 1) % total;
+      setAnimate(true);
+      setLogical(next);
+      setTrack(safeIndex === total - 1 ? total + 1 : next + 1);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [total, safeIndex]);
 
   const frameClass =
     `relative aspect-[5/4] w-full overflow-hidden bg-[#07101c] lg:aspect-auto lg:h-full lg:min-h-[18rem] ${className}`.trim();
@@ -213,26 +257,78 @@ function RoomImageCarousel({
     );
   }
 
+  function go(delta: 1 | -1) {
+    if (total < 2) return;
+    const next = (safeIndex + delta + total) % total;
+    setAnimate(true);
+    setLogical(next);
+    if (delta === 1 && safeIndex === total - 1) setTrack(total + 1);
+    else if (delta === -1 && safeIndex === 0) setTrack(0);
+    else setTrack(next + 1);
+  }
+
+  function showPhoto(next: number) {
+    if (total < 2 || next === safeIndex) return;
+    setAnimate(true);
+    setLogical(next);
+    setTrack(next + 1);
+  }
+
+  function onTrackEnd(event: TransitionEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
+    if (track === total + 1) {
+      setAnimate(false);
+      setTrack(1);
+    } else if (track === 0) {
+      setAnimate(false);
+      setTrack(total);
+    }
+  }
+
   const navBtnClass =
     "btn-press pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] shadow-md transition hover:bg-[#0b1d33] hover:text-white sm:h-12 sm:w-12";
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   return (
     <div className={frameClass}>
-      {/* Absolute fill keeps every slide the same size regardless of upload dimensions */}
-      <img
-        src={src}
-        alt={`${name} — photo ${safeIndex + 1} of ${total}`}
-        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-center"
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-      />
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          className={`flex h-full will-change-transform ${
+            animate && !reduceMotion
+              ? "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              : ""
+          }`}
+          style={{
+            width: `${slides.length * 100}%`,
+            transform: `translate3d(-${(track * 100) / slides.length}%, 0, 0)`,
+          }}
+          onTransitionEnd={onTrackEnd}
+        >
+          {slides.map((image, slideIndex) => {
+            const active = loop ? slideIndex === safeIndex + 1 : slideIndex === 0;
+            return (
+              <img
+                key={`${image}-${slideIndex}`}
+                src={roomsMediaUrl(image)}
+                alt={active ? `${name} — photo ${safeIndex + 1} of ${total}` : ""}
+                aria-hidden={active ? undefined : true}
+                className="h-full shrink-0 select-none object-cover object-center"
+                style={{ width: `${100 / slides.length}%` }}
+                decoding="async"
+                draggable={false}
+              />
+            );
+          })}
+        </div>
+      </div>
 
       {total > 1 ? (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-between px-2.5 sm:px-3.5">
           <button
             type="button"
-            onClick={() => setIndex((i) => (i - 1 + total) % total)}
+            onClick={() => go(-1)}
             aria-label="Previous photo"
             className={navBtnClass}
           >
@@ -240,7 +336,7 @@ function RoomImageCarousel({
           </button>
           <button
             type="button"
-            onClick={() => setIndex((i) => (i + 1) % total)}
+            onClick={() => go(1)}
             aria-label="Next photo"
             className={navBtnClass}
           >
@@ -254,7 +350,7 @@ function RoomImageCarousel({
           count={total}
           active={safeIndex}
           tone="light"
-          onSelect={setIndex}
+          onSelect={showPhoto}
         />
       </div>
     </div>
@@ -293,6 +389,7 @@ export function Rooms() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmImageDelete, setConfirmImageDelete] = useState<number | null>(null);
+  const [adjust, setAdjust] = useState<PhotoAdjust | null>(null);
 
   const heroInput = useRef<HTMLInputElement>(null);
   const contentInput = useRef<HTMLInputElement>(null);
@@ -533,6 +630,7 @@ export function Rooms() {
         if (!createFile) throw new Error("Please choose a room image.");
         const next = await createRoomWithImage(createFile, payload);
         setRooms(next);
+        closeAdjust();
         setEditorMode("list");
         setSelectedId(null);
         broadcastContentChanged();
@@ -542,6 +640,7 @@ export function Rooms() {
       } else if (editorMode === "edit" && selectedId) {
         const next = await updateRoomDetails(selectedId, payload);
         setRooms(next);
+        closeAdjust();
         setEditorMode("list");
         setSelectedId(null);
         broadcastContentChanged();
@@ -563,6 +662,7 @@ export function Rooms() {
       const next = await deleteRoomById(selectedId);
       setRooms(next);
       setConfirmDelete(false);
+      closeAdjust();
       setEditorMode("list");
       setSelectedId(null);
       broadcastContentChanged();
@@ -580,6 +680,7 @@ export function Rooms() {
       const next = await resetRoomsCatalog();
       setRooms(next);
       setConfirmReset(false);
+      closeAdjust();
       setEditorMode("list");
       setSelectedId(null);
       broadcastContentChanged();
@@ -590,37 +691,116 @@ export function Rooms() {
     }
   }
 
-  async function onAddImages(fileList: FileList | null) {
-    if (!selectedId || !fileList?.length) return;
+  function closeAdjust() {
+    setAdjust((current) => {
+      if (current?.ownedUrl) URL.revokeObjectURL(current.ownedUrl);
+      return null;
+    });
+  }
+
+  function openFileAdjust(
+    file: File,
+    purpose: "replace" | "add",
+    index: number,
+    queue: File[],
+    ready: File[],
+  ) {
+    const ownedUrl = URL.createObjectURL(file);
+    setAdjust((current) => {
+      if (current?.ownedUrl) URL.revokeObjectURL(current.ownedUrl);
+      return { src: ownedUrl, ownedUrl, purpose, index, queue, ready };
+    });
+  }
+
+  async function finishAdd(files: File[]) {
+    if (!selectedId || !files.length) {
+      closeAdjust();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const next = await uploadRoomImages(selectedId, Array.from(fileList));
+      const next = await uploadRoomImages(selectedId, files);
       setRooms(next);
       broadcastContentChanged();
+      closeAdjust();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload images.");
+      throw err;
     } finally {
       setBusy(false);
-      if (addImagesRef.current) addImagesRef.current.value = "";
     }
   }
 
-  async function onReplaceImage(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!selectedId || !file) return;
+  async function queueAdds(files: File[], ready: File[] = []) {
+    const pending = [...ready];
+    let index = 0;
+    while (index < files.length && isNikonNef(files[index])) {
+      pending.push(files[index]);
+      index += 1;
+    }
+    const next = files[index];
+    if (!next) {
+      await finishAdd(pending);
+      return;
+    }
+    openFileAdjust(next, "add", 0, files.slice(index + 1), pending);
+  }
+
+  function onAddImages(files: File[]) {
+    if (!selectedId || !files.length) return;
+    void queueAdds(files);
+  }
+
+  async function saveReplacement(file: File, index: number) {
+    if (!selectedId) return;
     setBusy(true);
     setError(null);
     try {
-      const next = await replaceRoomImageAt(selectedId, replaceImageIndex.current, file);
+      const next = await replaceRoomImageAt(selectedId, index, file);
       setRooms(next);
       broadcastContentChanged();
+      closeAdjust();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not replace image.");
+      throw err;
     } finally {
       setBusy(false);
-      if (replaceImageRef.current) replaceImageRef.current.value = "";
     }
+  }
+
+  function onReplaceImage(file: File | null) {
+    if (!selectedId || !file) return;
+    if (isNikonNef(file)) {
+      void saveReplacement(file, replaceImageIndex.current);
+      return;
+    }
+    openFileAdjust(file, "replace", replaceImageIndex.current, [], []);
+  }
+
+  function onAdjustExisting(index: number, image: string) {
+    setAdjust({
+      src: roomsMediaUrl(image),
+      ownedUrl: null,
+      purpose: "existing",
+      index,
+      queue: [],
+      ready: [],
+    });
+  }
+
+  async function onApplyAdjust(file: File) {
+    if (!adjust) return;
+    if (adjust.purpose === "add") {
+      const ready = [...adjust.ready, file];
+      if (!adjust.queue.length) {
+        await finishAdd(ready);
+        return;
+      }
+      await queueAdds(adjust.queue, ready);
+      return;
+    }
+    await saveReplacement(file, adjust.index);
   }
 
   async function onConfirmDeleteImage() {
@@ -1043,7 +1223,7 @@ export function Rooms() {
               <input
                 ref={bgEditor === "hero" ? heroInput : contentInput}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept={ROOM_IMAGE_ACCEPT}
                 className="hidden"
                 onChange={(event) =>
                   void (bgEditor === "hero"
@@ -1380,7 +1560,7 @@ export function Rooms() {
                       <input
                         ref={createFileRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        accept={ROOM_IMAGE_ACCEPT}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0] ?? null;
@@ -1419,6 +1599,14 @@ export function Rooms() {
                               <button
                                 type="button"
                                 disabled={busy}
+                                onClick={() => onAdjustExisting(imageIndex, image)}
+                                className="btn-press rounded-full border border-ink/15 px-2.5 py-1 text-[0.7rem] font-semibold disabled:opacity-60"
+                              >
+                                Cut & rotate
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
                                 onClick={() => {
                                   replaceImageIndex.current = imageIndex;
                                   replaceImageRef.current?.click();
@@ -1442,17 +1630,25 @@ export function Rooms() {
                       <input
                         ref={addImagesRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        accept={ROOM_IMAGE_ACCEPT}
                         multiple
                         className="hidden"
-                        onChange={(e) => void onAddImages(e.target.files)}
+                        onChange={(e) => {
+                          const files = e.target.files ? Array.from(e.target.files) : [];
+                          e.target.value = "";
+                          onAddImages(files);
+                        }}
                       />
                       <input
                         ref={replaceImageRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        accept={ROOM_IMAGE_ACCEPT}
                         className="hidden"
-                        onChange={(e) => void onReplaceImage(e.target.files)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          e.target.value = "";
+                          onReplaceImage(file);
+                        }}
                       />
                       <button
                         type="button"
@@ -1482,6 +1678,7 @@ export function Rooms() {
                       <button
                         type="button"
                         onClick={() => {
+                          closeAdjust();
                           setEditorMode("list");
                           setSelectedId(null);
                         }}
@@ -1529,6 +1726,20 @@ export function Rooms() {
                   busy={busy}
                   onCancel={() => setConfirmImageDelete(null)}
                   onConfirm={() => void onConfirmDeleteImage()}
+                />
+              ) : null}
+              {adjust ? (
+                <PhotoAdjustDialog
+                  key={adjust.src}
+                  source={adjust.src}
+                  busy={busy}
+                  progress={
+                    adjust.purpose === "add"
+                      ? `Photo ${adjust.ready.length + 1} of ${adjust.ready.length + 1 + adjust.queue.length}.`
+                      : null
+                  }
+                  onCancel={closeAdjust}
+                  onApply={onApplyAdjust}
                 />
               ) : null}
             </Modal>,
@@ -1598,9 +1809,19 @@ function ConfirmOverlay({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  return (
-    <div className="absolute inset-0 z-10 flex items-end justify-center rounded-3xl bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4"
+      role="presentation"
+      onClick={() => !busy && onCancel()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h4 className="font-display text-xl text-ink">{title}</h4>
         <p className="mt-2 text-sm text-ink/70">{message}</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1622,6 +1843,7 @@ function ConfirmOverlay({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

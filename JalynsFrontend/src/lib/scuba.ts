@@ -160,6 +160,9 @@ export async function optimizeImageFile(
   const maxBytes = options?.maxBytes ?? 8_000_000;
   const strict = Boolean(options?.strict);
 
+  // Browsers cannot decode Nikon RAW. Send the original file; the server extracts a JPEG.
+  if (/\.nef$/i.test(file.name) || /nikon-nef|(?:^|\/)nef$/i.test(file.type)) return file;
+
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
 
   const isJpeg = /^image\/jpe?g$/i.test(file.type);

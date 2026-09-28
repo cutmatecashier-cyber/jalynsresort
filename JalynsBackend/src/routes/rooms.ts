@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import multer from 'multer'
 import { Router } from 'express'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
@@ -33,19 +36,28 @@ import {
   uploadRoomsHeroBackground,
 } from '../services/roomsBackgrounds.js'
 import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
+import { prepareRoomImage } from '../services/prepareRoomImage.js'
 
 export const roomsRouter = Router()
+
+function isAllowedRoomImage(file: Express.Multer.File) {
+  if (/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) return true
+  const name = file.originalname || ''
+  const mime = (file.mimetype || '').toLowerCase()
+  return /\.nef$/i.test(name) || mime.includes('nikon') || mime === 'image/nef' || mime === 'image/x-raw'
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|jpg|png|webp|gif)$/i.test(file.mimetype)) {
-      cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'))
+    if (!isAllowedRoomImage(file)) {
+      cb(new Error('Only JPG, PNG, WEBP, GIF, or NEF images are allowed.'))
       return
     }
     cb(null, true)
   },
-  limits: { fileSize: 8 * 1024 * 1024 },
+  // Nikon RAW files are much larger than the JPEG preview we store.
+  limits: { fileSize: 80 * 1024 * 1024 },
 })
 
 function clientErrorStatus(message: string) {
@@ -275,7 +287,7 @@ roomsRouter.post('/highlights', async (req, res) => {
             const url = await uploadPublicImage({
               bucket: SITE_BUCKETS.rooms,
               folder: 'highlights',
-              file,
+              file: await prepareRoomImage(file),
             })
             highlights = await addRoomHighlight(url)
           }
@@ -313,7 +325,7 @@ roomsRouter.put('/highlights/:id', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'highlights',
-            file: req.file,
+            file: await prepareRoomImage(req.file),
           })
           const highlights = await replaceRoomHighlight(req.params.id, url)
           res.json({ success: true, highlights })
@@ -402,7 +414,7 @@ roomsRouter.post('/hero', async (req, res) => {
           return
         }
         try {
-          const background = await uploadRoomsHeroBackground(req.file)
+          const background = await uploadRoomsHeroBackground(await prepareRoomImage(req.file))
           res.status(201).json({ success: true, ...background })
         } catch (uploadErr) {
           const message =
@@ -457,7 +469,7 @@ roomsRouter.post('/content-background', async (req, res) => {
           return
         }
         try {
-          const background = await uploadRoomsContentBackground(req.file)
+          const background = await uploadRoomsContentBackground(await prepareRoomImage(req.file))
           res.status(201).json({ success: true, ...background })
         } catch (uploadErr) {
           const message =
@@ -524,7 +536,7 @@ roomsRouter.post('/', async (req, res) => {
             const url = await uploadPublicImage({
               bucket: SITE_BUCKETS.rooms,
               folder: 'photos',
-              file: req.file,
+              file: await prepareRoomImage(req.file),
             })
             const input = bodyToRoomInput((req.body || {}) as Record<string, unknown>)
             const rooms = await createRoom({ ...input, image: url })
@@ -573,7 +585,7 @@ roomsRouter.post('/upload', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'photos',
-            file: req.file,
+            file: await prepareRoomImage(req.file),
           })
           const replaceId =
             typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
@@ -590,6 +602,75 @@ roomsRouter.post('/upload', async (req, res) => {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not upload room photo.'
+    return res.status(500).json({ success: false, message })
+  }
+})
+
+const uploadsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../uploads')
+
+function urlsMatch(stored: string, requested: string) {
+  if (stored === requested) return true
+  try {
+    const reqUrl = new URL(requested)
+    if (stored.startsWith('/')) return reqUrl.pathname === stored.split('?')[0]
+    const storedUrl = new URL(stored)
+    return storedUrl.host === reqUrl.host && storedUrl.pathname === reqUrl.pathname
+  } catch {
+    return false
+  }
+}
+
+roomsRouter.get('/source-image', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit room photos.'))) {
+      return
+    }
+    const requested = typeof req.query.url === 'string' ? req.query.url.trim() : ''
+    if (!requested) {
+      return res.status(400).json({ success: false, message: 'Missing photo.' })
+    }
+    const rooms = await listRooms()
+    const stored = rooms
+      .flatMap((room) => room.images)
+      .find((image) => urlsMatch(image, requested))
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'That photo is not on this room.' })
+    }
+
+    let body: Buffer
+    let contentType = 'image/jpeg'
+    if (stored.startsWith('/uploads/')) {
+      const relative = stored.replace(/^\/uploads\//, '').split('?')[0]
+      const full = path.resolve(uploadsRoot, relative)
+      if (full !== uploadsRoot && !full.startsWith(`${uploadsRoot}${path.sep}`)) {
+        return res.status(400).json({ success: false, message: 'Invalid photo path.' })
+      }
+      body = await readFile(full)
+    } else if (/^https:\/\//i.test(stored)) {
+      const target = new URL(stored)
+      const supabaseHost = new URL(process.env.SUPABASE_URL || 'https://invalid.local').host
+      if (target.host !== supabaseHost && target.host !== 'images.unsplash.com') {
+        return res.status(400).json({ success: false, message: 'This photo cannot be edited.' })
+      }
+      const response = await fetch(stored)
+      if (!response.ok) {
+        return res.status(400).json({ success: false, message: 'Could not load this photo.' })
+      }
+      body = Buffer.from(await response.arrayBuffer())
+      const type = response.headers.get('content-type') || ''
+      if (type.startsWith('image/')) contentType = type.split(';')[0]
+    } else {
+      return res.status(400).json({ success: false, message: 'This photo cannot be edited.' })
+    }
+
+    if (body.length > 20 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'This photo is too large to edit.' })
+    }
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'private, no-store')
+    return res.send(body)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load this photo.'
     return res.status(500).json({ success: false, message })
   }
 })
@@ -633,7 +714,7 @@ roomsRouter.post('/:id/images', async (req, res) => {
               await uploadPublicImage({
                 bucket: SITE_BUCKETS.rooms,
                 folder: 'photos',
-                file,
+                file: await prepareRoomImage(file),
               }),
             )
           }
@@ -676,7 +757,7 @@ roomsRouter.put('/:id/images/:imageIndex', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'photos',
-            file: req.file,
+            file: await prepareRoomImage(req.file),
           })
           const rooms = await replaceRoomImage(req.params.id, imageIndex, url)
           res.json({ success: true, url, rooms })
