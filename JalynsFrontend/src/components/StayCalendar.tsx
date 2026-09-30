@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatClockLabel } from "../lib/roomAvailability";
+import { formatClockLabel, todayIso } from "../lib/roomAvailability";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -119,7 +119,7 @@ export function StayDateField({
   const [anchor, setAnchor] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [box, setBox] = useState<PanelBox | null>(null);
-  const initial = ISO_DATE_OK(value) ? parseIso(value) : parseIso(minIso || todayKey());
+  const initial = ISO_DATE_OK(value) ? parseIso(value) : parseIso(minIso || todayIso());
   const [cursor, setCursor] = useState(initial);
   const rangeMode = Boolean(onRangeEnd);
 
@@ -420,11 +420,6 @@ function formatBarDate(iso: string, short: boolean) {
 
 function ISO_DATE_OK(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function scheduleHint(checkInTime: string, checkOutTime: string) {

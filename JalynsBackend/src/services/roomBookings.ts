@@ -12,10 +12,10 @@ import {
   type ExtraGuestKind,
   type ExtraGuestQuote,
 } from './guestPricing.js'
-import { clockToMinutes, stayFits } from './roomAvailability.js'
+import { clockToMinutes, dateTimeMs, stayFits } from './roomAvailability.js'
 import { getRoomsVoucher, listRooms } from './rooms.js'
 
-export type RoomBookingStatus = 'pending' | 'confirmed' | 'completed'
+export type RoomBookingStatus = 'pending' | 'confirmed' | 'completed' | 'no_show'
 
 export type RoomBooking = {
   id: string
@@ -37,6 +37,7 @@ export type RoomBooking = {
   voucher_percent: number | null
   paypal_order_id: string | null
   paypal_capture_id: string | null
+  source: 'online' | 'walk_in'
   status: RoomBookingStatus
   created_at: string
 }
@@ -59,6 +60,8 @@ export type RoomBookingInput = {
   voucherPercent?: number | null
   paypalOrderId?: string | null
   paypalCaptureId?: string | null
+  source?: 'online' | 'walk_in'
+  amountCollected?: number | null
 }
 
 type StoreShape = { bookings: RoomBooking[] }
@@ -126,16 +129,18 @@ function normalizeBooking(row: Partial<RoomBooking>): RoomBooking | null {
   const full_name = String(row.full_name || '').trim()
   const email = String(row.email || '').trim()
   const phone = String(row.phone || '').trim()
-  if (!id || !room_id || !room_name || !check_in || !check_out || !full_name || !email) {
-    return null
-  }
+  const paypalOrder = String(row.paypal_order_id || '').trim()
+  const source = row.source === 'walk_in' || paypalOrder === 'walk-in' ? 'walk_in' : 'online'
+  if (!id || !room_id || !room_name || !check_in || !check_out || !full_name) return null
+  if (!email && source !== 'walk_in') return null
   const guests = Number(row.guests)
   const adultsRaw = Number(row.adults)
   const kidsRaw = Number(row.kids)
   const nights = Number(row.nights)
   const statusRaw = String(row.status || 'confirmed')
   // New bookings auto-confirm; treat legacy "pending" as confirmed.
-  const status: RoomBookingStatus = statusRaw === 'completed' ? 'completed' : 'confirmed'
+  const status: RoomBookingStatus =
+    statusRaw === 'completed' ? 'completed' : statusRaw === 'no_show' ? 'no_show' : 'confirmed'
   return {
     id,
     room_id,
@@ -162,8 +167,9 @@ function normalizeBooking(row: Partial<RoomBooking>): RoomBooking | null {
       typeof row.voucher_percent === 'number' && Number.isFinite(row.voucher_percent)
         ? row.voucher_percent
         : null,
-    paypal_order_id: String(row.paypal_order_id || '').trim() || null,
+    paypal_order_id: source === 'walk_in' ? null : paypalOrder || null,
     paypal_capture_id: String(row.paypal_capture_id || '').trim() || null,
+    source,
     status,
     created_at: String(row.created_at || new Date().toISOString()),
   }
@@ -211,8 +217,9 @@ function toRow(booking: RoomBooking) {
     price_per_night: booking.price_per_night,
     estimated_total: booking.estimated_total,
     voucher_percent: booking.voucher_percent,
-    paypal_order_id: booking.paypal_order_id,
+    paypal_order_id: booking.source === 'walk_in' ? 'walk-in' : booking.paypal_order_id,
     paypal_capture_id: booking.paypal_capture_id,
+    source: booking.source,
     status: booking.status,
     created_at: booking.created_at,
   }
@@ -256,8 +263,42 @@ async function loadBookings(): Promise<RoomBooking[]> {
   return sortBookings(data.bookings)
 }
 
+export function bookingBlocksRoom(booking: RoomBooking, checkOutMinutes: number, now = Date.now()) {
+  if (booking.status === 'completed' || booking.status === 'no_show') return false
+  return dateTimeMs(booking.check_out, checkOutMinutes) > now
+}
+
+async function closeFinishedStays(bookings: RoomBooking[]): Promise<RoomBooking[]> {
+  const settings = await loadBookingSettings()
+  const outMinutes = clockToMinutes(settings.checkOutTime)
+  const now = Date.now()
+  const expiredIds = bookings
+    .filter(
+      (booking) =>
+        (booking.status === 'confirmed' || booking.status === 'pending') &&
+        dateTimeMs(booking.check_out, outMinutes) <= now,
+    )
+    .map((booking) => booking.id)
+  if (!expiredIds.length) return bookings
+
+  if (await relationReady('room_bookings')) {
+    const { error } = await supabaseAdmin
+      .from('room_bookings')
+      .update({ status: 'completed' })
+      .in('id', expiredIds)
+    if (error) throw new Error(error.message)
+    return listFromDb()
+  }
+
+  const next = bookings.map((booking) =>
+    expiredIds.includes(booking.id) ? { ...booking, status: 'completed' as const } : booking,
+  )
+  await jsonStore.save({ bookings: next })
+  return sortBookings(next)
+}
+
 export async function listRoomBookings(): Promise<RoomBooking[]> {
-  return loadBookings()
+  return closeFinishedStays(await loadBookings())
 }
 
 async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
@@ -279,6 +320,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   if (!Number.isFinite(guests) || guests < 1 || guests > 20) {
     throw new Error('Number of guests must be between 1 and 20.')
   }
+  const walkIn = input.source === 'walk_in'
   if (!fullName) throw new Error('Full name is required.')
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('Enter a valid email address.')
@@ -295,9 +337,10 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   ])
   const room = rooms.find((item) => item.id === roomId)
   if (!room) throw new Error('Room not found.')
-  if (room.status === 'unavailable') throw new Error('This room type is unavailable.')
+  if (!walkIn && room.status === 'unavailable') throw new Error('This room type is unavailable.')
+  const outMinutes = clockToMinutes(settings.checkOutTime)
   const stays = currentBookings
-    .filter((item) => item.room_id === roomId && item.status !== 'completed')
+    .filter((item) => item.room_id === roomId && bookingBlocksRoom(item, outMinutes))
     .map((item) => ({ checkIn: item.check_in, checkOut: item.check_out }))
   if (
     !stayFits(
@@ -306,7 +349,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
       checkOut,
       room.quantity,
       clockToMinutes(settings.checkInTime),
-      clockToMinutes(settings.checkOutTime),
+      outMinutes,
     )
   ) {
     throw new Error('Those dates are fully booked for this room type.')
@@ -348,8 +391,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   if (baseNightly == null || baseNightly <= 0) {
     throw new Error('This room has no online rate. Contact the resort to book.')
   }
-  const voucherPercent =
-    voucher.enabled && voucher.percent > 0 ? Math.min(100, voucher.percent) : 0
+  const voucherPercent = voucher.enabled && voucher.percent > 0 ? Math.min(100, voucher.percent) : 0
   const nightly =
     voucherPercent > 0
       ? Math.max(0, Math.round(baseNightly * (1 - voucherPercent / 100)))
@@ -362,7 +404,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   const booking: RoomBooking = {
     id: `bk-${randomUUID().slice(0, 10)}`,
     room_id: roomId,
-    room_name: roomName,
+    room_name: walkIn ? room.name : roomName,
     check_in: checkIn,
     check_out: checkOut,
     nights,
@@ -377,8 +419,9 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
     price_per_night: peso(nightly),
     estimated_total: peso(amount),
     voucher_percent: voucherPercent > 0 ? Math.round(voucherPercent) : null,
-    paypal_order_id: String(input.paypalOrderId || '').trim() || null,
-    paypal_capture_id: String(input.paypalCaptureId || '').trim() || null,
+    paypal_order_id: walkIn ? 'walk-in' : String(input.paypalOrderId || '').trim() || null,
+    paypal_capture_id: walkIn ? null : String(input.paypalCaptureId || '').trim() || null,
+    source: walkIn ? 'walk_in' : 'online',
     status: 'confirmed',
     created_at: new Date().toISOString(),
   }
@@ -402,14 +445,22 @@ export async function findBookingByPayPalOrder(orderId: string): Promise<RoomBoo
 
 async function insertBookingRow(booking: RoomBooking) {
   const row = toRow(booking)
-  const { error } = await supabaseAdmin.from('room_bookings').insert(row)
-  if (error && /paypal_/i.test(error.message)) {
-    const { paypal_order_id: _order, paypal_capture_id: _capture, ...rest } = row
-    const retry = await supabaseAdmin.from('room_bookings').insert(rest)
-    if (retry.error) throw new Error(retry.error.message)
-    return
+  const attempts: Array<Record<string, unknown>> = [row]
+  if ('source' in row) {
+    const { source: _source, ...withoutSource } = row
+    attempts.push(withoutSource)
   }
-  if (error) throw new Error(error.message)
+  const { paypal_order_id: _order, paypal_capture_id: _capture, source: _source, ...plain } = row
+  attempts.push(plain)
+
+  let last = 'Could not save booking.'
+  for (const attempt of attempts) {
+    const { error } = await supabaseAdmin.from('room_bookings').insert(attempt)
+    if (!error) return
+    last = error.message
+    if (!/source|paypal_/i.test(error.message)) throw new Error(error.message)
+  }
+  throw new Error(last)
 }
 
 export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
@@ -423,6 +474,34 @@ export async function createRoomBooking(input: RoomBookingInput): Promise<RoomBo
   return booking
 }
 
+export async function createWalkInBooking(raw: unknown): Promise<RoomBooking> {
+  const body = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const roomId = String(body.roomId ?? '').trim()
+  const rooms = await listRooms()
+  const room = rooms.find((item) => item.id === roomId)
+  if (!room) throw new Error('Room not found.')
+  const adults = Math.round(Number(body.adults))
+  const kids = Math.round(Number(body.kids))
+  const extraGuests = Array.isArray(body.extraGuests)
+    ? body.extraGuests.filter((item) => item && typeof item === 'object')
+    : []
+  return createRoomBooking({
+    roomId: room.id,
+    roomName: room.name,
+    checkIn: String(body.checkIn ?? ''),
+    checkOut: String(body.checkOut ?? ''),
+    guests:
+      (Number.isInteger(adults) ? adults : 0) + (Number.isInteger(kids) && kids > 0 ? kids : 0),
+    adults: Number.isInteger(adults) ? adults : undefined,
+    kids: Number.isInteger(kids) && kids > 0 ? kids : 0,
+    extraGuests,
+    fullName: String(body.fullName ?? ''),
+    email: String(body.email ?? ''),
+    phone: String(body.phone ?? ''),
+    source: 'walk_in',
+  })
+}
+
 export async function updateRoomBookingStatus(
   id: string,
   status: RoomBookingStatus,
@@ -433,7 +512,12 @@ export async function updateRoomBookingStatus(
       .update({ status })
       .eq('id', id)
       .select('id')
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (status === 'no_show' && /check constraint|status_check/i.test(error.message)) {
+        throw new Error('Run supabase/BOOKING_NO_SHOW.sql in Supabase once, then try again.')
+      }
+      throw new Error(error.message)
+    }
     if (!data?.length) throw new Error('Booking not found.')
     return listFromDb()
   }

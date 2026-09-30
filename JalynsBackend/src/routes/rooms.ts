@@ -22,7 +22,10 @@ import {
   updateRoomsVoucher,
   type RoomInput,
 } from '../services/rooms.js'
+import { clockToMinutes } from '../services/roomAvailability.js'
 import {
+  bookingBlocksRoom,
+  createWalkInBooking,
   listRoomBookings,
   updateRoomBookingStatus,
   type RoomBookingStatus,
@@ -43,7 +46,7 @@ export const roomsRouter = Router()
 const upload = createImageUpload()
 
 function clientErrorStatus(message: string) {
-  return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid/i.test(
+    return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid|phone|amount|rate/i.test(
     message,
   )
     ? 400
@@ -147,7 +150,10 @@ roomsRouter.get('/availability', async (_req, res) => {
         quantity: room.quantity,
         status: room.status,
         stays: bookings
-          .filter((booking) => booking.room_id === room.id && booking.status !== 'completed')
+          .filter((booking) =>
+            booking.room_id === room.id &&
+            bookingBlocksRoom(booking, clockToMinutes(settings.checkOutTime)),
+          )
           .map((booking) => ({ checkIn: booking.check_in, checkOut: booking.check_out })),
       })),
     })
@@ -212,19 +218,36 @@ roomsRouter.patch('/bookings/:id', async (req, res) => {
     }
     const statusRaw = String(req.body?.status ?? '').trim()
     const status: RoomBookingStatus | null =
-      statusRaw === 'pending' || statusRaw === 'confirmed' || statusRaw === 'completed'
+      statusRaw === 'pending' ||
+      statusRaw === 'confirmed' ||
+      statusRaw === 'completed' ||
+      statusRaw === 'no_show'
         ? statusRaw
         : null
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: 'Status must be pending, confirmed, or completed.',
+        message: 'Status must be pending, confirmed, completed, or no_show.',
       })
     }
     const bookings = await updateRoomBookingStatus(req.params.id, status)
     return res.json({ success: true, bookings })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not update booking.'
+    return res.status(clientErrorStatus(message)).json({ success: false, message })
+  }
+})
+
+roomsRouter.post('/bookings/walk-in', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can add walk-in bookings.'))) {
+      return
+    }
+    const booking = await createWalkInBooking(req.body)
+    const bookings = await listRoomBookings()
+    return res.status(201).json({ success: true, booking, bookings })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not save this walk-in.'
     return res.status(clientErrorStatus(message)).json({ success: false, message })
   }
 })

@@ -19,11 +19,14 @@ export function addDaysIso(iso: string, days: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-export function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+/** Asia/Manila is UTC+8 year-round. Clocks in this system are Manila local time. */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+export function todayIso(now = Date.now()): string {
+  const shifted = new Date(now + MANILA_OFFSET_MS);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
@@ -55,11 +58,12 @@ export function asQuantity(value: unknown, fallback = 1): number {
   return Math.min(99, Math.max(1, Math.round(n)));
 }
 
+/** Manila civil date + clock, as a real UTC timestamp. */
 export function dateTimeMs(isoDate: string, minutes: number): number {
   const [y, mo, d] = isoDate.split("-").map(Number);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return Date.UTC(y, mo - 1, d, h, m, 0, 0);
+  return Date.UTC(y, mo - 1, d, h, m, 0, 0) - MANILA_OFFSET_MS;
 }
 
 function stayBounds(stay: StaySpan, checkInMinutes: number, checkOutMinutes: number) {

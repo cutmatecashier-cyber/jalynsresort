@@ -36,12 +36,32 @@ export function formatClockLabel(hhmm: string): string {
   return `${hours}:${minutes} ${suffix}`
 }
 
-/** Civil date + clock, compared on one shared timeline (not a server timezone). */
+/** Asia/Manila is UTC+8 year-round. Clocks in this system are Manila local time. */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
+
+export function manilaNowParts(now = Date.now()) {
+  const shifted = new Date(now + MANILA_OFFSET_MS)
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    minutes: shifted.getUTCHours() * 60 + shifted.getUTCMinutes(),
+  }
+}
+
+export function todayIso(now = Date.now()): string {
+  const parts = manilaNowParts(now)
+  const month = String(parts.month).padStart(2, '0')
+  const day = String(parts.day).padStart(2, '0')
+  return `${parts.year}-${month}-${day}`
+}
+
+/** Manila civil date + clock, as a real UTC timestamp. */
 export function dateTimeMs(isoDate: string, minutes: number): number {
   const [y, mo, d] = isoDate.split('-').map(Number)
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  return Date.UTC(y, mo - 1, d, h, m, 0, 0)
+  return Date.UTC(y, mo - 1, d, h, m, 0, 0) - MANILA_OFFSET_MS
 }
 
 function stayBounds(stay: StaySpan, checkInMinutes: number, checkOutMinutes: number) {

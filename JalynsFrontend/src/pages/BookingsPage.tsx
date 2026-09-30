@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
+import { RoomBookingPage } from "./RoomBookingPage";
 import { CONTENT_CHANGED_EVENT, CONTENT_SYNC_CHANNEL } from "../components/ContentSync";
 import { useAuth } from "../context/AuthContext";
 import {
   DEFAULT_CHECK_IN_TIME,
   DEFAULT_CHECK_OUT_TIME,
   formatClockLabel,
+  todayIso,
 } from "../lib/roomAvailability";
 import {
   fetchRoomAvailability,
@@ -17,29 +20,23 @@ import {
   type RoomBookingStatus,
 } from "../lib/rooms";
 
-type ListFilter = "all" | "confirmed" | "completed" | "arrivals";
+type ListFilter = "all" | "confirmed" | "completed" | "arrivals" | "walkin";
 
 const filters: { id: ListFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "confirmed", label: "Confirmed" },
+  { id: "walkin", label: "Walk-in" },
   { id: "completed", label: "Completed" },
   { id: "arrivals", label: "Today's arrivals" },
 ];
 
-function todayIso() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   try {
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString("en-PH", {
       dateStyle: "medium",
       timeStyle: "short",
+      timeZone: "Asia/Manila",
     });
   } catch {
     return value;
@@ -65,12 +62,13 @@ function formatStayDate(value: string) {
 }
 
 function StatusBadge({ status }: { status: RoomBookingStatus }) {
-  const label = status === "pending" ? "confirmed" : status;
-  const styles: Record<"confirmed" | "completed", string> = {
+  const label = status === "pending" ? "confirmed" : status === "no_show" ? "no-show" : status;
+  const styles: Record<"confirmed" | "completed" | "no-show", string> = {
     confirmed: "bg-emerald-100 text-emerald-900 border-emerald-200",
     completed: "bg-[#e8f3f8] text-sky border-[#c5dde8]",
+    "no-show": "bg-amber-100 text-amber-950 border-amber-200",
   };
-  const key = label === "completed" ? "completed" : "confirmed";
+  const key = label === "completed" || label === "no-show" ? label : "confirmed";
   return (
     <span
       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${styles[key]}`}
@@ -80,9 +78,16 @@ function StatusBadge({ status }: { status: RoomBookingStatus }) {
   );
 }
 
+function isWalkIn(booking: RoomBooking) {
+  return booking.source === "walk_in" || booking.paypal_order_id === "walk-in";
+}
+
 function bookingsSignature(list: RoomBooking[]) {
   return list
-    .map((b) => `${b.id}:${b.status}:${b.estimated_total ?? ""}:${b.created_at}`)
+    .map(
+      (b) =>
+        `${b.id}:${b.status}:${b.source ?? ""}:${b.estimated_total ?? ""}:${b.created_at}`,
+    )
     .join("|");
 }
 
@@ -123,6 +128,8 @@ function BookingsSkeleton() {
 
 export function BookingsPage() {
   const { can, role, approvalStatus } = useAuth();
+  const [walkInOpen, setWalkInOpen] = useState(false);
+  const closeWalkIn = useCallback(() => setWalkInOpen(false), []);
   const [bookings, setBookings] = useState<RoomBooking[]>(() => readBookingsCache());
   const [loading, setLoading] = useState(() => readBookingsCache().length === 0);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +214,7 @@ export function BookingsPage() {
       const today = todayIso();
       return bookings.filter((b) => b.check_in === today);
     }
+    if (filter === "walkin") return bookings.filter((b) => isWalkIn(b));
     if (filter === "confirmed") {
       return bookings.filter((b) => b.status === "confirmed" || b.status === "pending");
     }
@@ -220,6 +228,7 @@ export function BookingsPage() {
       confirmed: bookings.filter((b) => b.status === "confirmed" || b.status === "pending")
         .length,
       completed: bookings.filter((b) => b.status === "completed").length,
+      walkin: bookings.filter((b) => isWalkIn(b)).length,
       arrivals: bookings.filter((b) => b.check_in === today).length,
     };
   }, [bookings]);
@@ -265,16 +274,25 @@ export function BookingsPage() {
       </div>
 
       <main className="relative mx-auto w-full max-w-[90rem] flex-1 px-4 pt-8 pb-16 sm:px-6 sm:pt-10 sm:pb-20 md:px-8 md:pb-24 lg:px-10 xl:px-12">
-        <header className="max-w-2xl animate-fade-up">
-          <p className="text-[0.62rem] font-semibold tracking-[0.22em] text-sky uppercase">
-            Admin only
-          </p>
-          <h1 className="mt-1.5 font-display text-3xl tracking-tight text-ink sm:text-4xl md:text-[2.75rem]">
-            Bookings
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone sm:text-[0.95rem]">
-            Guest room requests appear here live.
-          </p>
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div className="max-w-2xl animate-fade-up">
+            <p className="text-[0.62rem] font-semibold tracking-[0.22em] text-sky uppercase">
+              Admin only
+            </p>
+            <h1 className="mt-1.5 font-display text-3xl tracking-tight text-ink sm:text-4xl md:text-[2.75rem]">
+              Bookings
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone sm:text-[0.95rem]">
+              Guest room requests appear here live. Add a walk-in when the guest is already at the resort.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWalkInOpen(true)}
+            className="rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(3,105,161,0.22)]"
+          >
+            Add walk-in
+          </button>
         </header>
 
         <div
@@ -331,6 +349,8 @@ export function BookingsPage() {
                 ? "No guests are checking in today."
                 : filter === "completed"
                   ? "Completed stays will show up in this list."
+                  : filter === "walkin"
+                  ? "Walk-in guests you add at the desk will show up here."
                   : "When a guest submits a room request, it will appear here."}
             </p>
           </div>
@@ -362,10 +382,13 @@ export function BookingsPage() {
                       >
                         <td className="px-5 py-4 align-middle font-medium whitespace-nowrap text-ink">
                           {b.full_name}
+                          {isWalkIn(b) ? (
+                            <span className="mt-0.5 block text-xs font-semibold text-sky">Walk-in</span>
+                          ) : null}
                         </td>
                         <td className="max-w-[14rem] px-5 py-4 align-middle text-stone">
-                          <span className="block truncate" title={b.email}>
-                            {b.email}
+                          <span className="block truncate" title={b.email || undefined}>
+                            {b.email || "No email"}
                           </span>
                           <span className="mt-0.5 block text-xs whitespace-nowrap text-stone/80">
                             {b.phone || "—"}
@@ -389,7 +412,9 @@ export function BookingsPage() {
                         </td>
                         <td className="px-5 py-4 align-middle font-semibold whitespace-nowrap text-ink">
                           {formatMoneyDisplay(b.estimated_total)}
-                          {b.paypal_capture_id ? (
+                          {isWalkIn(b) ? (
+                            <span className="mt-0.5 block text-xs font-medium text-sky">Walk-in</span>
+                          ) : b.paypal_capture_id ? (
                             <span className="mt-0.5 block text-xs font-medium text-emerald-800">PayPal</span>
                           ) : null}
                         </td>
@@ -425,7 +450,10 @@ export function BookingsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium text-ink">{b.full_name}</p>
-                      <p className="mt-0.5 truncate text-sm text-stone">{b.email}</p>
+                      {isWalkIn(b) ? (
+                        <p className="text-xs font-semibold text-sky">Walk-in</p>
+                      ) : null}
+                      <p className="mt-0.5 truncate text-sm text-stone">{b.email || "No email"}</p>
                       <p className="text-sm text-stone/80">{b.phone || "—"}</p>
                     </div>
                     <StatusBadge status={b.status} />
@@ -443,7 +471,9 @@ export function BookingsPage() {
                       </dt>
                       <dd className="mt-0.5 font-semibold text-ink">
                         {formatMoneyDisplay(b.estimated_total)}
-                        {b.paypal_capture_id ? (
+                        {isWalkIn(b) ? (
+                          <span className="mt-0.5 block text-xs font-medium text-sky">Walk-in</span>
+                        ) : b.paypal_capture_id ? (
                           <span className="mt-0.5 block text-xs font-medium text-emerald-800">PayPal</span>
                         ) : null}
                       </dd>
@@ -481,6 +511,27 @@ export function BookingsPage() {
       </main>
 
       <Footer />
+      {walkInOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[200] flex items-stretch justify-center bg-ink/45 sm:items-center sm:p-5"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeWalkIn();
+              }}
+            >
+              <div
+                className="flex h-full w-full sm:h-[min(92dvh,52rem)] sm:max-w-5xl"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Walk-in booking"
+              >
+                <RoomBookingPage dialog onClose={closeWalkIn} />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -498,16 +549,26 @@ function BookingActions({
   return (
     <div className="flex flex-wrap gap-1.5">
       {isActive ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onStatus(booking.id, "completed")}
-          className="rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-bright disabled:opacity-50"
-        >
-          {busy ? "Saving…" : "Complete"}
-        </button>
+        <>
+          <button
+            type="button"
+            disabled
+            title="The room opens on its own at checkout, Manila time."
+            className="cursor-not-allowed rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white opacity-45"
+          >
+            Complete
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onStatus(booking.id, "no_show")}
+            className="rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-xs font-semibold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
+          >
+            {busy ? "Saving…" : "Didn't arrive"}
+          </button>
+        </>
       ) : null}
-      {booking.status === "completed" ? (
+      {booking.status === "completed" || booking.status === "no_show" ? (
         <button
           type="button"
           disabled={busy}

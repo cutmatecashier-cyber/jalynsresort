@@ -650,7 +650,7 @@ export async function fetchRooms(): Promise<Room[]> {
   return (await fetchRoomsCatalog()).rooms;
 }
 
-export type RoomBookingStatus = "pending" | "confirmed" | "completed";
+export type RoomBookingStatus = "pending" | "confirmed" | "completed" | "no_show";
 
 export type RoomBooking = {
   id: string;
@@ -672,6 +672,7 @@ export type RoomBooking = {
   voucher_percent: number | null;
   paypal_order_id?: string | null;
   paypal_capture_id?: string | null;
+  source?: "online" | "walk_in";
   status: RoomBookingStatus;
   created_at: string;
 };
@@ -832,6 +833,11 @@ function normalizeClientBooking(row: RoomBooking): RoomBooking {
     extra_person_total: Number.isFinite(extraTotal)
       ? extraTotal
       : extra.reduce((sum, guest) => sum + (Number(guest.charge) || 0), 0),
+    status:
+      row.status === "completed" ? "completed" : row.status === "no_show" ? "no_show" : "confirmed",
+    source: row.source === "walk_in" || row.paypal_order_id === "walk-in" ? "walk_in" : "online",
+    paypal_order_id:
+      row.source === "walk_in" || row.paypal_order_id === "walk-in" ? null : row.paypal_order_id,
   };
 }
 
@@ -846,6 +852,32 @@ export async function fetchRoomBookings(): Promise<RoomBooking[]> {
     bookings?: RoomBooking[];
   };
   if (!res.ok) throw new Error(apiMessage(data, "Could not load bookings."));
+  return Array.isArray(data.bookings) ? data.bookings.map(normalizeClientBooking) : [];
+}
+
+export async function createWalkInBooking(input: {
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  kids: number;
+  extraGuests?: Array<{ kind: "kid"; age: number }>;
+  fullName: string;
+  email?: string;
+  phone: string;
+  amountCollected?: number | null;
+}): Promise<RoomBooking[]> {
+  const res = await fetch(`${getApiUrl()}/api/rooms/bookings/walk-in`, {
+    method: "POST",
+    headers: await adminAuthHeaders(true),
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    message?: string;
+    bookings?: RoomBooking[];
+  };
+  if (!res.ok) throw new Error(apiMessage(data, "Could not save this walk-in."));
   return Array.isArray(data.bookings) ? data.bookings.map(normalizeClientBooking) : [];
 }
 

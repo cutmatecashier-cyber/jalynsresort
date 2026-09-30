@@ -54,6 +54,7 @@ type PayPalCheckoutProps = {
   createOrder: () => Promise<string>;
   onApprove: (orderId: string) => Promise<void>;
   onError: (message: string) => void;
+  fluid?: boolean;
 };
 
 export function PayPalCheckout({
@@ -62,6 +63,7 @@ export function PayPalCheckout({
   createOrder,
   onApprove,
   onError,
+  fluid = false,
 }: PayPalCheckoutProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const createRef = useRef(createOrder);
@@ -109,5 +111,5 @@ export function PayPalCheckout({
     };
   }, [clientId, currency]);
 
-  return <div ref={hostRef} className="min-h-11 w-full sm:w-[280px]" />;
+  return <div ref={hostRef} className={fluid ? "min-h-11 w-full" : "min-h-11 w-full sm:w-[280px]"} />;
 }

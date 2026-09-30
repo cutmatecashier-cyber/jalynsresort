@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { scrollToTopInstant } from "../components/ScrollToTop";
 import { broadcastContentChanged, CONTENT_CHANGED_EVENT, refreshLocalContent } from "../components/ContentSync";
+import { useAuth } from "../context/AuthContext";
 import { NumberStepper } from "../components/NumberStepper";
 import { PayPalCheckout } from "../components/PayPalCheckout";
 import { StayDateField } from "../components/StayCalendar";
@@ -15,6 +16,7 @@ import {
   fetchRoomAvailability,
   capturePayPalCheckout,
   createPayPalCheckout,
+  createWalkInBooking,
   fetchPayPalConfig,
   fetchRoomsCatalog,
   formatPesoAmount,
@@ -254,10 +256,22 @@ function isIsoDate(value: unknown): value is string {
 }
 
 /** Full-page room booking — choose a room first, then guest & stay details. */
-export function RoomBookingPage() {
+export function RoomBookingPage({
+  dialog = false,
+  onClose,
+}: {
+  dialog?: boolean;
+  onClose?: () => void;
+} = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { can, role, approvalStatus } = useAuth();
+  const deskMode =
+    (dialog || searchParams.get("desk") === "1") && can.canManageBookings(role, approvalStatus);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const handed = (location.state ?? null) as StayHandoff | null;
   const presetRoomId = searchParams.get("room");
   const queryCheckIn = isIsoDate(handed?.checkIn) ? handed.checkIn : (searchParams.get("checkIn") ?? "");
@@ -291,27 +305,125 @@ export function RoomBookingPage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paidAtStaff, setPaidAtStaff] = useState(false);
+  const [payMethod, setPayMethod] = useState<"staff" | "paypal">("staff");
   const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
   const [availability, setAvailability] = useState<RoomAvailabilitySnapshot | null>(null);
 
   useEffect(() => {
     if (step !== "review") return;
     let cancelled = false;
-    void fetchPayPalConfig()
-      .then((config) => {
-        if (!cancelled) setPaypalConfig(config);
-      })
-      .catch(() => {
-        if (!cancelled) setPaypalConfig({ enabled: false, clientId: "", currency: "PHP" });
-      });
+    let attempt = 0;
+    const load = () => {
+      void fetchPayPalConfig()
+        .then((config) => {
+          if (!cancelled) setPaypalConfig(config);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          attempt += 1;
+          if (attempt < 5) {
+            window.setTimeout(load, 700);
+            return;
+          }
+          setPaypalConfig({ enabled: false, clientId: "", currency: "PHP" });
+        });
+    };
+    load();
     return () => {
       cancelled = true;
     };
   }, [step]);
 
+  useLayoutEffect(() => {
+    if (!dialog) return;
+    const html = document.documentElement;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const lockedY = window.scrollY;
+    html.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    const lenisOf = () =>
+      (window as Window & { __lenis?: { stop: () => void; start: () => void } }).__lenis;
+    const stopLenis = () => lenisOf()?.stop();
+    stopLenis();
+    window.addEventListener("jalyns:lenis-ready", stopLenis);
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const el = scrollRef.current;
+      const target = event.target;
+      if (!el || !(target instanceof Node) || !el.contains(target)) return;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max <= 0) return;
+      el.scrollTop = Math.min(max, Math.max(0, el.scrollTop + event.deltaY));
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const el = scrollRef.current;
+      const target = event.target;
+      if (el && target instanceof Node && el.contains(target)) return;
+      event.preventDefault();
+    };
+    const onScroll = () => {
+      if (window.scrollY !== lockedY) window.scrollTo(0, lockedY);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseRef.current?.();
+        return;
+      }
+      const scrollKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+      if (!scrollKeys.includes(event.key)) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const el = scrollRef.current;
+      if (!el) return;
+      const page = el.clientHeight;
+      const delta =
+        event.key === "ArrowUp"
+          ? -48
+          : event.key === "ArrowDown" || event.key === " "
+            ? 48
+            : event.key === "PageUp"
+              ? -page
+              : event.key === "PageDown"
+                ? page
+                : event.key === "Home"
+                  ? -el.scrollTop
+                  : el.scrollHeight;
+      el.scrollTop += delta;
+    };
+
+    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    window.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    window.addEventListener("scroll", onScroll);
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      lenisOf()?.start();
+      window.removeEventListener("jalyns:lenis-ready", stopLenis);
+      window.removeEventListener("wheel", onWheel, { capture: true });
+      window.removeEventListener("touchmove", onTouchMove, { capture: true });
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [dialog]);
+
   const bookable = useMemo(
-    () => catalog.filter((r) => r.status !== "unavailable"),
-    [catalog],
+    () => (deskMode ? catalog : catalog.filter((r) => r.status !== "unavailable")),
+    [catalog, deskMode],
   );
 
   const selectedRoom = useMemo(
@@ -467,11 +579,16 @@ export function RoomBookingPage() {
   }, [loading, presetRoomId, bookable]);
 
   useLayoutEffect(() => {
-    if (step !== "form" && step !== "review" && step !== "done") return;
+    if (dialog) {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = 0;
+      return;
+    }
+    if (step === "pick") return;
     scrollToTopInstant();
     const frame = requestAnimationFrame(() => scrollToTopInstant());
     return () => cancelAnimationFrame(frame);
-  }, [step]);
+  }, [step, dialog]);
 
   function continueToForm() {
     setError(null);
@@ -572,6 +689,7 @@ export function RoomBookingPage() {
     setBusy(true);
     try {
       await capturePayPalCheckout(orderId);
+      setPaidAtStaff(false);
       setStep("done");
       broadcastContentChanged();
       void refreshLocalContent();
@@ -582,8 +700,106 @@ export function RoomBookingPage() {
     }
   }
 
+  function bookingPayload() {
+    if (!selectedRoom) return null;
+    return {
+      roomId: selectedRoom.id,
+      roomName: selectedRoom.name,
+      checkIn,
+      checkOut,
+      guests: totalGuests,
+      adults,
+      kids,
+      extraGuests: extraQuotes.map((guest) => ({ kind: guest.kind, age: guest.age })),
+      fullName: fullName.trim(),
+      email: email.trim(),
+      phone: phone.replace(/\D/g, ""),
+    };
+  }
+
+  async function payAtStaff() {
+    setError(null);
+    if (!validateForm()) return;
+    const payload = bookingPayload();
+    if (!payload) return;
+    setBusy(true);
+    try {
+      await createWalkInBooking({
+        roomId: payload.roomId,
+        checkIn: payload.checkIn,
+        checkOut: payload.checkOut,
+        adults: payload.adults,
+        kids: payload.kids,
+        extraGuests: payload.extraGuests.flatMap((guest) =>
+          guest.kind === "kid" && guest.age != null ? [{ kind: "kid" as const, age: guest.age }] : [],
+        ),
+        fullName: payload.fullName,
+        email: payload.email,
+        phone: payload.phone,
+      });
+      setPaidAtStaff(true);
+      setStep("done");
+      broadcastContentChanged();
+      void refreshLocalContent();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the staff payment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function leavePicker() {
+    if (dialog) onCloseRef.current?.();
+    else if (deskMode) navigate("/bookings");
+    else navigate(-1);
+  }
+
+  const heading =
+    step === "pick"
+      ? "Choose your room"
+      : step === "review"
+        ? "Review booking"
+        : step === "done"
+          ? "Booking confirmed"
+          : "Complete your booking";
+  const subheading =
+    step === "pick"
+      ? "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
+      : step === "review"
+        ? deskMode
+          ? "Check everything carefully, then choose PayPal or pay at the staff."
+          : "Check everything carefully, then pay with PayPal to confirm your booking."
+        : step === "done"
+          ? paidAtStaff
+            ? "Paid at the staff. The stay is confirmed."
+            : "Payment received. A confirmation email is on its way."
+          : "Confirm your dates and how we can reach you.";
+  const lift = dialog ? "" : "-mt-6 sm:-mt-8";
+
   return (
-    <main className="min-h-screen bg-foam text-ink">
+    <main
+      className={
+        dialog
+          ? "flex h-full min-h-0 w-full flex-col overflow-hidden bg-foam text-ink sm:rounded-3xl sm:shadow-[0_24px_80px_rgba(8,18,28,0.28)]"
+          : "min-h-screen bg-foam text-ink"
+      }
+    >
+      {dialog ? (
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-ink/10 bg-white px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-sky uppercase">Walk-in</p>
+            <h2 className="mt-1 font-display text-2xl leading-tight text-ink sm:text-3xl">{heading}</h2>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-stone">{subheading}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onCloseRef.current?.()}
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-ink/15 px-4 text-sm font-semibold text-ink"
+          >
+            Close
+          </button>
+        </header>
+      ) : (
       <section className="relative overflow-hidden bg-[#07101c] text-white">
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-[#07101c]/80 to-foam" />
         <Navbar />
@@ -592,55 +808,64 @@ export function RoomBookingPage() {
             Rooms only
           </p>
           <h1 className="animate-fade-up mt-2 font-display text-3xl leading-tight text-white sm:text-5xl md:text-6xl">
-            {step === "pick"
-              ? "Choose your room"
-              : step === "review"
-                ? "Review booking"
-                : step === "done"
-                  ? "Booking confirmed"
-                  : "Complete your booking"}
+            {heading}
           </h1>
           <p className="animate-fade-up mt-3 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
-            {step === "pick"
-              ? "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
-              : step === "review"
-                ? "Check everything carefully, then pay with PayPal to confirm your booking."
-                : step === "done"
-                  ? "Payment received. A confirmation email is on its way."
-                  : "Confirm your dates and how we can reach you."}
+            {subheading}
           </p>
         </div>
       </section>
+      )}
 
-      <div className="relative z-10 mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 sm:pb-20 md:px-8 lg:px-10 xl:px-12">
+      <div
+        ref={dialog ? scrollRef : undefined}
+        className={
+          dialog
+            ? "min-h-0 flex-1 overflow-y-auto overscroll-none px-4 py-4 sm:px-6 sm:py-5"
+            : "relative z-10 mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 sm:pb-20 md:px-8 lg:px-10 xl:px-12"
+        }
+      >
         {step === "done" && selectedRoom ? (
           <Reveal variant="up">
-            <div className="-mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:-mt-8 sm:p-8">
+            <div className={`${lift} rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm sm:p-8`}>
               <p className="font-display text-2xl text-emerald-950 sm:text-3xl">Thank you</p>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-950/85 sm:text-base">
-                {fullName.trim()}, your stay in <strong>{selectedRoom.name}</strong> is confirmed.
-                We sent the booking details to <strong>{email.trim()}</strong>.
+                {paidAtStaff
+                  ? `${fullName.trim()}'s stay in ${selectedRoom.name} is confirmed. Payment was taken at the staff.`
+                  : `${fullName.trim()}, your stay in ${selectedRoom.name} is confirmed. We sent the booking details to ${email.trim()}.`}
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
-                <Link
-                  to="/rooms"
-                  className="btn-press inline-flex min-h-11 items-center justify-center rounded-full bg-sky-deep px-5 text-sm font-semibold text-white transition hover:bg-sky"
-                >
-                  Back to rooms
-                </Link>
+                {deskMode ? (
+                  <button
+                    type="button"
+                    onClick={() => (dialog ? onCloseRef.current?.() : navigate("/bookings"))}
+                    className="btn-press inline-flex min-h-11 items-center justify-center rounded-full bg-sky-deep px-5 text-sm font-semibold text-white transition hover:bg-sky"
+                  >
+                    Back to bookings
+                  </button>
+                ) : (
+                  <Link
+                    to="/rooms"
+                    className="btn-press inline-flex min-h-11 items-center justify-center rounded-full bg-sky-deep px-5 text-sm font-semibold text-white transition hover:bg-sky"
+                  >
+                    Back to rooms
+                  </Link>
+                )}
+                {dialog ? null : (
                 <Link
                   to="/"
                   className="btn-press inline-flex min-h-11 items-center justify-center rounded-full border border-ink/15 bg-white px-5 text-sm font-semibold text-ink"
                 >
                   Home
                 </Link>
+                )}
               </div>
             </div>
           </Reveal>
         ) : null}
 
         {step === "pick" ? (
-          <div className="-mt-6 sm:-mt-8">
+          <div className={lift || undefined}>
             {loading ? (
               <p className="rounded-3xl border border-ink/8 bg-white p-6 text-sm text-stone shadow-sm">
                 Loading rooms…
@@ -717,7 +942,7 @@ export function RoomBookingPage() {
                 <div className="mt-6 hidden flex-wrap items-center justify-between gap-3 sm:flex">
                   <button
                     type="button"
-                    onClick={() => navigate(-1)}
+                    onClick={leavePicker}
                     className="btn-press inline-flex min-h-11 items-center justify-center rounded-full border border-ink/15 bg-white px-5 text-sm font-semibold text-ink"
                   >
                     Back
@@ -737,11 +962,17 @@ export function RoomBookingPage() {
 
                 {/* Mobile: floating Continue after a room is tapped */}
                 {pickedId ? (
-                  <div className="fixed inset-x-0 bottom-0 z-40 animate-fade-up px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2 sm:hidden">
+                  <div
+                    className={
+                      dialog
+                        ? "sticky bottom-0 z-10 -mx-4 mt-4 bg-white/95 px-4 py-2 backdrop-blur-xl sm:hidden"
+                        : "fixed inset-x-0 bottom-0 z-40 animate-fade-up px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2 sm:hidden"
+                    }
+                  >
                     <div className="mx-auto flex max-w-lg items-center gap-2 rounded-2xl border border-ink/10 bg-white/95 p-2 shadow-[0_12px_40px_rgba(8,18,28,0.22)] backdrop-blur-xl">
                       <button
                         type="button"
-                        onClick={() => navigate(-1)}
+                        onClick={leavePicker}
                         className="btn-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-ink/12 px-4 text-sm font-semibold text-ink"
                       >
                         Back
@@ -762,7 +993,7 @@ export function RoomBookingPage() {
         ) : null}
 
         {step === "form" && selectedRoom ? (
-          <div className="-mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start sm:-mt-8">
+          <div className={`${lift} grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start`}>
             <Reveal variant="up">
               <aside className="overflow-hidden rounded-3xl border border-ink/8 bg-white shadow-sm">
                 <div className="aspect-[16/10] bg-mist">
@@ -785,7 +1016,7 @@ export function RoomBookingPage() {
                     onClick={() => {
                       setError(null);
                       setStep("pick");
-                      navigate("/book", { replace: true });
+                      if (!deskMode) navigate("/book", { replace: true });
                     }}
                     className="btn-press mt-4 inline-flex text-sm font-semibold text-sky-deep hover:underline"
                   >
@@ -1023,7 +1254,7 @@ export function RoomBookingPage() {
                         maxLength={15}
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                        placeholder="09171234567"
+                        placeholder="09XXXXXXXXX"
                         className={inputClass}
                       />
                     </label>
@@ -1046,7 +1277,7 @@ export function RoomBookingPage() {
                     onClick={() => {
                       setError(null);
                       setStep("pick");
-                      navigate("/book", { replace: true });
+                      if (!deskMode) navigate("/book", { replace: true });
                     }}
                     className="btn-press inline-flex min-h-11 items-center justify-center rounded-full border border-ink/15 px-5 text-sm font-semibold disabled:opacity-60"
                   >
@@ -1066,7 +1297,7 @@ export function RoomBookingPage() {
         ) : null}
 
         {step === "review" && selectedRoom ? (
-          <div className="-mt-6 mx-auto max-w-2xl sm:-mt-8">
+          <div className={`${lift} mx-auto max-w-2xl`}>
             <Reveal variant="up">
               <div className="overflow-hidden rounded-3xl border border-ink/8 bg-white shadow-sm">
                 <div className="aspect-[16/9] bg-mist sm:aspect-[2.2/1]">
@@ -1286,6 +1517,85 @@ export function RoomBookingPage() {
                     </p>
                   ) : null}
 
+                  {deskMode && staySummary.total != null ? (
+                    <section>
+                      <h3 className="text-[0.7rem] font-semibold tracking-[0.18em] text-stone uppercase">
+                        Payment
+                      </h3>
+                      <div
+                        className="mt-3 grid grid-cols-2 gap-1 rounded-full border border-ink/10 bg-foam p-1"
+                        role="tablist"
+                        aria-label="Payment method"
+                      >
+                        {(
+                          [
+                            ["staff", "Pay at staff"],
+                            ["paypal", "PayPal"],
+                          ] as const
+                        ).map(([id, label]) => {
+                          const selected = payMethod === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              role="tab"
+                              aria-selected={selected}
+                              onClick={() => setPayMethod(id)}
+                              className={`min-h-10 rounded-full text-sm font-semibold transition ${
+                                selected
+                                  ? "bg-sky text-white shadow-[0_6px_18px_rgba(3,105,161,0.22)]"
+                                  : "text-ink/55 hover:bg-white hover:text-ink"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-stone">
+                        {payMethod === "staff"
+                          ? "Collect the total at the desk. The room is held as soon as you confirm."
+                          : "The guest pays with PayPal. The stay is confirmed after the payment goes through."}
+                      </p>
+                      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setError(null);
+                            setStep("form");
+                          }}
+                          className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/15 px-5 text-sm font-semibold text-ink disabled:opacity-60"
+                        >
+                          Back
+                        </button>
+                        {payMethod === "staff" ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void payAtStaff()}
+                            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-sky-deep px-6 text-sm font-semibold text-white transition hover:bg-sky disabled:opacity-60 sm:w-[280px]"
+                          >
+                            {busy ? "Saving…" : "Confirm payment"}
+                          </button>
+                        ) : paypalConfig == null ? (
+                          <p className="text-sm text-ink/60">Loading PayPal…</p>
+                        ) : paypalConfig.enabled ? (
+                          <div className={`w-full sm:w-[280px] ${busy ? "pointer-events-none opacity-60" : ""}`}>
+                            <PayPalCheckout
+                              clientId={paypalConfig.clientId}
+                              currency={paypalConfig.currency}
+                              createOrder={startPayPalOrder}
+                              onApprove={finishPayPal}
+                              onError={setError}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-sm text-ink/70">PayPal is not available yet.</p>
+                        )}
+                      </div>
+                    </section>
+                  ) : (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <button
                       type="button"
@@ -1320,6 +1630,7 @@ export function RoomBookingPage() {
                       </p>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
             </Reveal>
@@ -1327,7 +1638,7 @@ export function RoomBookingPage() {
         ) : null}
       </div>
 
-      <Footer />
+      {dialog ? null : <Footer />}
     </main>
   );
 }
