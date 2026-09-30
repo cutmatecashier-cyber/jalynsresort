@@ -234,6 +234,15 @@ function formatDisplayDate(iso: string) {
   });
 }
 
+function inventoryForRoom(room: Room, snapshot: RoomAvailabilitySnapshot | null) {
+  const row = snapshot?.rooms.find((item) => item.id === room.id);
+  if (snapshot && snapshot.rooms.length > 0 && !row) return null;
+  return {
+    quantity: row?.quantity ?? room.quantity,
+    stays: row?.stays ?? [],
+  };
+}
+
 function nightsBetween(checkInIso: string, checkOutIso: string): number {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(checkInIso) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOutIso)) {
     return 0;
@@ -278,6 +287,7 @@ export function RoomBookingPage({
   const queryCheckOut = isIsoDate(handed?.checkOut) ? handed.checkOut : (searchParams.get("checkOut") ?? "");
 
   const minCheckIn = todayIso();
+  const walkInEntry = dialog || searchParams.get("desk") === "1";
   const hasQueryStay =
     /^\d{4}-\d{2}-\d{2}$/.test(queryCheckIn) &&
     /^\d{4}-\d{2}-\d{2}$/.test(queryCheckOut) &&
@@ -292,7 +302,11 @@ export function RoomBookingPage({
   const [step, setStep] = useState<Step>("pick");
   const [checkIn, setCheckIn] = useState(hasQueryStay ? queryCheckIn : minCheckIn);
   const [checkOut, setCheckOut] = useState(
-    hasQueryStay ? queryCheckOut : addDaysIso(hasQueryStay ? queryCheckIn : minCheckIn, 1),
+    walkInEntry && !hasQueryStay
+      ? ""
+      : hasQueryStay
+        ? queryCheckOut
+        : addDaysIso(hasQueryStay ? queryCheckIn : minCheckIn, 1),
   );
   const queryAdults = Number.isInteger(handed?.adults) ? Number(handed?.adults) : Number(searchParams.get("adults"));
   const [adults, setAdults] = useState(
@@ -422,9 +436,55 @@ export function RoomBookingPage({
   }, [dialog]);
 
   const bookable = useMemo(
-    () => (deskMode ? catalog : catalog.filter((r) => r.status !== "unavailable")),
-    [catalog, deskMode],
+    () => catalog.filter((r) => r.status !== "unavailable"),
+    [catalog],
   );
+
+  const scheduleMinutes = useMemo(() => {
+    const checkInTime = availability?.checkInTime || DEFAULT_CHECK_IN_TIME;
+    const checkOutTime = availability?.checkOutTime || DEFAULT_CHECK_OUT_TIME;
+    return {
+      checkInTime,
+      checkOutTime,
+      checkInMinutes: clockToMinutes(checkInTime),
+      checkOutMinutes: clockToMinutes(checkOutTime),
+    };
+  }, [availability]);
+
+  const stayDatesReady =
+    Boolean(checkIn && checkOut) && checkIn >= minCheckIn && checkOut > checkIn;
+
+  const walkInMatches = useMemo(() => {
+    if (!deskMode || !availability || !stayDatesReady) return [];
+    const { checkInMinutes, checkOutMinutes } = scheduleMinutes;
+    return catalog.flatMap((room) => {
+      if (room.status === "unavailable") return [];
+      const inventory = inventoryForRoom(room, availability);
+      if (!inventory) return [];
+      if (
+        !stayFits(
+          inventory.stays,
+          checkIn,
+          checkOut,
+          inventory.quantity,
+          checkInMinutes,
+          checkOutMinutes,
+        )
+      ) {
+        return [];
+      }
+      const remaining = roomsRemaining(
+        inventory.stays,
+        checkIn,
+        checkOut,
+        inventory.quantity,
+        checkInMinutes,
+        checkOutMinutes,
+      );
+      if (remaining < 1) return [];
+      return [{ room, remaining, quantity: inventory.quantity }];
+    });
+  }, [deskMode, availability, stayDatesReady, scheduleMinutes, catalog, checkIn, checkOut]);
 
   const selectedRoom = useMemo(
     () => bookable.find((r) => r.id === pickedId) ?? null,
@@ -569,14 +629,49 @@ export function RoomBookingPage({
   }, [availability, selectedRoom, step, checkIn, checkOut, inventory, minCheckIn]);
 
   useEffect(() => {
-    if (loading) return;
+    if (!deskMode || !stayDatesReady) return;
+    let cancelled = false;
+    void fetchRoomAvailability().then((snapshot) => {
+      if (!cancelled && snapshot) setAvailability(snapshot);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deskMode, stayDatesReady, checkIn, checkOut]);
+
+  useEffect(() => {
+    if (!deskMode || step !== "pick" || !availability || !checkIn || !checkOut || checkOut <= checkIn) {
+      return;
+    }
+    const open = bookable.some((room) => {
+      const inventory = inventoryForRoom(room, availability);
+      if (!inventory) return false;
+      return stayFits(
+        inventory.stays,
+        checkIn,
+        checkOut,
+        inventory.quantity,
+        scheduleMinutes.checkInMinutes,
+        scheduleMinutes.checkOutMinutes,
+      );
+    });
+    if (!open) setCheckOut("");
+  }, [deskMode, step, availability, checkIn, checkOut, bookable, scheduleMinutes]);
+
+  useEffect(() => {
+    if (!deskMode || step !== "pick" || !pickedId) return;
+    if (!walkInMatches.some((item) => item.room.id === pickedId)) setPickedId(null);
+  }, [deskMode, step, pickedId, walkInMatches]);
+
+  useEffect(() => {
+    if (loading || deskMode) return;
     if (!presetRoomId) return;
     const match = bookable.find((r) => r.id === presetRoomId);
     if (match) {
       setPickedId(match.id);
       setStep("form");
     }
-  }, [loading, presetRoomId, bookable]);
+  }, [loading, deskMode, presetRoomId, bookable]);
 
   useLayoutEffect(() => {
     if (dialog) {
@@ -590,8 +685,104 @@ export function RoomBookingPage({
     return () => cancelAnimationFrame(frame);
   }, [step, dialog]);
 
-  function continueToForm() {
+  function walkInNightClosed(iso: string) {
+    if (!availability) return false;
+    if (bookable.length === 0) return true;
+    return bookable.every((room) => {
+      const inventory = inventoryForRoom(room, availability);
+      if (!inventory) return true;
+      return isNightFullyBooked(
+        inventory.stays,
+        iso,
+        inventory.quantity,
+        scheduleMinutes.checkInMinutes,
+        scheduleMinutes.checkOutMinutes,
+      );
+    });
+  }
+
+  function walkInStayOpen(start: string, end: string) {
+    if (!availability) return true;
+    if (bookable.length === 0) return false;
+    return bookable.some((room) => {
+      const inventory = inventoryForRoom(room, availability);
+      if (!inventory) return false;
+      return stayFits(
+        inventory.stays,
+        start,
+        end,
+        inventory.quantity,
+        scheduleMinutes.checkInMinutes,
+        scheduleMinutes.checkOutMinutes,
+      );
+    });
+  }
+
+  function onWalkInCheckIn(next: string) {
     setError(null);
+    setPickedId(null);
+    setCheckIn(next);
+    setCheckOut((current) => {
+      if (!current || current <= next) return "";
+      return walkInStayOpen(next, current) ? current : "";
+    });
+  }
+
+  function onWalkInCheckOut(next: string) {
+    if (!checkIn || next <= checkIn || !walkInStayOpen(checkIn, next)) return;
+    setError(null);
+    setPickedId(null);
+    setCheckOut(next);
+  }
+
+  async function continueToForm() {
+    setError(null);
+    if (deskMode) {
+      if (!checkIn || !checkOut) {
+        setError("Select a check-in date and a check-out date.");
+        return;
+      }
+      if (checkIn < minCheckIn || checkOut <= checkIn) {
+        setError("Check-out must be after check-in.");
+        return;
+      }
+      if (!pickedId || !walkInMatches.some((item) => item.room.id === pickedId)) {
+        setError("Please choose a room that is available for these dates.");
+        return;
+      }
+      setBusy(true);
+      try {
+        const snapshot = await fetchRoomAvailability();
+        const room = catalog.find((item) => item.id === pickedId);
+        if (!snapshot || !room || room.status === "unavailable") {
+          setError("Could not check room availability. Please try again.");
+          return;
+        }
+        setAvailability(snapshot);
+        const inMinutes = clockToMinutes(snapshot.checkInTime || DEFAULT_CHECK_IN_TIME);
+        const outMinutes = clockToMinutes(snapshot.checkOutTime || DEFAULT_CHECK_OUT_TIME);
+        const inventory = inventoryForRoom(room, snapshot);
+        const open =
+          inventory != null &&
+          stayFits(
+            inventory.stays,
+            checkIn,
+            checkOut,
+            inventory.quantity,
+            inMinutes,
+            outMinutes,
+          );
+        if (!open) {
+          setPickedId(null);
+          setError("That room is no longer available for these dates.");
+          return;
+        }
+        setStep("form");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (!pickedId || !bookable.some((r) => r.id === pickedId)) {
       setError("Please choose a room first.");
       return;
@@ -756,7 +947,9 @@ export function RoomBookingPage({
 
   const heading =
     step === "pick"
-      ? "Choose your room"
+      ? deskMode
+        ? "Add a walk-in"
+        : "Choose your room"
       : step === "review"
         ? "Review booking"
         : step === "done"
@@ -764,7 +957,9 @@ export function RoomBookingPage({
           : "Complete your booking";
   const subheading =
     step === "pick"
-      ? "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
+      ? deskMode
+        ? "Choose check-in and check-out. Only rooms that are free for those dates can be booked."
+        : "Pick a room type first. Several rooms can share one type, and a date stays open until every room is booked."
       : step === "review"
         ? deskMode
           ? "Check everything carefully, then choose PayPal or pay at the staff."
@@ -864,7 +1059,146 @@ export function RoomBookingPage({
           </Reveal>
         ) : null}
 
-        {step === "pick" ? (
+        {step === "pick" && deskMode ? (
+          <div className={lift || undefined}>
+            <div className="rounded-3xl border border-ink/8 bg-white p-4 shadow-sm sm:p-6">
+              <h3 className="text-[0.7rem] font-semibold tracking-[0.18em] text-stone uppercase">
+                Stay dates
+              </h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <StayDateField
+                  label="Check-in Date"
+                  required
+                  portal={dialog}
+                  value={checkIn}
+                  rangeEnd={checkOut}
+                  minIso={minCheckIn}
+                  hint={`From ${formatClockLabel(scheduleMinutes.checkInTime)}. Today is selected for a walk-in.`}
+                  isDateDisabled={walkInNightClosed}
+                  isRangeEndDisabled={(start, end) => !walkInStayOpen(start, end)}
+                  onChange={onWalkInCheckIn}
+                  onRangeEnd={onWalkInCheckOut}
+                />
+                <StayDateField
+                  label="Check-out Date"
+                  required
+                  portal={dialog}
+                  value={checkOut}
+                  disabled={!checkIn}
+                  minIso={addDaysIso(checkIn || minCheckIn, 1)}
+                  hint={`Until ${formatClockLabel(scheduleMinutes.checkOutTime)}`}
+                  isDateDisabled={(iso) => !checkIn || !walkInStayOpen(checkIn, iso)}
+                  onChange={onWalkInCheckOut}
+                />
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-ink/55">
+                Check-out must be after check-in. A checkout morning stays open for a new check-in
+                at {formatClockLabel(scheduleMinutes.checkInTime)}.
+              </p>
+            </div>
+
+            {!checkIn ? (
+              <p className="mt-4 rounded-2xl border border-ink/8 bg-white px-4 py-4 text-sm text-stone">
+                Select a check-in date to continue.
+              </p>
+            ) : !checkOut ? (
+              <p className="mt-4 rounded-2xl border border-ink/8 bg-white px-4 py-4 text-sm text-stone">
+                Select a check-out date. Available rooms appear after both dates are set.
+              </p>
+            ) : !availability ? (
+              <p className="mt-4 rounded-2xl border border-ink/8 bg-white px-4 py-4 text-sm text-stone">
+                Checking room availability…
+              </p>
+            ) : walkInMatches.length === 0 ? (
+              <p
+                role="status"
+                className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-relaxed text-amber-950"
+              >
+                No rooms are available from {formatDisplayDate(checkIn)} to{" "}
+                {formatDisplayDate(checkOut)}. Every room type is booked or unavailable for at
+                least part of that stay.
+              </p>
+            ) : (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-semibold tracking-[0.18em] text-stone uppercase">
+                  Available rooms
+                </p>
+                <p className="mt-1 text-sm text-ink/70">
+                  {formatDisplayDate(checkIn)} – {formatDisplayDate(checkOut)}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {walkInMatches.map(({ room, remaining, quantity }) => {
+                    const selected = pickedId === room.id;
+                    const cover = roomsMediaUrl(room.images[0] ?? "");
+                    return (
+                      <button
+                        key={room.id}
+                        type="button"
+                        onClick={() => {
+                          setPickedId(room.id);
+                          setError(null);
+                        }}
+                        className={`btn-press flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition ${
+                          selected
+                            ? "border-sky-deep ring-2 ring-sky-deep/30"
+                            : "border-ink/8 hover:border-ink/20"
+                        }`}
+                      >
+                        <div className="h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-mist">
+                          {cover ? (
+                            <img src={cover} alt="" className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-lg leading-tight text-ink">
+                            {room.name}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-sky-deep">
+                            {remaining} of {quantity} {quantity === 1 ? "room" : "rooms"} available
+                          </p>
+                        </div>
+                        {selected ? (
+                          <span className="shrink-0 rounded-full bg-sky-deep px-2 py-1 text-[0.6rem] font-semibold tracking-wide text-white uppercase">
+                            Selected
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {error ? (
+              <p
+                className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={leavePicker}
+                className="btn-press inline-flex min-h-11 items-center justify-center rounded-full border border-ink/15 bg-white px-5 text-sm font-semibold text-ink"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void continueToForm()}
+                disabled={!pickedId || busy || !stayDatesReady}
+                className="btn-press inline-flex min-h-11 items-center justify-center rounded-full bg-sky-deep px-6 text-sm font-semibold text-white transition hover:bg-sky disabled:opacity-50"
+              >
+                {busy ? "Checking…" : "Continue"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {step === "pick" && !deskMode ? (
           <div className={lift || undefined}>
             {loading ? (
               <p className="rounded-3xl border border-ink/8 bg-white p-6 text-sm text-stone shadow-sm">

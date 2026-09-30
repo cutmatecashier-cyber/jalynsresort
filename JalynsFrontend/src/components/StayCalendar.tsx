@@ -259,7 +259,7 @@ export function StayDateField({
                   top: box?.top ?? -9999,
                   left: box?.left ?? 8,
                   width: box?.width ?? 280,
-                  zIndex: 80,
+                  zIndex: 260,
                   visibility: box ? "visible" : "hidden",
                 }
               : undefined

@@ -337,7 +337,7 @@ async function buildRoomBooking(input: RoomBookingInput): Promise<RoomBooking> {
   ])
   const room = rooms.find((item) => item.id === roomId)
   if (!room) throw new Error('Room not found.')
-  if (!walkIn && room.status === 'unavailable') throw new Error('This room type is unavailable.')
+  if (room.status === 'unavailable') throw new Error('This room type is unavailable.')
   const outMinutes = clockToMinutes(settings.checkOutTime)
   const stays = currentBookings
     .filter((item) => item.room_id === roomId && bookingBlocksRoom(item, outMinutes))
