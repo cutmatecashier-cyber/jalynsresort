@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 import { RoomBookingPage } from "./RoomBookingPage";
@@ -20,13 +21,14 @@ import {
   type RoomBookingStatus,
 } from "../lib/rooms";
 
-type ListFilter = "all" | "confirmed" | "completed" | "arrivals" | "walkin";
+type ListFilter = "all" | "confirmed" | "completed" | "incomplete" | "arrivals" | "walkin";
 
 const filters: { id: ListFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "confirmed", label: "Confirmed" },
   { id: "walkin", label: "Walk-in" },
   { id: "completed", label: "Completed" },
+  { id: "incomplete", label: "Incomplete" },
   { id: "arrivals", label: "Today's arrivals" },
 ];
 
@@ -62,13 +64,13 @@ function formatStayDate(value: string) {
 }
 
 function StatusBadge({ status }: { status: RoomBookingStatus }) {
-  const label = status === "pending" ? "confirmed" : status === "no_show" ? "no-show" : status;
-  const styles: Record<"confirmed" | "completed" | "no-show", string> = {
+  const label = status === "pending" ? "confirmed" : status === "no_show" ? "incomplete" : status;
+  const styles: Record<"confirmed" | "completed" | "incomplete", string> = {
     confirmed: "bg-emerald-100 text-emerald-900 border-emerald-200",
     completed: "bg-[#e8f3f8] text-sky border-[#c5dde8]",
-    "no-show": "bg-amber-100 text-amber-950 border-amber-200",
+    incomplete: "bg-amber-100 text-amber-950 border-amber-200",
   };
-  const key = label === "completed" || label === "no-show" ? label : "confirmed";
+  const key = label === "completed" || label === "incomplete" ? label : "confirmed";
   return (
     <span
       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${styles[key]}`}
@@ -215,6 +217,7 @@ export function BookingsPage() {
       return bookings.filter((b) => b.check_in === today);
     }
     if (filter === "walkin") return bookings.filter((b) => isWalkIn(b));
+    if (filter === "incomplete") return bookings.filter((b) => b.status === "no_show");
     if (filter === "confirmed") {
       return bookings.filter((b) => b.status === "confirmed" || b.status === "pending");
     }
@@ -228,6 +231,7 @@ export function BookingsPage() {
       confirmed: bookings.filter((b) => b.status === "confirmed" || b.status === "pending")
         .length,
       completed: bookings.filter((b) => b.status === "completed").length,
+      incomplete: bookings.filter((b) => b.status === "no_show").length,
       walkin: bookings.filter((b) => isWalkIn(b)).length,
       arrivals: bookings.filter((b) => b.check_in === today).length,
     };
@@ -241,8 +245,10 @@ export function BookingsPage() {
       signatureRef.current = bookingsSignature(next);
       setBookings(next);
       writeBookingsCache(next);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update booking.");
+      return false;
     } finally {
       setBusyId(null);
     }
@@ -349,9 +355,11 @@ export function BookingsPage() {
                 ? "No guests are checking in today."
                 : filter === "completed"
                   ? "Completed stays will show up in this list."
-                  : filter === "walkin"
-                  ? "Walk-in guests you add at the desk will show up here."
-                  : "When a guest submits a room request, it will appear here."}
+                  : filter === "incomplete"
+                    ? "Guests marked as didn't arrive will show up here."
+                    : filter === "walkin"
+                      ? "Walk-in guests you add at the desk will show up here."
+                      : "When a guest submits a room request, it will appear here."}
             </p>
           </div>
         ) : (
@@ -543,41 +551,51 @@ function BookingActions({
 }: {
   booking: RoomBooking;
   busy: boolean;
-  onStatus: (id: string, status: RoomBookingStatus) => void;
+  onStatus: (id: string, status: RoomBookingStatus) => Promise<boolean>;
 }) {
+  const [confirmMissed, setConfirmMissed] = useState(false);
   const isActive = booking.status === "confirmed" || booking.status === "pending";
+  const walkIn = isWalkIn(booking);
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {isActive ? (
-        <>
-          <button
-            type="button"
-            disabled
-            title="The room opens on its own at checkout, Manila time."
-            className="cursor-not-allowed rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white opacity-45"
-          >
-            Complete
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onStatus(booking.id, "no_show")}
-            className="rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-xs font-semibold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
-          >
-            {busy ? "Saving…" : "Didn't arrive"}
-          </button>
-        </>
-      ) : null}
-      {booking.status === "completed" || booking.status === "no_show" ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onStatus(booking.id, "confirmed")}
-          className="rounded-full border border-ink/10 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:bg-mist disabled:opacity-50"
-        >
-          {busy ? "Saving…" : "Reopen"}
-        </button>
-      ) : null}
-    </div>
+    <>
+      <div className="flex flex-wrap gap-1.5">
+        {isActive ? (
+          <>
+            <button
+              type="button"
+              disabled
+              title="The room opens on its own at checkout, Manila time."
+              className="cursor-not-allowed rounded-full bg-sky px-3.5 py-1.5 text-xs font-semibold text-white opacity-45"
+            >
+              Complete
+            </button>
+            {walkIn ? null : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmMissed(true)}
+                className="rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-xs font-semibold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
+              >
+                Didn't arrive
+              </button>
+            )}
+          </>
+        ) : null}
+      </div>
+      <ConfirmDialog
+        open={confirmMissed}
+        title="Mark as didn't arrive?"
+        message={`${booking.full_name} will move to Incomplete. The room is released for these dates.`}
+        confirmLabel="Didn't arrive"
+        busy={busy}
+        busyLabel="Saving…"
+        onCancel={() => setConfirmMissed(false)}
+        onConfirm={() => {
+          void onStatus(booking.id, "no_show").then((saved) => {
+            if (saved) setConfirmMissed(false);
+          });
+        }}
+      />
+    </>
   );
 }
