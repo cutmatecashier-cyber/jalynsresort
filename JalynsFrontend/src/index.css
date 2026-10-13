@@ -246,6 +246,15 @@
   }
 }
 
+@keyframes news-ticker-ltr {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes progress-line {
   from {
     transform: scaleX(0);
@@ -475,6 +484,10 @@
 
 .animate-scroll-hint {
   animation: scroll-hint 1.8s ease-in-out infinite;
+}
+
+.news-ticker-track {
+  animation: news-ticker-ltr 46s linear infinite;
 }
 
 .animate-shimmer {
@@ -774,6 +787,7 @@
   .animate-pulse-soft,
   .animate-drift,
   .animate-scroll-hint,
+  .news-ticker-track,
   .animate-shimmer,
   .animate-live-gradient,
   .animate-progress,

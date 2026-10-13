@@ -78,7 +78,7 @@ export function LoginPage() {
       }
 
       navigate(
-        (from === "/members" || from === "/bookings") && profile.role !== "admin" ? "/" : from,
+        from === "/members" && profile.role !== "admin" ? "/" : from,
         {
           replace: true,
         },

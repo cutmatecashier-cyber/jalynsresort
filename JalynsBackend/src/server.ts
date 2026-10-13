@@ -16,6 +16,7 @@ import { contentRouter } from './routes/content.js'
 import { scubaRouter } from './routes/scuba.js'
 import { spaRouter } from './routes/spa.js'
 import { newsRouter } from './routes/news.js'
+import { bookingLinksRouter } from './routes/bookingLinks.js'
 import { importSiteData } from './services/importSiteData.js'
 
 const app = express()
@@ -97,6 +98,7 @@ app.use('/api/content', contentRouter)
 app.use('/api/scuba', scubaRouter)
 app.use('/api/spa', spaRouter)
 app.use('/api/news', newsRouter)
+app.use('/api/booking-links', bookingLinksRouter)
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''

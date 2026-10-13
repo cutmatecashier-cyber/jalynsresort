@@ -10,14 +10,12 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MembersPage } from "./pages/MembersPage";
-import { BookingsPage } from "./pages/BookingsPage";
 import { NewsDetailPage } from "./pages/NewsDetailPage";
 import { NewsPage } from "./pages/NewsPage";
 import { ScubaDivingPage } from "./pages/ScubaDivingPage";
 import { PendingApprovalPage } from "./pages/PendingApprovalPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RestaurantPage } from "./pages/RestaurantPage";
-import { RoomBookingPage } from "./pages/RoomBookingPage";
 import { RoomsPage } from "./pages/RoomsPage";
 import { SpaPage } from "./pages/SpaPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -34,7 +32,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/rooms" element={<RoomsPage />} />
-          <Route path="/book" element={<RoomBookingPage />} />
+          <Route path="/book" element={<Navigate to="/" replace />} />
           <Route path="/spa" element={<SpaPage />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/:id" element={<NewsDetailPage />} />
@@ -58,17 +56,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/bookings"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <BookingsPage />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/admin/scuba" element={<Navigate to="/scuba-diving" replace />} />
           <Route path="/admin/users" element={<Navigate to="/members" replace />} />
-          <Route path="/admin/bookings" element={<Navigate to="/bookings" replace />} />
+          <Route path="/bookings" element={<Navigate to="/" replace />} />
+          <Route path="/admin/bookings" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

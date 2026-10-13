@@ -21,12 +21,31 @@ import {
   type RoomsVoucher,
 } from "../lib/rooms";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
-import { BookingBar } from "./BookingBar";
 import { AdminEditButton } from "./AdminEditButton";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { MapPinIcon } from "./Icons";
 import { Navbar } from "./Navbar";
+
+const TICKER_TEXT = "Resort for Rent/Sale. Please contact us for details";
+const TICKER_REPEAT = 8;
+
+function NewsTickerHalf({ hidden = false }: { hidden?: boolean }) {
+  return (
+    <div className="flex shrink-0 items-center" aria-hidden={hidden || undefined}>
+      {Array.from({ length: TICKER_REPEAT }, (_, index) => (
+        <Link
+          key={index}
+          to="/contact"
+          tabIndex={hidden || index > 0 ? -1 : 0}
+          className="px-6 text-[0.78rem] font-medium whitespace-nowrap text-[#0a335c] sm:px-8 sm:text-sm"
+        >
+          {TICKER_TEXT}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 const SLIDE_MS = 7000;
 
@@ -82,7 +101,6 @@ export function Hero() {
   const [tick, setTick] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
   const [roomsVoucher, setRoomsVoucher] = useState<RoomsVoucher>({ ...DEFAULT_ROOMS_VOUCHER });
-  const [availabilityOpen, setAvailabilityOpen] = useState(false);
 
   const [bgOpen, setBgOpen] = useState(false);
   const [editorSlides, setEditorSlides] = useState<HomeHeroSlide[]>(DEFAULT_HOME_SLIDES);
@@ -267,9 +285,7 @@ export function Hero() {
   return (
     <section
       id="home"
-      className={`relative min-h-[100svh] text-white ${
-        availabilityOpen ? "max-lg:overflow-visible lg:overflow-hidden" : "overflow-hidden"
-      }`}
+      className="relative min-h-[100svh] overflow-hidden text-white"
     >
       <div
         className="absolute inset-0 will-change-transform"
@@ -300,11 +316,9 @@ export function Hero() {
       <Navbar />
 
       <div
-        className={`relative z-10 flex w-full flex-col px-5 pt-[4.75rem] pb-6 sm:px-6 sm:pt-28 sm:pb-10 md:px-8 lg:min-h-[100svh] lg:justify-end lg:px-10 lg:pb-8 xl:px-12 ${
-          availabilityOpen ? "min-h-0 justify-start" : "min-h-[100svh] justify-start"
-        }`}
+        className="relative z-10 flex min-h-[100svh] w-full flex-col justify-start px-5 pt-[4.75rem] pb-14 sm:px-6 sm:pt-28 sm:pb-14 md:px-8 lg:min-h-[100svh] lg:justify-end lg:px-10 lg:pb-14 xl:px-12"
       >
-        <div className="order-1 mt-16 max-w-5xl shrink-0 self-start text-left sm:mt-0">
+        <div className="mt-16 max-w-5xl shrink-0 self-start text-left sm:mt-0">
           <p className="animate-fade-up text-[0.58rem] font-semibold tracking-[0.12em] text-white/80 uppercase sm:text-[0.7rem] sm:tracking-[0.16em]">
             Family Friendly, Modern Dive Resort &amp; Restaurant in Puerto Galera, Philippines
           </p>
@@ -344,18 +358,7 @@ export function Hero() {
         </div>
 
         <div
-          className={`animate-fade-up order-3 w-full pb-1 sm:order-2 sm:pb-0 ${
-            availabilityOpen
-              ? "mt-5 sm:mt-6"
-              : "mt-auto sm:mt-8 sm:max-w-xl md:mt-10 md:max-w-3xl"
-          }`}
-          style={{ animationDelay: "0.1s" }}
-        >
-          <BookingBar onSearchedChange={setAvailabilityOpen} />
-        </div>
-
-        <div
-          className="animate-fade-up order-2 mt-3 flex flex-col items-start gap-2.5 sm:order-3 sm:mt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+          className="animate-fade-up mt-3 flex flex-col items-start gap-2.5 sm:mt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           style={{ animationDelay: "0.28s" }}
         >
           <p className="flex max-w-full items-center gap-1.5 text-[0.68rem] text-white/85 sm:text-[0.8rem]">
@@ -405,17 +408,6 @@ export function Hero() {
             </AdminEditButton>
           </div>
         ) : null}
-
-        <div className="order-4 mt-4 hidden justify-center sm:mt-8 sm:flex">
-          <a
-            href="#rooms"
-            className="animate-scroll-hint flex flex-col items-center gap-1 text-[0.65rem] tracking-[0.2em] text-white/60 uppercase"
-            aria-label="Scroll to rooms"
-          >
-            <span>Rooms</span>
-            <span className="h-6 w-px bg-white/50" />
-          </a>
-        </div>
       </div>
 
       {bgOpen
@@ -532,6 +524,25 @@ export function Hero() {
         onCancel={() => setConfirmResetAll(false)}
         onConfirm={() => void runResetAll()}
       />
+
+      {bgOpen
+        ? null
+        : createPortal(
+            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-ink/10 bg-white pb-[env(safe-area-inset-bottom)]">
+              <div className="flex items-stretch">
+                <span className="flex shrink-0 items-center bg-[#0a335c] px-3 text-[0.58rem] font-semibold tracking-[0.18em] text-white uppercase sm:px-4">
+                  News
+                </span>
+                <div className="min-w-0 flex-1 overflow-hidden py-1.5">
+                  <div className="news-ticker-track flex w-max">
+                    <NewsTickerHalf />
+                    <NewsTickerHalf hidden />
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
     </section>
   );
 }

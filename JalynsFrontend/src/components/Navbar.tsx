@@ -3,27 +3,15 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/permissions";
-import { fetchRoomBookings } from "../lib/rooms";
 import { BrandLogo } from "./BrandLogo";
+import { BookingLinksEditor, BookNowButton } from "./BookNowMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CONTENT_CHANGED_EVENT } from "./ContentSync";
+import { fetchBookingLinks, type BookingLink } from "../lib/bookingLinks";
 
 type NavItem =
   | { label: string; shortLabel: string; kind: "hash"; hash: string }
   | { label: string; shortLabel: string; kind: "route"; to: string };
-
-function BookingNavBadge({ count, active }: { count: number; active: boolean }) {
-  if (count <= 0) return null;
-  return (
-    <span
-      className={`ml-1.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold tabular-nums leading-none ${
-        active ? "bg-sky text-white" : "bg-white text-ink"
-      }`}
-    >
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}
 
 const links: NavItem[] = [
   { label: "Home", shortLabel: "Home", kind: "hash", hash: "#home" },
@@ -101,79 +89,45 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [bookingLinks, setBookingLinks] = useState<BookingLink[]>([]);
+  const [bookingLinksLoading, setBookingLinksLoading] = useState(true);
+  const [manageLinks, setManageLinks] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(96);
   const headerBarRef = useRef<HTMLDivElement>(null);
   const { role, approvalStatus, can, signOut, profile } = useAuth();
   const showMember = can.canManageMembers(role, approvalStatus);
-  const [bookingBadge, setBookingBadge] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem("jalyns-booking-badge");
-      const n = raw != null ? Number(raw) : 0;
-      return Number.isFinite(n) && n > 0 ? n : 0;
-    } catch {
-      return 0;
-    }
-  });
 
-  // News detail / members / bookings start on light backgrounds — keep a solid bar so white text stays readable.
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      void fetchBookingLinks()
+        .then((links) => {
+          if (!alive) return;
+          setBookingLinks(links);
+          setBookingLinksLoading(false);
+        })
+        .catch(() => {
+          if (!alive) return;
+          setBookingLinksLoading(false);
+        });
+    };
+    load();
+    window.addEventListener(CONTENT_CHANGED_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(CONTENT_CHANGED_EVENT, load);
+    };
+  }, []);
+
+  // News detail / members start on light backgrounds — keep a solid bar so white text stays readable.
   const forceSolid =
-    /^\/news\/[^/]+/.test(location.pathname) ||
-    location.pathname.startsWith("/members") ||
-    location.pathname.startsWith("/bookings");
+    /^\/news\/[^/]+/.test(location.pathname) || location.pathname.startsWith("/members");
 
   // Admin pages: navbar sits in normal document flow (no fixed + spacer) — kills refresh jump/seam.
-  const embedded =
-    location.pathname.startsWith("/members") || location.pathname.startsWith("/bookings");
+  const embedded = location.pathname.startsWith("/members");
 
   // Admin chip makes the bar taller — reserve space immediately so refresh doesn't jump.
   const adminBar = forceSolid && showMember;
-
-  useEffect(() => {
-    if (!showMember) {
-      setBookingBadge(0);
-      try {
-        sessionStorage.removeItem("jalyns-booking-badge");
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const list = await fetchRoomBookings();
-        if (cancelled) return;
-        const next = list.filter(
-          (b) => b.status === "confirmed" || b.status === "pending",
-        ).length;
-        setBookingBadge(next);
-        try {
-          sessionStorage.setItem("jalyns-booking-badge", String(next));
-        } catch {
-          // ignore
-        }
-      } catch {
-        if (!cancelled) setBookingBadge(0);
-      }
-    };
-    void load();
-    const onChange = () => void load();
-    window.addEventListener(CONTENT_CHANGED_EVENT, onChange);
-    const poll = window.setInterval(onChange, 2000);
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel("jalyns-content-sync");
-      channel.onmessage = () => onChange();
-    } catch {
-      channel = null;
-    }
-    return () => {
-      cancelled = true;
-      window.removeEventListener(CONTENT_CHANGED_EVENT, onChange);
-      window.clearInterval(poll);
-      channel?.close();
-    };
-  }, [showMember]);
 
   useEffect(() => {
     if (!open) return;
@@ -391,21 +345,6 @@ export function Navbar() {
               {showMember ? (
                 <div className="relative hidden items-center gap-1.5 lg:flex">
                   <Link
-                    to="/bookings"
-                    aria-current={location.pathname.startsWith("/bookings") ? "page" : undefined}
-                    className={`inline-flex items-center justify-center rounded-full font-semibold transition ${
-                      location.pathname.startsWith("/bookings")
-                        ? "border border-white bg-white text-ink hover:bg-white/92"
-                        : "border border-white/20 bg-white/10 text-white hover:bg-white/16"
-                    } ${solid ? "h-8 px-3.5 text-[0.75rem]" : "h-9 px-4 text-[0.8rem]"}`}
-                  >
-                    Bookings
-                    <BookingNavBadge
-                      count={bookingBadge}
-                      active={location.pathname.startsWith("/bookings")}
-                    />
-                  </Link>
-                  <Link
                     to="/members"
                     aria-current={location.pathname.startsWith("/members") ? "page" : undefined}
                     className={`btn-press inline-flex items-center justify-center rounded-full font-semibold transition ${
@@ -428,18 +367,18 @@ export function Navbar() {
                     Sign out
                   </button>
                 </div>
-              ) : (
-                <Link
-                  to="/book"
-                  className={`btn-press hidden items-center justify-center rounded-full bg-white font-semibold text-ink transition hover:bg-white/92 lg:inline-flex ${
-                    solid
-                      ? "h-8 px-3.5 text-[0.75rem]"
-                      : "h-9 px-4 text-[0.8rem] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
-                  }`}
-                >
-                  Book Now
-                </Link>
-              )}
+              ) : null}
+              <BookNowButton
+                links={bookingLinks}
+                loading={bookingLinksLoading}
+                canManage={showMember}
+                onManage={() => setManageLinks(true)}
+                className={`btn-press hidden items-center justify-center gap-1.5 rounded-full bg-white font-semibold text-ink transition hover:bg-white/92 lg:inline-flex ${
+                  solid
+                    ? "h-8 px-3.5 text-[0.75rem]"
+                    : "h-9 px-4 text-[0.8rem] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+                }`}
+              />
 
               <button
                 type="button"
@@ -518,24 +457,6 @@ export function Navbar() {
                     {showMember ? (
                       <>
                         <Link
-                          to="/bookings"
-                          onClick={() => setOpen(false)}
-                          aria-current={
-                            location.pathname.startsWith("/bookings") ? "page" : undefined
-                          }
-                          className={`inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 text-[0.9rem] font-semibold transition ${
-                            location.pathname.startsWith("/bookings")
-                              ? "bg-white text-ink hover:bg-white/92"
-                              : "border border-white/20 bg-white/10 text-white hover:bg-white/16"
-                          }`}
-                        >
-                          Bookings
-                          <BookingNavBadge
-                            count={bookingBadge}
-                            active={location.pathname.startsWith("/bookings")}
-                          />
-                        </Link>
-                        <Link
                           to="/members"
                           onClick={() => setOpen(false)}
                           aria-current={
@@ -557,15 +478,17 @@ export function Navbar() {
                           Sign out
                         </button>
                       </>
-                    ) : (
-                      <Link
-                        to="/book"
-                        onClick={() => setOpen(false)}
-                        className="btn-press inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 text-[0.9rem] font-semibold text-ink transition hover:bg-white/92"
-                      >
-                        Book Now
-                      </Link>
-                    )}
+                    ) : null}
+                    <BookNowButton
+                      links={bookingLinks}
+                      loading={bookingLinksLoading}
+                      canManage={showMember}
+                      onManage={() => {
+                        setOpen(false);
+                        setManageLinks(true);
+                      }}
+                      className="btn-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-[0.9rem] font-semibold text-ink transition hover:bg-white/92"
+                    />
 
                     <p className="pt-1 text-center text-[0.65rem] tracking-[0.16em] text-white/35 uppercase">
                       Mangrove Cove · Puerto Galera
@@ -578,6 +501,11 @@ export function Navbar() {
           )
         : null}
 
+      <BookingLinksEditor
+        open={manageLinks}
+        onClose={() => setManageLinks(false)}
+        onSaved={setBookingLinks}
+      />
       <ConfirmDialog
         open={confirmSignOut}
         title="Sign out?"

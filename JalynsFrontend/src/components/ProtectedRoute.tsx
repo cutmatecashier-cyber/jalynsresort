@@ -60,14 +60,12 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { loading, user, emailVerified, isApproved, role, approvalStatus } = useAuth();
   const location = useLocation();
-  const isBookings = location.pathname.startsWith("/bookings");
   const isMembers = location.pathname.startsWith("/members");
-  const adminShell = isBookings || isMembers;
 
   // Important: wait for profile fetch after refresh before deciding Pending vs Admin
   if (loading) {
-    if (adminShell) {
-      return <AdminLoadingScreen title={isBookings ? "Bookings" : "Member Management"} />;
+    if (isMembers) {
+      return <AdminLoadingScreen title="Member Management" />;
     }
     return <LoadingScreen />;
   }

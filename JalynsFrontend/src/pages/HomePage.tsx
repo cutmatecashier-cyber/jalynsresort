@@ -29,7 +29,7 @@ export function HomePage() {
   }, [navigate]);
 
   return (
-    <main className="bg-foam">
+    <main className="bg-foam pb-10">
       <Hero />
       <Services />
       <HomeRooms />

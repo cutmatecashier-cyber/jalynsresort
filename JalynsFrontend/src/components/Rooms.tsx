@@ -1172,14 +1172,7 @@ export function Rooms() {
                             <span className="inline-flex min-h-10 items-center justify-center rounded-full border border-ink/10 bg-white/60 px-5 py-2 text-sm font-semibold text-ink/45">
                               Unavailable
                             </span>
-                          ) : (
-                            <Link
-                              to={`/book?room=${encodeURIComponent(room.id)}`}
-                              className="btn-press inline-flex min-h-10 items-center justify-center rounded-full bg-sky-deep px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky"
-                            >
-                              Book Now
-                            </Link>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
