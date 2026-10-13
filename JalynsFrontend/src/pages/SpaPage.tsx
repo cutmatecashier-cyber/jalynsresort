@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AdjustableFileInput } from "../components/AdjustableFileInput";
+import { HeroMedia } from "../components/HeroMedia";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
 import { GalleryLightbox } from "../components/GalleryLightbox";
@@ -26,6 +27,8 @@ import {
   uploadSpaHeroWithResult,
   type SpaGalleryImage,
 } from "../lib/spa";
+import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
+import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
 
 type BgKind = "hero" | "content";
 
@@ -37,7 +40,12 @@ export function SpaPage() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditSpa(role, approvalStatus);
 
-  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("spa")?.url ?? null);
+  const [heroVideo, setHeroVideo] = useState(() => peekPageHero("spa")?.video ?? false);
+  const [pendingHero, setPendingHero] = useState<string | null>(null);
+  const [pendingVideo, setPendingVideo] = useState(false);
+  const heroAbortRef = useRef<AbortController | null>(null);
+  const [retryHero, setRetryHero] = useState<File | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
@@ -57,7 +65,7 @@ export function SpaPage() {
   const galleryInput = useRef<HTMLInputElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
 
-  const displayHero = heroUrl ?? (imagesReady ? DEFAULT_SPA_HERO : null);
+  const displayHero = heroUrl ?? ((imagesReady || peekPageHero("spa")) ? DEFAULT_SPA_HERO : null);
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_SPA_CONTENT : null);
   const displayGallery = gallery.length ? gallery : DEFAULT_SPA_GALLERY;
   const safeGalleryIndex = Math.min(galleryIndex, Math.max(0, displayGallery.length - 1));
@@ -69,6 +77,7 @@ export function SpaPage() {
       fetchSpaGallery(),
     ]);
     setHeroUrl(hero.url);
+    setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
     setHasCustomHero(Boolean(hero.path));
     setHasCustomContent(Boolean(content.path));
@@ -81,6 +90,11 @@ export function SpaPage() {
   }, [loadImages]);
 
   useEffect(() => subscribeSpaBackgrounds(() => void loadImages()), [loadImages]);
+
+  useEffect(() => {
+    if (!imagesReady || heroUrl?.startsWith("blob:")) return;
+    rememberPageHero("spa", { url: heroUrl, video: heroVideo });
+  }, [imagesReady, heroUrl, heroVideo]);
 
   useEffect(() => {
     document.title = "Spa | Jalyn's Resort & Restaurant";
@@ -96,19 +110,67 @@ export function SpaPage() {
   async function onHeroFile(files: File[] | null) {
     const file = files?.[0];
     if (!file) return;
+    heroAbortRef.current?.abort();
+    const controller = new AbortController();
+    heroAbortRef.current = controller;
+    const previous = heroUrl;
+    const previousVideo = heroVideo;
+    const local = URL.createObjectURL(file);
+    const video = isHeroVideoFile(file);
+    setRetryHero(file);
+    if (video) {
+      setPendingHero(local);
+      setPendingVideo(true);
+    } else {
+      setHeroVideo(false);
+      setHeroUrl(local);
+    }
     setBusy(true);
     setAdminError(null);
-    setUploadProgress("Optimizing & uploading hero…");
-    const result = await uploadSpaHeroWithResult(file);
-    if (result.error) setAdminError(result.error);
-    else if (result.url) {
+    setUploadProgress(video ? "Uploading video…" : "Optimizing image…");
+    const result = await uploadSpaHeroWithResult(file, (percent) => {
+      setUploadProgress(percent >= 100 ? "Saving…" : `Uploading… ${percent}%`);
+    }, controller.signal);
+    if (controller.signal.aborted) {
+      URL.revokeObjectURL(local);
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      if (heroAbortRef.current === controller) {
+        setPendingHero(null);
+        setPendingVideo(false);
+        setUploadProgress(null);
+        setBusy(false);
+      }
+      return;
+    }
+    setPendingHero(null);
+    setPendingVideo(false);
+    if (result.error) {
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      setAdminError(result.error);
+    } else if (result.url) {
       setHeroUrl(result.url);
+      setHeroVideo(isHeroVideoUrl(result.url));
       setHasCustomHero(true);
+      setRetryHero(null);
       setBgEditor(null);
     }
+    window.setTimeout(() => URL.revokeObjectURL(local), 1500);
     setUploadProgress(null);
     setBusy(false);
     if (heroInput.current) heroInput.current.value = "";
+  }
+
+  function closeBgEditor() {
+    heroAbortRef.current?.abort();
+    setPendingHero(null);
+    setPendingVideo(false);
+    setBgEditor(null);
   }
 
   async function onContentFile(files: File[] | null) {
@@ -136,6 +198,7 @@ export function SpaPage() {
     if (message) setAdminError(message);
     else {
       setHeroUrl(null);
+      setHeroVideo(false);
       setHasCustomHero(false);
       setBgEditor(null);
     }
@@ -198,15 +261,15 @@ export function SpaPage() {
     <main className="overflow-x-clip bg-[#05080f] text-ink">
       <section className="relative min-h-[100svh] overflow-hidden text-white">
         <div className="absolute inset-0 bg-[#07101c]">
-          {displayHero ? (
-            <img
-              src={displayHero}
-              alt="Spa wellness at Jalyn's Resort"
-              className="absolute inset-0 h-full w-full object-cover object-center animate-ken-burns"
-              fetchPriority="high"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#07101c]/50 to-[#05080f]/80" />
+          <HeroMedia
+            src={displayHero}
+            fallbackSrc={imagesReady ? DEFAULT_SPA_HERO : null}
+            alt="Spa wellness at Jalyn's Resort"
+            video={heroVideo || isHeroVideoUrl(displayHero)}
+            soundControl
+            className="hero-media animate-ken-burns"
+          />
+          <div className="hero-scrim" />
           {canEdit ? (
             <button
               type="button"
@@ -220,7 +283,7 @@ export function SpaPage() {
         <Navbar />
 
         <div
-          className={`relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
+          className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
           }`}
         >
@@ -368,24 +431,39 @@ export function SpaPage() {
 
       {bgEditor ? (
         <Modal
-          title={bgEditor === "hero" ? "Hero background image" : "Content background image"}
-          onClose={() => setBgEditor(null)}
+          title={bgEditor === "hero" ? "Hero background" : "Content background image"}
+          onClose={closeBgEditor}
         >
-          <img
+          <HeroMedia
             src={
               bgEditor === "hero"
-                ? (displayHero ?? DEFAULT_SPA_HERO)
+                ? (pendingHero ?? displayHero ?? DEFAULT_SPA_HERO)
                 : (displayContent ?? DEFAULT_SPA_CONTENT)
             }
             alt="Current background"
+            priority={false}
+            video={bgEditor === "hero" && (pendingHero ? pendingVideo : heroVideo || isHeroVideoUrl(displayHero))}
             className="aspect-[16/7] w-full rounded-xl object-cover"
           />
           <p className="mt-3 text-sm text-stone">
-            Upload a new image to replace this background. Removing it restores the default photo.
-            Hero and content backgrounds are saved separately.
+            {bgEditor === "hero"
+              ? HERO_UPLOAD_HINT
+              : "Upload a new image to replace this background. Removing it restores the default photo. Hero and content backgrounds are saved separately."}
           </p>
+          {bgEditor === "hero" && adminError ? (
+            <div className="mt-3" role="alert">
+              <p className="text-sm font-medium text-red-700">{adminError}</p>
+              {retryHero ? (
+                <button type="button" disabled={busy} onClick={() => void onHeroFile([retryHero])} className="btn-press mt-2 rounded-full border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-800 disabled:opacity-60">
+                  Retry upload
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {uploadProgress ? <p className="mt-2 text-sm text-ink/60">{uploadProgress}</p> : null}
           <AdjustableFileInput
             ref={bgEditor === "hero" ? heroInput : contentInput}
+            allowVideo={bgEditor === "hero"}
             onFiles={(picked) =>
               void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
             }
@@ -393,10 +471,10 @@ export function SpaPage() {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => setBgEditor(null)}
+              onClick={closeBgEditor}
               className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
             >
-              Cancel
+              {busy ? "Cancel" : "Close"}
             </button>
             {(bgEditor === "hero" ? hasCustomHero : hasCustomContent) ? (
               <button
@@ -417,10 +495,14 @@ export function SpaPage() {
               className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
             >
               {busy
-                ? "Uploading…"
-                : (bgEditor === "hero" ? hasCustomHero : hasCustomContent)
-                  ? "Replace image"
-                  : "Upload image"}
+                ? uploadProgress || "Uploading…"
+                : bgEditor === "hero"
+                  ? hasCustomHero
+                    ? "Replace image or video"
+                    : "Upload image or video"
+                  : hasCustomContent
+                    ? "Replace image"
+                    : "Upload image"}
             </button>
           </div>
         </Modal>

@@ -232,6 +232,8 @@ export function Gallery() {
                   src={galleryMediaUrl(photo.image)}
                   alt={photo.alt}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  loading={index < 2 ? "eager" : "lazy"}
+                  decoding="async"
                 />
               </figure>
             </Reveal>

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { createImageUpload } from '../lib/imageUpload.js'
+import { createHeroMediaUpload, createImageUpload, formatUploadError } from '../lib/imageUpload.js'
 import { isServiceRoleConfigured, supabaseAdmin } from '../config/supabase.js'
 import {
   createNewsPost,
@@ -18,6 +18,7 @@ import { uploadNewsImage } from '../services/newsImages.js'
 export const newsRouter = Router()
 
 const upload = createImageUpload()
+const heroUpload = createHeroMediaUpload()
 
 async function requireApprovedAdmin(req: Request, res: Response): Promise<string | null> {
   if (!isServiceRoleConfigured()) {
@@ -99,15 +100,14 @@ newsRouter.get('/hero', async (_req, res) => {
 newsRouter.post('/hero', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res))) return
-    upload.single('image')(req, res, (err: unknown) => {
+    heroUpload.single('image')(req, res, (err: unknown) => {
       void (async () => {
         if (err) {
-          const message = err instanceof Error ? err.message : 'Could not upload image.'
-          res.status(400).json({ success: false, message })
+          res.status(400).json({ success: false, message: formatUploadError(err, 'Could not upload hero background.') })
           return
         }
         if (!req.file) {
-          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          res.status(400).json({ success: false, message: 'Please choose an image or an MP4 video.' })
           return
         }
         try {

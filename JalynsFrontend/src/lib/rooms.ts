@@ -2,7 +2,9 @@ import { getApiUrl } from "./api";
 import { adminAuthHeaders } from "./adminAuth";
 import { normalizeExtraPersonRules, type ExtraPersonRule } from "./guestPricing";
 import { asQuantity } from "./roomAvailability";
-import { optimizeImageFile } from "./scuba";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
+import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 
 export type RoomStatus = "available" | "unavailable";
 
@@ -941,22 +943,26 @@ export async function fetchRoomsContentBackground(): Promise<RoomsBackground> {
   return fetchBackground("/api/rooms/content-background");
 }
 
-async function uploadBackgroundWithResult(path: string, file: File) {
+async function uploadBackgroundWithResult(
+  path: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = isHeroVideoFile(file)
+      ? file
+      : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}${path}`, {
-      method: "POST",
-      headers: await adminAuthHeaders(false),
-      body: form,
-    });
-    const body = (await res.json()) as {
+    const res = await postFormData(
+      `${getApiUrl()}${path}`,
+      await adminAuthHeaders(false),
+      form,
+      onProgress,
+      signal,
+    );
+    const body = res.data as {
       success?: boolean;
       message?: string;
       path?: string;
@@ -995,8 +1001,12 @@ async function removeBackground(path: string) {
   }
 }
 
-export async function uploadRoomsHeroWithResult(file: File) {
-  return uploadBackgroundWithResult("/api/rooms/hero", file);
+export async function uploadRoomsHeroWithResult(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
+  return uploadBackgroundWithResult("/api/rooms/hero", file, onProgress, signal);
 }
 
 export async function uploadRoomsContentBackgroundWithResult(file: File) {

@@ -1,5 +1,7 @@
 import { getApiUrl } from "./api";
-import { optimizeImageFile } from "./scuba";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
+import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 import { supabase } from "./supabase";
 import type { ResortContactSettings } from "./resortLocation";
 
@@ -78,27 +80,29 @@ async function fetchBackground(path: string): Promise<ContactBackground> {
   }
 }
 
-async function uploadBackgroundWithResult(path: string, file: File) {
+async function uploadBackgroundWithResult(
+  path: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}${path}`, {
-      method: "POST",
-      headers: await authHeaders(false),
-      body: form,
-    });
-    const body = await readJson<{
+    const res = await postFormData(
+      `${getApiUrl()}${path}`,
+      await authHeaders(false),
+      form,
+      onProgress,
+      signal,
+    );
+    const body = res.data as {
       success?: boolean;
       message?: string;
       path?: string;
       url?: string;
-    }>(res);
+    };
     if (!res.ok || !body.url) {
       return {
         error: apiMessage(body, "Could not upload image."),
@@ -140,8 +144,12 @@ export async function fetchContactContentBackground(): Promise<ContactBackground
   return fetchBackground("/api/contact/content-background");
 }
 
-export async function uploadContactHeroWithResult(file: File) {
-  return uploadBackgroundWithResult("/api/contact/hero", file);
+export async function uploadContactHeroWithResult(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
+  return uploadBackgroundWithResult("/api/contact/hero", file, onProgress, signal);
 }
 
 export async function uploadContactContentBackgroundWithResult(file: File) {

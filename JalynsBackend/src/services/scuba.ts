@@ -219,7 +219,7 @@ export async function uploadGalleryImages(files: Express.Multer.File[]): Promise
     const ext = extFromMime(file.mimetype || 'image/webp')
     const path = `${SCUBA_GALLERY_FOLDER}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${base}.${ext}`
     const { error } = await supabaseAdmin.storage.from(SCUBA_BUCKET).upload(path, file.buffer, {
-      cacheControl: '3600',
+      cacheControl: '31536000',
       upsert: false,
       contentType: file.mimetype || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
     })
@@ -240,7 +240,7 @@ export async function replaceGalleryImage(path: string, incoming: Express.Multer
     throw new Error('Invalid gallery image path.')
   }
   const { error } = await supabaseAdmin.storage.from(SCUBA_BUCKET).update(safePath, file.buffer, {
-    cacheControl: '3600',
+    cacheControl: '31536000',
     upsert: true,
     contentType: file.mimetype || 'image/webp',
   })

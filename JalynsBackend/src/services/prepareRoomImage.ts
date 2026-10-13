@@ -165,12 +165,26 @@ async function largestReadableJpeg(candidates: Buffer[]) {
   return best?.buffer ?? null
 }
 
-async function encodeJpeg(buffer: Buffer) {
-  return sharp(buffer, { failOn: 'none' })
+const MAX_EDGE = 2000
+const PASS_THROUGH_BYTES = 550_000
+
+/** Fast WebP encode. Effort 2 is much quicker than mozjpeg and stays visually close. */
+async function encodeWebp(buffer: Buffer) {
+  return sharp(buffer, { failOn: 'none', limitInputPixels: false })
     .rotate()
-    .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 86, mozjpeg: true })
+    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82, effort: 2 })
     .toBuffer()
+}
+
+function isGifFile(file: Express.Multer.File) {
+  return file.mimetype === 'image/gif' || /\.gif$/i.test(file.originalname || '')
+}
+
+export function isHeroVideoFile(file: { mimetype?: string; originalname?: string }) {
+  const mime = (file.mimetype || '').toLowerCase()
+  if (mime === 'video/mp4') return true
+  return /\.mp4$/i.test(file.originalname || '')
 }
 
 async function embeddedJpeg(buffer: Buffer) {
@@ -178,37 +192,58 @@ async function embeddedJpeg(buffer: Buffer) {
   return largestReadableJpeg(fromTiff.length ? fromTiff : jpegsByScan(buffer))
 }
 
-/**
- * Browsers cannot render camera RAW or some phone formats.
- * JPG, PNG, WEBP, and GIF pass through. Everything else becomes a JPEG.
- */
-export async function prepareRoomImage(file: Express.Multer.File): Promise<Express.Multer.File> {
-  if (!file?.buffer?.length || !needsConvert(file)) return file
-
-  const raw = RAW_NAME.test(file.originalname || '')
-  let jpeg: Buffer | null = null
-  if (raw) {
-    const embedded = await embeddedJpeg(file.buffer)
-    if (embedded) jpeg = await encodeJpeg(embedded)
-  }
-  if (!jpeg) {
-    try {
-      jpeg = await encodeJpeg(file.buffer)
-    } catch {
-      const embedded = await embeddedJpeg(file.buffer)
-      if (embedded) jpeg = await encodeJpeg(embedded)
-    }
-  }
-  if (!jpeg?.length) {
-    throw new Error('Could not read this image. Try JPG, PNG, WEBP, or another photo.')
-  }
-
+function asWebp(file: Express.Multer.File, buffer: Buffer): Express.Multer.File {
   const base = (file.originalname || 'photo').replace(/\.[^.]+$/, '') || 'photo'
   return {
     ...file,
-    buffer: jpeg,
-    size: jpeg.length,
-    mimetype: 'image/jpeg',
-    originalname: `${base}.jpg`,
+    buffer,
+    size: buffer.length,
+    mimetype: 'image/webp',
+    originalname: `${base}.webp`,
   }
+}
+
+/**
+ * Shrink photos before they are stored.
+ * Small WebP/JPEG files pass through. Large photos become a 2000px WebP.
+ * GIF and MP4 are left untouched (GIF keeps animation; video is handled elsewhere).
+ * Camera RAW and HEIC still become a displayable image.
+ */
+export async function prepareRoomImage(file: Express.Multer.File): Promise<Express.Multer.File> {
+  if (!file?.buffer?.length || isHeroVideoFile(file) || isGifFile(file)) return file
+
+  if (!needsConvert(file)) {
+    try {
+      const meta = await sharp(file.buffer, { failOn: 'none' }).metadata()
+      const edge = Math.max(meta.width || 0, meta.height || 0)
+      const compact =
+        (meta.format === 'webp' || meta.format === 'jpeg') &&
+        edge > 0 &&
+        edge <= MAX_EDGE &&
+        file.buffer.length <= PASS_THROUGH_BYTES
+      if (compact) return file
+    } catch {
+      // Re-encode below.
+    }
+  }
+
+  const raw = RAW_NAME.test(file.originalname || '')
+  let webp: Buffer | null = null
+  if (raw) {
+    const embedded = await embeddedJpeg(file.buffer)
+    if (embedded) webp = await encodeWebp(embedded)
+  }
+  if (!webp) {
+    try {
+      webp = await encodeWebp(file.buffer)
+    } catch {
+      const embedded = await embeddedJpeg(file.buffer)
+      if (embedded) webp = await encodeWebp(embedded)
+    }
+  }
+  if (!webp?.length) {
+    throw new Error('Could not read this image. Try JPG, PNG, WEBP, or another photo.')
+  }
+
+  return asWebp(file, webp)
 }

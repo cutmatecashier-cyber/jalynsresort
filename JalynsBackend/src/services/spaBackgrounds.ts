@@ -125,7 +125,7 @@ export async function uploadSpaGalleryImages(
     const ext = extFromMime(file.mimetype || 'image/jpeg')
     const path = `${SPA_GALLERY_FOLDER}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${base}.${ext}`
     const { error } = await supabaseAdmin.storage.from(SPA_BUCKET).upload(path, file.buffer, {
-      cacheControl: '3600',
+      cacheControl: '31536000',
       upsert: false,
       contentType: file.mimetype || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
     })
@@ -147,7 +147,7 @@ export async function replaceSpaGalleryImage(path: string, incoming: Express.Mul
   }
   await ensureBucket()
   const { error } = await supabaseAdmin.storage.from(SPA_BUCKET).update(safePath, file.buffer, {
-    cacheControl: '3600',
+    cacheControl: '31536000',
     upsert: true,
     contentType: file.mimetype || 'image/jpeg',
   })

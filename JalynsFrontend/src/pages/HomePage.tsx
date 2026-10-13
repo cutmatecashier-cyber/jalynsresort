@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
-import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
 import { HomeRestaurant } from "../components/HomeRestaurant";
+import { HomeSpa } from "../components/HomeSpa";
 import { HomeRooms } from "../components/HomeRooms";
 import { HomeScuba } from "../components/HomeScuba";
 import { News } from "../components/News";
@@ -35,8 +35,8 @@ export function HomePage() {
       <HomeRooms />
       <HomeRestaurant />
       <HomeScuba />
+      <HomeSpa />
       <Testimonials />
-      <Gallery />
       <News />
       <WhyStay />
       <Footer />

@@ -73,6 +73,32 @@
     display: block;
   }
 
+  .hero-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .hero-scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(5, 8, 12, 0.32) 0%,
+      rgba(5, 8, 12, 0.08) 46%,
+      rgba(5, 8, 12, 0.38) 100%
+    );
+  }
+
+  .hero-copy :where(h1, p) {
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.4);
+  }
+
   svg {
     display: block;
   }
@@ -270,6 +296,32 @@
 
 .animate-fade-in {
   animation: fade-in 1s ease both;
+}
+
+.page-enter {
+  animation: fade-in 0.55s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: 0.55s ease both vt-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation: 0.55s ease both vt-fade-in;
+  }
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .animate-ken-burns {
@@ -777,6 +829,7 @@
   .reveal,
   .animate-fade-up,
   .animate-fade-in,
+  .page-enter,
   .animate-ken-burns,
   .news-cinematic-slide,
   .news-cinematic-slide.is-active,

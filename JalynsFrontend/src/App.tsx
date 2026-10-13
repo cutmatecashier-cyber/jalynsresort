@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ContentSync } from "./components/ContentSync";
+import { PageTransition } from "./components/PageTransition";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SmoothScroll } from "./components/SmoothScroll";
@@ -29,6 +30,7 @@ function App() {
         <SmoothScroll />
         <ScrollToTop />
         <ContentSync />
+        <PageTransition>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/rooms" element={<RoomsPage />} />
@@ -62,6 +64,7 @@ function App() {
           <Route path="/admin/bookings" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </PageTransition>
       </BrowserRouter>
     </AuthProvider>
   );

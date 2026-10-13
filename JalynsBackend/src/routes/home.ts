@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createImageUpload } from '../lib/imageUpload.js'
+import { createHeroMediaUpload, createImageUpload, formatUploadError } from '../lib/imageUpload.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import {
   getHomeSection,
@@ -17,6 +17,7 @@ import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
 export const homeRouter = Router()
 
 const upload = createImageUpload()
+const heroUpload = createHeroMediaUpload()
 
 const adminMsg = 'Only approved admins can edit the home background.'
 
@@ -36,15 +37,14 @@ homeRouter.post('/hero/upload', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res, adminMsg))) return
 
-    upload.single('image')(req, res, (err: unknown) => {
+    heroUpload.single('image')(req, res, (err: unknown) => {
       void (async () => {
         if (err) {
-          const message = err instanceof Error ? err.message : 'Could not upload image.'
-          res.status(400).json({ success: false, message })
+          res.status(400).json({ success: false, message: formatUploadError(err, 'Could not upload hero background.') })
           return
         }
         if (!req.file) {
-          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          res.status(400).json({ success: false, message: 'Please choose an image or an MP4 video.' })
           return
         }
 
@@ -66,7 +66,7 @@ homeRouter.post('/hero/upload', async (req, res) => {
           res.json({ success: true, url, slides })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not upload home background.'
-          const status = /bucket|storage|Please choose|Only JPG|sync/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|5 seconds|too large/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -180,7 +180,7 @@ homeRouter.post('/sections/:key/upload', async (req, res) => {
         } catch (inner) {
           const message =
             inner instanceof Error ? inner.message : 'Could not upload section background.'
-          const status = /bucket|storage|Please choose|Only JPG|sync/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|5 seconds|too large/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()

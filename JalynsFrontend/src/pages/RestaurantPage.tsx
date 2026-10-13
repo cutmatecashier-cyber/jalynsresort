@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { AdjustableFileInput } from "../components/AdjustableFileInput";
+import { HeroMedia } from "../components/HeroMedia";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { Footer } from "../components/Footer";
 import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "../components/Icons";
@@ -32,6 +33,8 @@ import {
   uploadRestaurantHeroWithResult,
   type RestaurantReview,
 } from "../lib/restaurant";
+import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
+import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
 
 type BgKind = "hero" | "content";
 
@@ -191,7 +194,12 @@ export function RestaurantPage() {
   const canManage = can.canManageRestaurantPage(role, approvalStatus);
   const canEditMenu = can.canEditRestaurantMenu(role, approvalStatus);
 
-  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("restaurant")?.url ?? null);
+  const [heroVideo, setHeroVideo] = useState(() => peekPageHero("restaurant")?.video ?? false);
+  const [pendingHero, setPendingHero] = useState<string | null>(null);
+  const [pendingVideo, setPendingVideo] = useState(false);
+  const heroAbortRef = useRef<AbortController | null>(null);
+  const [retryHero, setRetryHero] = useState<File | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
@@ -222,7 +230,7 @@ export function RestaurantPage() {
   const [deleteReplyTarget, setDeleteReplyTarget] = useState<RestaurantReview | null>(null);
   const [viewReview, setViewReview] = useState<RestaurantReview | null>(null);
 
-  const displayHero = heroUrl ?? (imagesReady ? DEFAULT_RESTAURANT_HERO : null);
+  const displayHero = heroUrl ?? ((imagesReady || peekPageHero("restaurant")) ? DEFAULT_RESTAURANT_HERO : null);
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_RESTAURANT_CONTENT : null);
 
   const averageRating = useMemo(() => {
@@ -262,6 +270,7 @@ export function RestaurantPage() {
       fetchRestaurantContentBackground(),
     ]);
     setHeroUrl(hero.url);
+    setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
     setHasCustomHero(Boolean(hero.path));
     setHasCustomContent(Boolean(content.path));
@@ -288,6 +297,11 @@ export function RestaurantPage() {
   useEffect(() => subscribeRestaurantBackgrounds(() => void loadImages()), [loadImages]);
 
   useEffect(() => {
+    if (!imagesReady || heroUrl?.startsWith("blob:")) return;
+    rememberPageHero("restaurant", { url: heroUrl, video: heroVideo });
+  }, [imagesReady, heroUrl, heroVideo]);
+
+  useEffect(() => {
     if (profile?.name?.trim()) setName(profile.name.trim());
   }, [profile?.name]);
 
@@ -301,19 +315,67 @@ export function RestaurantPage() {
   async function onHeroFile(files: File[] | null) {
     const file = files?.[0];
     if (!file) return;
+    heroAbortRef.current?.abort();
+    const controller = new AbortController();
+    heroAbortRef.current = controller;
+    const previous = heroUrl;
+    const previousVideo = heroVideo;
+    const local = URL.createObjectURL(file);
+    const video = isHeroVideoFile(file);
+    setRetryHero(file);
+    if (video) {
+      setPendingHero(local);
+      setPendingVideo(true);
+    } else {
+      setHeroVideo(false);
+      setHeroUrl(local);
+    }
     setBusy(true);
     setAdminError(null);
-    setUploadProgress("Optimizing & uploading hero…");
-    const result = await uploadRestaurantHeroWithResult(file);
-    if (result.error) setAdminError(result.error);
-    else if (result.url) {
+    setUploadProgress(video ? "Uploading video…" : "Optimizing image…");
+    const result = await uploadRestaurantHeroWithResult(file, (percent) => {
+      setUploadProgress(percent >= 100 ? "Saving…" : `Uploading… ${percent}%`);
+    }, controller.signal);
+    if (controller.signal.aborted) {
+      URL.revokeObjectURL(local);
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      if (heroAbortRef.current === controller) {
+        setPendingHero(null);
+        setPendingVideo(false);
+        setUploadProgress(null);
+        setBusy(false);
+      }
+      return;
+    }
+    setPendingHero(null);
+    setPendingVideo(false);
+    if (result.error) {
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      setAdminError(result.error);
+    } else if (result.url) {
       setHeroUrl(result.url);
+      setHeroVideo(isHeroVideoUrl(result.url));
       setHasCustomHero(true);
+      setRetryHero(null);
       setBgEditor(null);
     }
+    window.setTimeout(() => URL.revokeObjectURL(local), 1500);
     setUploadProgress(null);
     setBusy(false);
     if (heroInput.current) heroInput.current.value = "";
+  }
+
+  function closeBgEditor() {
+    heroAbortRef.current?.abort();
+    setPendingHero(null);
+    setPendingVideo(false);
+    setBgEditor(null);
   }
 
   async function onContentFile(files: File[] | null) {
@@ -430,15 +492,15 @@ export function RestaurantPage() {
     <main className="overflow-x-clip bg-[#05080f] text-ink">
       <section className="relative min-h-[100svh] overflow-hidden text-white">
         <div className="absolute inset-0 bg-[#07101c]">
-          {displayHero ? (
-            <img
-              src={displayHero}
-              alt="Jalyn's Restaurant dining"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-              fetchPriority="high"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#07101c]/50 to-[#05080f]/80" />
+          <HeroMedia
+            src={displayHero}
+            fallbackSrc={imagesReady ? DEFAULT_RESTAURANT_HERO : null}
+            alt="Jalyn's Restaurant dining"
+            video={heroVideo || isHeroVideoUrl(displayHero)}
+            soundControl
+            className="hero-media animate-ken-burns"
+          />
+          <div className="hero-scrim" />
           {canManage ? (
             <button
               type="button"
@@ -452,7 +514,7 @@ export function RestaurantPage() {
         <Navbar />
 
         <div
-          className={`relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
+          className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canManage ? "pointer-events-none" : ""
           }`}
         >
@@ -712,24 +774,44 @@ export function RestaurantPage() {
 
       {bgEditor ? (
         <Modal
-          title={bgEditor === "hero" ? "Hero background image" : "Content background image"}
-          onClose={() => setBgEditor(null)}
+          title={bgEditor === "hero" ? "Hero background" : "Content background image"}
+          onClose={closeBgEditor}
         >
-          <img
+          <HeroMedia
             src={
               bgEditor === "hero"
-                ? (displayHero ?? DEFAULT_RESTAURANT_HERO)
+                ? (pendingHero ?? displayHero ?? DEFAULT_RESTAURANT_HERO)
                 : (displayContent ?? DEFAULT_RESTAURANT_CONTENT)
             }
             alt="Current background"
+            priority={false}
+            video={bgEditor === "hero" && (pendingHero ? pendingVideo : heroVideo || isHeroVideoUrl(displayHero))}
             className="aspect-[16/7] w-full rounded-xl object-cover"
           />
           <p className="mt-3 text-sm text-ink/70">
-            Upload a new image to replace this background. Removing it restores the default photo.
-            Hero and content backgrounds are saved separately.
+            {bgEditor === "hero"
+              ? HERO_UPLOAD_HINT
+              : "Upload a new image to replace this background. Removing it restores the default photo. Hero and content backgrounds are saved separately."}
           </p>
+          {bgEditor === "hero" && adminError ? (
+            <div className="mt-3" role="alert">
+              <p className="text-sm font-medium text-red-700">{adminError}</p>
+              {retryHero ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void onHeroFile([retryHero])}
+                  className="btn-press mt-2 rounded-full border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-800 disabled:opacity-60"
+                >
+                  Retry upload
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {uploadProgress ? <p className="mt-2 text-sm text-ink/60">{uploadProgress}</p> : null}
           <AdjustableFileInput
             ref={bgEditor === "hero" ? heroInput : contentInput}
+            allowVideo={bgEditor === "hero"}
             onFiles={(picked) =>
               void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
             }
@@ -737,10 +819,10 @@ export function RestaurantPage() {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => setBgEditor(null)}
+              onClick={closeBgEditor}
               className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
             >
-              Cancel
+              {busy ? "Cancel" : "Close"}
             </button>
             {(bgEditor === "hero" ? hasCustomHero : hasCustomContent) ? (
               <button
@@ -761,10 +843,14 @@ export function RestaurantPage() {
               className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
             >
               {busy
-                ? "Uploading…"
-                : (bgEditor === "hero" ? hasCustomHero : hasCustomContent)
-                  ? "Replace image"
-                  : "Upload image"}
+                ? uploadProgress || "Uploading…"
+                : bgEditor === "hero"
+                  ? hasCustomHero
+                    ? "Replace image or video"
+                    : "Upload image or video"
+                  : hasCustomContent
+                    ? "Replace image"
+                    : "Upload image"}
             </button>
           </div>
         </Modal>

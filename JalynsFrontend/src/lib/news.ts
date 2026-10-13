@@ -1,6 +1,8 @@
 import { getApiUrl, resolveMediaUrl } from "./api";
 import { adminAuthHeaders } from "./adminAuth";
-import { optimizeImageFile } from "./scuba";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
+import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 
 export type NewsKind = "news" | "offer" | "event";
 
@@ -302,22 +304,23 @@ export async function fetchNewsHero(): Promise<NewsBackground> {
   }
 }
 
-export async function uploadNewsHeroWithResult(file: File) {
+export async function uploadNewsHeroWithResult(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}/api/news/hero`, {
-      method: "POST",
-      headers: await authHeaders(false),
-      body: form,
-    });
-    const body = (await res.json()) as {
+    const res = await postFormData(
+      `${getApiUrl()}/api/news/hero`,
+      await authHeaders(false),
+      form,
+      onProgress,
+      signal,
+    );
+    const body = res.data as {
       success?: boolean;
       message?: string;
       path?: string;

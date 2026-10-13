@@ -1,5 +1,7 @@
 import { getApiUrl, resolveMediaUrl } from "./api";
-import { optimizeImageFile } from "./scuba";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
+import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 import { supabase } from "./supabase";
 
 export type SpaService = {
@@ -98,22 +100,24 @@ async function fetchBackground(path: string): Promise<SpaBackground> {
   }
 }
 
-async function uploadBackgroundWithResult(path: string, file: File) {
+async function uploadBackgroundWithResult(
+  path: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}${path}`, {
-      method: "POST",
-      headers: await authHeaders(false),
-      body: form,
-    });
-    const body = (await res.json()) as {
+    const res = await postFormData(
+      `${getApiUrl()}${path}`,
+      await authHeaders(false),
+      form,
+      onProgress,
+      signal,
+    );
+    const body = res.data as {
       success?: boolean;
       message?: string;
       path?: string;
@@ -160,8 +164,12 @@ export async function fetchSpaContentBackground(): Promise<SpaBackground> {
   return fetchBackground("/api/spa/content-background");
 }
 
-export async function uploadSpaHeroWithResult(file: File) {
-  return uploadBackgroundWithResult("/api/spa/hero", file);
+export async function uploadSpaHeroWithResult(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
+  return uploadBackgroundWithResult("/api/spa/hero", file, onProgress, signal);
 }
 
 export async function uploadSpaContentBackgroundWithResult(file: File) {

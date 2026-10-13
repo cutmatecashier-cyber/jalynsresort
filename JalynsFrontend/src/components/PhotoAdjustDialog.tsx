@@ -99,7 +99,7 @@ function renderAdjusted(image: HTMLImageElement, rotation: number, crop: Crop, f
   const rotH = rotation % 180 === 0 ? srcH : srcW;
   const cropW = Math.max(1, crop.w * rotW);
   const cropH = Math.max(1, crop.h * rotH);
-  const scale = Math.min(1, 2400 / Math.max(cropW, cropH));
+  const scale = Math.min(1, 2000 / Math.max(cropW, cropH));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(cropW * scale));
   canvas.height = Math.max(1, Math.round(cropH * scale));
@@ -116,17 +116,28 @@ function renderAdjusted(image: HTMLImageElement, rotation: number, crop: Crop, f
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.drawImage(image, -srcW / 2, -srcH / 2);
   ctx.restore();
+  const baseName = fileName.replace(/\.[^.]+$/, "") || "photo";
   return new Promise<File>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (!blob) {
-          reject(new Error("Could not save this photo."));
+        if (blob) {
+          resolve(new File([blob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() }));
           return;
         }
-        resolve(new File([blob], fileName, { type: "image/jpeg", lastModified: Date.now() }));
+        canvas.toBlob(
+          (jpeg) => {
+            if (!jpeg) {
+              reject(new Error("Could not save this photo."));
+              return;
+            }
+            resolve(new File([jpeg], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() }));
+          },
+          "image/jpeg",
+          0.84,
+        );
       },
-      "image/jpeg",
-      0.92,
+      "image/webp",
+      0.84,
     );
   });
 }

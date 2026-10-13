@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent }
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { AdjustableFileInput } from "../components/AdjustableFileInput";
+import { HeroMedia } from "../components/HeroMedia";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { broadcastContentChanged } from "../components/ContentSync";
 import { Footer } from "../components/Footer";
@@ -28,6 +29,8 @@ import {
   type NewsKind,
   type NewsPost,
 } from "../lib/news";
+import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
+import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 
 const PAGE_SIZE = 10;
 
@@ -88,14 +91,20 @@ export function NewsPage() {
   const heroInput = useRef<HTMLInputElement>(null);
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
-  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("news")?.url ?? null);
+  const [heroVideo, setHeroVideo] = useState(() => peekPageHero("news")?.video ?? false);
+  const [pendingHero, setPendingHero] = useState<string | null>(null);
+  const [pendingVideo, setPendingVideo] = useState(false);
+  const heroAbortRef = useRef<AbortController | null>(null);
+  const [retryHero, setRetryHero] = useState<File | null>(null);
+  const [heroProgress, setHeroProgress] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const [heroEditorOpen, setHeroEditorOpen] = useState(false);
   const [heroBusy, setHeroBusy] = useState(false);
   const [heroError, setHeroError] = useState<string | null>(null);
 
-  const displayHero = heroUrl ?? (imagesReady ? DEFAULT_NEWS_HERO : null);
+  const displayHero = heroUrl ?? ((imagesReady || peekPageHero("news")) ? DEFAULT_NEWS_HERO : null);
 
   function scrollToPageTop() {
     // Match live WP archive (/page/2/): land at the top of the page, not mid-feed
@@ -152,6 +161,7 @@ export function NewsPage() {
   async function loadHero() {
     const hero = await fetchNewsHero();
     setHeroUrl(hero.url);
+    setHeroVideo(isHeroVideoUrl(hero.url));
     setHasCustomHero(Boolean(hero.path));
     setImagesReady(true);
   }
@@ -160,6 +170,11 @@ export function NewsPage() {
     void load();
     void loadHero();
   }, []);
+
+  useEffect(() => {
+    if (!imagesReady || heroUrl?.startsWith("blob:")) return;
+    rememberPageHero("news", { url: heroUrl, video: heroVideo });
+  }, [imagesReady, heroUrl, heroVideo]);
 
   useEffect(() => {
     const onUpdated = (event: Event) => {
@@ -203,9 +218,16 @@ export function NewsPage() {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (saving || deleting || heroBusy) return;
+      if (saving || deleting) return;
+      if (heroEditorOpen) {
+        heroAbortRef.current?.abort();
+        setPendingHero(null);
+        setPendingVideo(false);
+        setHeroProgress(null);
+        setHeroBusy(false);
+        setHeroEditorOpen(false);
+      }
       setModal(null);
-      setHeroEditorOpen(false);
       setDeleteTarget(null);
     };
     window.addEventListener("keydown", onKey);
@@ -216,24 +238,73 @@ export function NewsPage() {
       el?.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);
     };
-  }, [modal, heroEditorOpen, deleteTarget, saving, deleting, heroBusy]);
+  }, [modal, heroEditorOpen, deleteTarget, saving, deleting]);
 
   async function onHeroFile(files: File[] | null) {
     const file = files?.[0];
     if (!file) return;
+    heroAbortRef.current?.abort();
+    const controller = new AbortController();
+    heroAbortRef.current = controller;
+    const previous = heroUrl;
+    const previousVideo = heroVideo;
+    const local = URL.createObjectURL(file);
+    const video = isHeroVideoFile(file);
+    setRetryHero(file);
+    if (video) {
+      setPendingHero(local);
+      setPendingVideo(true);
+    } else {
+      setHeroVideo(false);
+      setHeroUrl(local);
+    }
     setHeroBusy(true);
     setHeroError(null);
-    const result = await uploadNewsHeroWithResult(file);
+    setHeroProgress(video ? "Uploading video…" : "Optimizing image…");
+    const result = await uploadNewsHeroWithResult(file, (percent) => {
+      setHeroProgress(percent >= 100 ? "Saving…" : `Uploading… ${percent}%`);
+    }, controller.signal);
+    if (controller.signal.aborted) {
+      URL.revokeObjectURL(local);
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      if (heroAbortRef.current === controller) {
+        setPendingHero(null);
+        setPendingVideo(false);
+        setHeroProgress(null);
+        setHeroBusy(false);
+      }
+      return;
+    }
+    setPendingHero(null);
+    setPendingVideo(false);
     if (result.error) {
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
       setHeroError(result.error);
     } else {
       setHeroUrl(result.url);
+      setHeroVideo(isHeroVideoUrl(result.url));
       setHasCustomHero(Boolean(result.path));
+      setRetryHero(null);
       setHeroEditorOpen(false);
       broadcastContentChanged();
     }
+    window.setTimeout(() => URL.revokeObjectURL(local), 1500);
+    setHeroProgress(null);
     setHeroBusy(false);
     if (heroInput.current) heroInput.current.value = "";
+  }
+
+  function closeHeroEditor() {
+    heroAbortRef.current?.abort();
+    setPendingHero(null);
+    setPendingVideo(false);
+    setHeroEditorOpen(false);
   }
 
   async function onRemoveHero() {
@@ -244,6 +315,7 @@ export function NewsPage() {
       setHeroError(error);
     } else {
       setHeroUrl(null);
+      setHeroVideo(false);
       setHasCustomHero(false);
       setHeroEditorOpen(false);
       broadcastContentChanged();
@@ -411,16 +483,15 @@ export function NewsPage() {
     <main className="overflow-x-clip bg-[#0a1210] text-ink">
       <section className="relative min-h-[100svh] overflow-hidden text-white">
         <div className="absolute inset-0 bg-[#0a1210]">
-          {displayHero ? (
-            <img
-              src={newsMediaUrl(displayHero)}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover object-center animate-ken-burns"
-              fetchPriority="high"
-              decoding="async"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#0a1210]/45 to-[#0a1210]" />
+          <HeroMedia
+            src={displayHero ? newsMediaUrl(displayHero) : null}
+            fallbackSrc={imagesReady ? newsMediaUrl(DEFAULT_NEWS_HERO) : null}
+            alt=""
+            video={heroVideo || isHeroVideoUrl(displayHero)}
+            soundControl
+            className="hero-media animate-ken-burns"
+          />
+          <div className="hero-scrim" />
           {canEdit ? (
             <button
               type="button"
@@ -434,7 +505,7 @@ export function NewsPage() {
         <Navbar />
 
         <div
-          className={`relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
+          className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
           }`}
         >
@@ -727,38 +798,44 @@ export function NewsPage() {
               role="dialog"
               aria-modal="true"
               aria-label="Hero background image"
-              onClick={() => !heroBusy && setHeroEditorOpen(false)}
+              onClick={closeHeroEditor}
             >
               <div
                 className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl sm:p-6"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="font-display text-xl text-ink">Hero background image</h3>
-                <img
-                  src={newsMediaUrl(displayHero ?? DEFAULT_NEWS_HERO)}
+                <h3 className="font-display text-xl text-ink">Hero background</h3>
+                <HeroMedia
+                  src={newsMediaUrl(pendingHero ?? displayHero ?? DEFAULT_NEWS_HERO)}
                   alt="Current hero"
+                  priority={false}
+                  video={pendingHero ? pendingVideo : heroVideo || isHeroVideoUrl(displayHero)}
                   className="mt-4 aspect-[16/7] w-full rounded-xl object-cover"
                 />
-                <p className="mt-3 text-sm text-ink/70">
-                  Upload a new image to replace the News page hero. Removing it restores the
-                  default photo.
-                </p>
+                <p className="mt-3 text-sm text-ink/70">{HERO_UPLOAD_HINT}</p>
+                {heroProgress ? <p className="mt-2 text-sm text-ink/60">{heroProgress}</p> : null}
                 {heroError ? (
-                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                    {heroError}
-                  </p>
+                  <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
+                    <p>{heroError}</p>
+                    {retryHero ? (
+                      <button type="button" disabled={heroBusy} onClick={() => void onHeroFile([retryHero])} className="btn-press mt-2 rounded-full border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold disabled:opacity-60">
+                        Retry upload
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
                 <AdjustableFileInput
                   ref={heroInput}
+                  allowVideo
                   onFiles={(picked) => void onHeroFile(picked)}
                 />
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => setHeroEditorOpen(false)}
+                    onClick={closeHeroEditor}
                     className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
                   >
-                    Cancel
+                    {heroBusy ? "Cancel" : "Close"}
                   </button>
                   {hasCustomHero ? (
                     <button
@@ -776,7 +853,7 @@ export function NewsPage() {
                     onClick={() => heroInput.current?.click()}
                     className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
                   >
-                    {heroBusy ? "Uploading…" : hasCustomHero ? "Replace image" : "Upload image"}
+                    {heroBusy ? heroProgress || "Uploading…" : hasCustomHero ? "Replace image or video" : "Upload image or video"}
                   </button>
                 </div>
               </div>

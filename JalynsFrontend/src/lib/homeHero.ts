@@ -1,5 +1,8 @@
 import { getApiUrl } from "./api";
 import { adminAuthHeaders } from "./adminAuth";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
+import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 
 export type HomeHeroSlide = {
   id: string;
@@ -34,10 +37,39 @@ export const DEFAULT_HOME_SLIDES: HomeHeroSlide[] = [
   },
 ];
 
+const HOME_HERO_CACHE_KEY = "jalyns:home-hero-slides";
+let memorySlides: HomeHeroSlide[] | null = null;
+
+function rememberHomeHeroSlides(slides: HomeHeroSlide[]) {
+  memorySlides = slides.map((slide) => ({ ...slide }));
+  try {
+    sessionStorage.setItem(HOME_HERO_CACHE_KEY, JSON.stringify(memorySlides));
+  } catch {
+    // Private mode can block storage. The in-memory copy still prevents a flash.
+  }
+}
+
+export function peekHomeHeroSlides(): HomeHeroSlide[] | null {
+  if (memorySlides?.length) return memorySlides.map((slide) => ({ ...slide }));
+  try {
+    const raw = sessionStorage.getItem(HOME_HERO_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as HomeHeroSlide[];
+    if (!Array.isArray(parsed) || parsed.length !== DEFAULT_HOME_SLIDES.length) return null;
+    if (!parsed.every((slide) => slide && typeof slide.image === "string" && typeof slide.id === "string")) {
+      return null;
+    }
+    memorySlides = parsed.map((slide) => ({ ...slide }));
+    return memorySlides.map((slide) => ({ ...slide }));
+  } catch {
+    return null;
+  }
+}
+
 export const HOME_HERO_UPDATED_EVENT = "jalyns:home-hero-updated";
 export const HOME_SECTION_UPDATED_EVENT = "jalyns:home-section-updated";
 
-export type HomeSectionKey = "whystay" | "news" | "restaurant";
+export type HomeSectionKey = "whystay" | "news" | "restaurant" | "spa";
 
 export const DEFAULT_HOME_SECTIONS: Record<HomeSectionKey, string> = {
   whystay:
@@ -45,6 +77,7 @@ export const DEFAULT_HOME_SECTIONS: Record<HomeSectionKey, string> = {
   news: "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?auto=format&fit=crop&w=2400&q=80",
   restaurant:
     "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=2400&q=80",
+  spa: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=2400&q=80",
 };
 
 export function homeHeroMediaUrl(url: string) {
@@ -62,7 +95,7 @@ export function notifyHomeHeroUpdated(slides?: HomeHeroSlide[]) {
   );
 }
 
-export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[]> {
+export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[] | null> {
   try {
     const res = await fetch(`${getApiUrl()}/api/home/hero`, { cache: "no-store" });
     const body = (await res.json()) as {
@@ -70,24 +103,33 @@ export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[]> {
       slides?: HomeHeroSlide[];
     };
     if (res.ok && Array.isArray(body.slides) && body.slides.length > 0) {
+      rememberHomeHeroSlides(body.slides);
       return body.slides;
     }
   } catch {
-    // keep defaults
+    // Keep the last known slides instead of flashing the defaults.
   }
-  return DEFAULT_HOME_SLIDES.map((s) => ({ ...s }));
+  return null;
 }
 
-export async function uploadHomeHeroSlide(index: number, file: File) {
+export async function uploadHomeHeroSlide(
+  index: number,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
+  const payload = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
   const body = new FormData();
-  body.append("image", file);
+  body.append("image", payload);
   body.append("index", String(index));
-  const res = await fetch(`${getApiUrl()}/api/home/hero/upload`, {
-    method: "POST",
-    headers: await adminAuthHeaders(false),
+  const res = await postFormData(
+    `${getApiUrl()}/api/home/hero/upload`,
+    await adminAuthHeaders(false),
     body,
-  });
-  const data = (await res.json()) as {
+    onProgress,
+    signal,
+  );
+  const data = res.data as {
     success?: boolean;
     message?: string;
     slides?: HomeHeroSlide[];
@@ -96,6 +138,7 @@ export async function uploadHomeHeroSlide(index: number, file: File) {
   if (!res.ok) {
     throw new Error(data.message ?? "Could not upload background.");
   }
+  if (data.slides?.length) rememberHomeHeroSlides(data.slides);
   return data;
 }
 

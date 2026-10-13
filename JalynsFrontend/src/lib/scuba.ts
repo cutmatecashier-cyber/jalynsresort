@@ -1,4 +1,6 @@
 import { getApiUrl } from "./api";
+import { postFormData } from "./formUpload";
+import { isHeroVideoFile } from "./heroMedia";
 import { supabase } from "./supabase";
 import type { DivingRate, PadiScubaCourse } from "../types/database";
 
@@ -135,7 +137,18 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "-").replace(/-+/g, "-").toLowerCase();
 }
 
-/** Resize only when needed — keeps original bytes/format whenever possible. */
+/** Hero and listing photos: about 2000px WebP, small enough to upload and display quickly. */
+export const DISPLAY_IMAGE_OPTIMIZE = {
+  maxWidth: 2000,
+  maxHeight: 2000,
+  quality: 0.84,
+  maxBytes: 1_200_000,
+} as const;
+
+/**
+ * Resize oversized photos and encode WebP when the browser can.
+ * Files that are already small enough are returned unchanged.
+ */
 export async function optimizeImageFile(
   file: File,
   options?: {
@@ -151,14 +164,10 @@ export async function optimizeImageFile(
     strict?: boolean;
   },
 ): Promise<File> {
-  const maxWidth = options?.maxWidth ?? 2560;
-  const maxHeight = options?.maxHeight ?? 2560;
-  const quality =
-    options?.quality != null
-      ? Math.min(1, Math.max(0.55, options.quality))
-      : 0.93;
-  const maxBytes = options?.maxBytes ?? 8_000_000;
-  const strict = Boolean(options?.strict);
+  const maxWidth = options?.maxWidth ?? DISPLAY_IMAGE_OPTIMIZE.maxWidth;
+  const maxHeight = options?.maxHeight ?? DISPLAY_IMAGE_OPTIMIZE.maxHeight;
+  const quality = Math.min(0.88, Math.max(0.72, options?.quality ?? DISPLAY_IMAGE_OPTIMIZE.quality));
+  const maxBytes = options?.maxBytes ?? DISPLAY_IMAGE_OPTIMIZE.maxBytes;
 
   // Browsers cannot decode camera RAW or some phone formats. The server converts them.
   if (
@@ -170,96 +179,60 @@ export async function optimizeImageFile(
 
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
 
-  const isJpeg = /^image\/jpe?g$/i.test(file.type);
-  const isPng = file.type === "image/png";
-
-  let bitmap: ImageBitmap;
+  let probe: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    probe = await createImageBitmap(file);
   } catch {
     return file;
   }
+  const srcW = probe.width;
+  const srcH = probe.height;
+  probe.close();
+  if (!srcW || !srcH) return file;
+
+  const scale = Math.min(1, maxWidth / srcW, maxHeight / srcH);
+  const withinDims = scale >= 0.999;
+  const alreadySmall =
+    withinDims &&
+    file.size <= Math.min(maxBytes, 900_000) &&
+    (file.type === "image/webp" || /^image\/jpe?g$/i.test(file.type));
+  if (alreadySmall) return file;
+
+  const targetW = Math.max(1, Math.round(srcW * (withinDims ? 1 : scale)));
+  const targetH = Math.max(1, Math.round(srcH * (withinDims ? 1 : scale)));
+  let bitmap: ImageBitmap;
   try {
-    let { width, height } = bitmap;
+    bitmap = await createImageBitmap(file, {
+      resizeWidth: targetW,
+      resizeHeight: targetH,
+      resizeQuality: "medium",
+    });
+  } catch {
+    return file;
+  }
 
-    // JPEG: preserve original bytes for large hero-style uploads unless oversized.
-    // `strict` (menu dishes, etc.) always respects caller maxWidth/maxBytes.
-    if (isJpeg) {
-      const jpegMaxEdge = strict
-        ? Math.max(maxWidth, maxHeight)
-        : Math.max(maxWidth, maxHeight, 4500);
-      const jpegMaxBytes = strict ? maxBytes : Math.max(maxBytes, 12_000_000);
-      const scale = Math.min(1, jpegMaxEdge / width, jpegMaxEdge / height);
-      if (scale >= 0.999 && file.size <= jpegMaxBytes) {
-        return file; // keep original JPEG bytes
-      }
-
-      width = Math.max(1, Math.round(width * scale));
-      height = Math.max(1, Math.round(height * scale));
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return file;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(bitmap, 0, 0, width, height);
-
-      const jpegQuality = strict ? quality : Math.max(quality, 0.98);
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((value) => resolve(value), "image/jpeg", jpegQuality);
-      });
-      if (!blob || (!strict && blob.size >= file.size * 0.98)) return file;
-
-      const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
-      return new File([blob], `${base}.jpg`, {
-        type: "image/jpeg",
-        lastModified: Date.now(),
-      });
-    }
-
-    const scale = Math.min(1, maxWidth / width, maxHeight / height);
-    const needsResize = scale < 0.999;
-    const needsShrink = file.size > maxBytes;
-
-    // Already within size + dimension limits → keep the original file untouched.
-    if (!needsResize && !needsShrink) return file;
-
-    width = Math.max(1, Math.round(width * scale));
-    height = Math.max(1, Math.round(height * scale));
-
+  try {
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bitmap, 0, 0, width, height);
-
-    // PNG stays lossless. Other formats → high-quality JPEG only when needed.
-    const keepPng = isPng && !needsShrink && !strict;
-    const mime = keepPng ? "image/png" : "image/jpeg";
-    const ext = keepPng ? "png" : "jpg";
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      if (keepPng) {
-        canvas.toBlob((value) => resolve(value), mime);
-      } else {
-        canvas.toBlob((value) => resolve(value), mime, Math.max(quality, strict ? quality : 0.95));
-      }
-    });
-    if (!blob) return file;
-
-    // If re-encode didn't help and we only wanted a shrink, keep original.
-    if (!needsResize && !strict && blob.size >= file.size * 0.92) return file;
+    ctx.drawImage(bitmap, 0, 0);
 
     const base = sanitizeFileName(file.name.replace(/\.[^.]+$/, "")) || "image";
-    return new File([blob], `${base}.${ext}`, {
-      type: mime,
-      lastModified: Date.now(),
+    const webp = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), "image/webp", quality);
     });
+    if (webp && (webp.size < file.size || !withinDims || file.size > maxBytes)) {
+      return new File([webp], `${base}.webp`, { type: "image/webp", lastModified: Date.now() });
+    }
+    if (withinDims && file.size <= maxBytes) return file;
+
+    const jpeg = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), "image/jpeg", quality);
+    });
+    if (!jpeg) return file;
+    return new File([jpeg], `${base}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
   } finally {
     bitmap.close();
   }
@@ -445,27 +418,28 @@ export async function fetchScubaGallery(): Promise<ScubaImage[]> {
   }
 }
 
-export async function uploadScubaHeroWithResult(file: File) {
+export async function uploadScubaHeroWithResult(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
-    const res = await fetch(`${getApiUrl()}/api/scuba/hero`, {
-      method: "POST",
-      headers: await authHeaders(false),
-      body: form,
-    });
-    const body = await readJson<{
+    const res = await postFormData(
+      `${getApiUrl()}/api/scuba/hero`,
+      await authHeaders(false),
+      form,
+      onProgress,
+      signal,
+    );
+    const body = res.data as {
       success?: boolean;
       message?: string;
       path?: string;
       url?: string;
-    }>(res);
+    };
     if (!res.ok || !body.url) {
       return {
         error: apiMessage(body, "Could not upload image."),
@@ -505,12 +479,7 @@ export async function removeScubaHero() {
 
 export async function uploadScubaContentBackgroundWithResult(file: File) {
   try {
-    const optimized = await optimizeImageFile(file, {
-      maxWidth: 3840,
-      maxHeight: 2560,
-      quality: 0.96,
-      maxBytes: 7_000_000,
-    });
+    const optimized = await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
     const form = new FormData();
     form.append("image", optimized);
     const res = await fetch(`${getApiUrl()}/api/scuba/content-background`, {

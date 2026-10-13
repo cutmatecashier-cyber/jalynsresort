@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { getApiUrl } from "../lib/api";
 import { notifyHomeHeroUpdated, notifyHomeSectionUpdated } from "../lib/homeHero";
+import { prefetchPageHeroes } from "../lib/pageHeroCache";
 import { fetchGallery, notifyGalleryUpdated } from "../lib/gallery";
 import { fetchNewsPosts, notifyNewsUpdated } from "../lib/news";
 import { fetchRoomsCatalog, notifyRoomsUpdated } from "../lib/rooms";
@@ -17,11 +18,13 @@ export function refreshLocalContent() {
   notifyHomeSectionUpdated("whystay");
   notifyHomeSectionUpdated("news");
   notifyHomeSectionUpdated("restaurant");
+  notifyHomeSectionUpdated("spa");
   void fetchRoomsCatalog().then((catalog) =>
     notifyRoomsUpdated(catalog.rooms, catalog.voucher, catalog.highlights),
   );
   void fetchGallery().then((photos) => notifyGalleryUpdated(photos));
   void fetchNewsPosts().then((posts) => notifyNewsUpdated(posts));
+  void prefetchPageHeroes();
 }
 
 /** Call after an admin save so other tabs update instantly. */
@@ -75,6 +78,7 @@ export function ContentSync() {
     };
 
     void tick();
+    void prefetchPageHeroes();
     timer = window.setInterval(() => void tick(), POLL_MS);
 
     const onVisible = () => {

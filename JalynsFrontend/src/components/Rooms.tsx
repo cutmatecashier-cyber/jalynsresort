@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
 import { AdjustableFileInput } from "./AdjustableFileInput";
+import { HeroMedia } from "./HeroMedia";
 import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
 import { NumberStepper } from "./NumberStepper";
 import { useAuth } from "../context/AuthContext";
@@ -46,6 +47,8 @@ import {
   type RoomStatus,
   ROOM_IMAGE_ACCEPT,
 } from "../lib/rooms";
+import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
+import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
@@ -317,6 +320,7 @@ function RoomImageCarousel({
                 aria-hidden={active ? undefined : true}
                 className="h-full shrink-0 select-none object-cover object-center"
                 style={{ width: `${100 / slides.length}%` }}
+                loading={active ? "eager" : "lazy"}
                 decoding="async"
                 draggable={false}
               />
@@ -369,7 +373,12 @@ export function Rooms() {
   const [voucherEnabled, setVoucherEnabled] = useState(false);
   const [voucherPercentText, setVoucherPercentText] = useState("");
   const [highlights, setHighlights] = useState<RoomHighlight[]>([]);
-  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("rooms")?.url ?? null);
+  const [heroVideo, setHeroVideo] = useState(() => peekPageHero("rooms")?.video ?? false);
+  const [pendingHero, setPendingHero] = useState<string | null>(null);
+  const [pendingVideo, setPendingVideo] = useState(false);
+  const heroAbortRef = useRef<AbortController | null>(null);
+  const [retryHero, setRetryHero] = useState<File | null>(null);
   const [contentUrl, setContentUrl] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
@@ -400,7 +409,7 @@ export function Rooms() {
   const replaceImageIndex = useRef(0);
   const scrollRef = useWheelScrollContain<HTMLDivElement>(manageOpen || Boolean(bgEditor));
 
-  const displayHero = heroUrl ?? (imagesReady ? DEFAULT_ROOMS_HERO : null);
+  const displayHero = heroUrl ?? ((imagesReady || peekPageHero("rooms")) ? DEFAULT_ROOMS_HERO : null);
   const displayContent = contentUrl ?? (imagesReady ? DEFAULT_ROOMS_CONTENT : null);
   const selectedRoom = useMemo(
     () => rooms.find((r) => r.id === selectedId) ?? null,
@@ -424,6 +433,7 @@ export function Rooms() {
       fetchRoomsContentBackground(),
     ]);
     setHeroUrl(hero.url);
+    setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
     setHasCustomHero(Boolean(hero.path));
     setHasCustomContent(Boolean(content.path));
@@ -434,6 +444,11 @@ export function Rooms() {
     void loadRooms();
     void loadBackgrounds();
   }, [loadRooms, loadBackgrounds]);
+
+  useEffect(() => {
+    if (!imagesReady || heroUrl?.startsWith("blob:")) return;
+    rememberPageHero("rooms", { url: heroUrl, video: heroVideo });
+  }, [imagesReady, heroUrl, heroVideo]);
 
   useEffect(() => {
     document.title = "Rooms & Apartments | Jalyn's Resort & Restaurant";
@@ -546,20 +561,68 @@ export function Rooms() {
   async function onHeroFile(files: File[] | null) {
     const file = files?.[0];
     if (!file) return;
+    heroAbortRef.current?.abort();
+    const controller = new AbortController();
+    heroAbortRef.current = controller;
+    const previous = heroUrl;
+    const previousVideo = heroVideo;
+    const local = URL.createObjectURL(file);
+    const video = isHeroVideoFile(file);
+    setRetryHero(file);
+    if (video) {
+      setPendingHero(local);
+      setPendingVideo(true);
+    } else {
+      setHeroVideo(false);
+      setHeroUrl(local);
+    }
     setBusy(true);
     setError(null);
-    setUploadProgress("Optimizing & uploading hero…");
-    const result = await uploadRoomsHeroWithResult(file);
-    if (result.error) setError(result.error);
-    else if (result.url) {
+    setUploadProgress(video ? "Uploading video…" : "Optimizing image…");
+    const result = await uploadRoomsHeroWithResult(file, (percent) => {
+      setUploadProgress(percent >= 100 ? "Saving…" : `Uploading… ${percent}%`);
+    }, controller.signal);
+    if (controller.signal.aborted) {
+      URL.revokeObjectURL(local);
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      if (heroAbortRef.current === controller) {
+        setPendingHero(null);
+        setPendingVideo(false);
+        setUploadProgress(null);
+        setBusy(false);
+      }
+      return;
+    }
+    setPendingHero(null);
+    setPendingVideo(false);
+    if (result.error) {
+      if (!video) {
+        setHeroUrl(previous);
+        setHeroVideo(previousVideo);
+      }
+      setError(result.error);
+    } else if (result.url) {
       setHeroUrl(result.url);
+      setHeroVideo(isHeroVideoUrl(result.url));
       setHasCustomHero(true);
+      setRetryHero(null);
       setBgEditor(null);
       broadcastContentChanged();
     }
+    window.setTimeout(() => URL.revokeObjectURL(local), 1500);
     setUploadProgress(null);
     setBusy(false);
     if (heroInput.current) heroInput.current.value = "";
+  }
+
+  function closeBgEditor() {
+    heroAbortRef.current?.abort();
+    setPendingHero(null);
+    setPendingVideo(false);
+    setBgEditor(null);
   }
 
   async function onContentFile(files: File[] | null) {
@@ -588,6 +651,7 @@ export function Rooms() {
     if (message) setError(message);
     else {
       setHeroUrl(null);
+      setHeroVideo(false);
       setHasCustomHero(false);
       setBgEditor(null);
       broadcastContentChanged();
@@ -847,15 +911,15 @@ export function Rooms() {
     <main id="rooms" className="overflow-x-clip bg-[#05080f] text-ink">
       <section className="relative min-h-[100svh] overflow-hidden text-white">
         <div className="absolute inset-0 bg-[#07101c]">
-          {displayHero ? (
-            <img
-              src={displayHero}
-              alt="Jalyn's Resort rooms and apartments"
-              className="absolute inset-0 h-full w-full object-cover object-center animate-ken-burns"
-              fetchPriority="high"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#07101c]/50 to-[#05080f]/80" />
+          <HeroMedia
+            src={displayHero}
+            fallbackSrc={imagesReady ? DEFAULT_ROOMS_HERO : null}
+            alt="Jalyn's Resort rooms and apartments"
+            video={heroVideo || isHeroVideoUrl(displayHero)}
+            soundControl
+            className="hero-media animate-ken-burns"
+          />
+          <div className="hero-scrim" />
           {canEdit ? (
             <button
               type="button"
@@ -869,7 +933,7 @@ export function Rooms() {
         <Navbar />
 
         <div
-          className={`relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
+          className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
           }`}
         >
@@ -1193,29 +1257,38 @@ export function Rooms() {
               title={
                 bgEditor === "hero" ? "Rooms hero background" : "Rooms content background"
               }
-              onClose={() => !busy && setBgEditor(null)}
+              onClose={closeBgEditor}
             >
-              <img
+              <HeroMedia
                 src={
                   bgEditor === "hero"
-                    ? (displayHero ?? DEFAULT_ROOMS_HERO)
+                    ? (pendingHero ?? displayHero ?? DEFAULT_ROOMS_HERO)
                     : (displayContent ?? DEFAULT_ROOMS_CONTENT)
                 }
                 alt="Current background"
+                priority={false}
+                video={bgEditor === "hero" && (pendingHero ? pendingVideo : heroVideo || isHeroVideoUrl(displayHero))}
                 className="aspect-[16/7] w-full rounded-xl object-cover"
               />
               <p className="mt-3 text-sm text-ink/70">
-                Upload a new image to replace this background. Removing it restores the default
-                photo. Hero and content backgrounds are saved separately and persist after refresh.
+                {bgEditor === "hero"
+                  ? HERO_UPLOAD_HINT
+                  : "Upload a new image to replace this background. Removing it restores the default photo. Hero and content backgrounds are saved separately and persist after refresh."}
               </p>
               {error ? (
-                <p className="mt-3 text-sm font-medium text-red-700" role="alert">
-                  {error}
-                </p>
+                <div className="mt-3" role="alert">
+                  <p className="text-sm font-medium text-red-700">{error}</p>
+                  {bgEditor === "hero" && retryHero ? (
+                    <button type="button" disabled={busy} onClick={() => void onHeroFile([retryHero])} className="btn-press mt-2 rounded-full border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-800 disabled:opacity-60">
+                      Retry upload
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
               {uploadProgress ? <p className="mt-2 text-sm text-ink/60">{uploadProgress}</p> : null}
               <AdjustableFileInput
                 ref={bgEditor === "hero" ? heroInput : contentInput}
+                allowVideo={bgEditor === "hero"}
                 onFiles={(picked) =>
                   void (bgEditor === "hero" ? onHeroFile(picked) : onContentFile(picked))
                 }
@@ -1223,10 +1296,10 @@ export function Rooms() {
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setBgEditor(null)}
+                  onClick={closeBgEditor}
                   className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold"
                 >
-                  Cancel
+                  {busy ? "Cancel" : "Close"}
                 </button>
                 {(bgEditor === "hero" ? hasCustomHero : hasCustomContent) ? (
                   <button
@@ -1247,10 +1320,14 @@ export function Rooms() {
                   className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60"
                 >
                   {busy
-                    ? "Uploading…"
-                    : (bgEditor === "hero" ? hasCustomHero : hasCustomContent)
-                      ? "Replace image"
-                      : "Upload image"}
+                    ? uploadProgress || "Uploading…"
+                    : bgEditor === "hero"
+                      ? hasCustomHero
+                        ? "Replace image or video"
+                        : "Upload image or video"
+                      : hasCustomContent
+                        ? "Replace image"
+                        : "Upload image"}
                 </button>
               </div>
             </Modal>,

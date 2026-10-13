@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Router } from 'express'
-import { createImageUpload } from '../lib/imageUpload.js'
+import { createHeroMediaUpload, createImageUpload, formatUploadError } from '../lib/imageUpload.js'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
 import { loadBookingSettings, saveBookingSchedule, saveExtraPersonRules } from '../services/bookingSettings.js'
 import {
@@ -39,11 +39,11 @@ import {
   uploadRoomsHeroBackground,
 } from '../services/roomsBackgrounds.js'
 import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
-import { prepareRoomImage } from '../services/prepareRoomImage.js'
 
 export const roomsRouter = Router()
 
 const upload = createImageUpload()
+const heroUpload = createHeroMediaUpload()
 
 function clientErrorStatus(message: string) {
     return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid|phone|amount|rate/i.test(
@@ -292,7 +292,7 @@ roomsRouter.post('/highlights', async (req, res) => {
             const url = await uploadPublicImage({
               bucket: SITE_BUCKETS.rooms,
               folder: 'highlights',
-              file: await prepareRoomImage(file),
+              file,
             })
             highlights = await addRoomHighlight(url)
           }
@@ -330,7 +330,7 @@ roomsRouter.put('/highlights/:id', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'highlights',
-            file: await prepareRoomImage(req.file),
+            file: req.file,
           })
           const highlights = await replaceRoomHighlight(req.params.id, url)
           res.json({ success: true, highlights })
@@ -407,19 +407,18 @@ roomsRouter.post('/hero', async (req, res) => {
     if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit rooms backgrounds.'))) {
       return
     }
-    upload.single('image')(req, res, (err: unknown) => {
+    heroUpload.single('image')(req, res, (err: unknown) => {
       void (async () => {
         if (err) {
-          const message = err instanceof Error ? err.message : 'Could not upload image.'
-          res.status(400).json({ success: false, message })
+          res.status(400).json({ success: false, message: formatUploadError(err, 'Could not upload hero background.') })
           return
         }
         if (!req.file) {
-          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          res.status(400).json({ success: false, message: 'Please choose an image or an MP4 video.' })
           return
         }
         try {
-          const background = await uploadRoomsHeroBackground(await prepareRoomImage(req.file))
+          const background = await uploadRoomsHeroBackground(req.file)
           res.status(201).json({ success: true, ...background })
         } catch (uploadErr) {
           const message =
@@ -474,7 +473,7 @@ roomsRouter.post('/content-background', async (req, res) => {
           return
         }
         try {
-          const background = await uploadRoomsContentBackground(await prepareRoomImage(req.file))
+          const background = await uploadRoomsContentBackground(req.file)
           res.status(201).json({ success: true, ...background })
         } catch (uploadErr) {
           const message =
@@ -541,7 +540,7 @@ roomsRouter.post('/', async (req, res) => {
             const url = await uploadPublicImage({
               bucket: SITE_BUCKETS.rooms,
               folder: 'photos',
-              file: await prepareRoomImage(req.file),
+              file: req.file,
             })
             const input = bodyToRoomInput((req.body || {}) as Record<string, unknown>)
             const rooms = await createRoom({ ...input, image: url })
@@ -590,7 +589,7 @@ roomsRouter.post('/upload', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'photos',
-            file: await prepareRoomImage(req.file),
+            file: req.file,
           })
           const replaceId =
             typeof req.body?.replaceId === 'string' ? req.body.replaceId.trim() : ''
@@ -719,7 +718,7 @@ roomsRouter.post('/:id/images', async (req, res) => {
               await uploadPublicImage({
                 bucket: SITE_BUCKETS.rooms,
                 folder: 'photos',
-                file: await prepareRoomImage(file),
+                file,
               }),
             )
           }
@@ -762,7 +761,7 @@ roomsRouter.put('/:id/images/:imageIndex', async (req, res) => {
           const url = await uploadPublicImage({
             bucket: SITE_BUCKETS.rooms,
             folder: 'photos',
-            file: await prepareRoomImage(req.file),
+            file: req.file,
           })
           const rooms = await replaceRoomImage(req.params.id, imageIndex, url)
           res.json({ success: true, url, rooms })

@@ -1,6 +1,9 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { HERO_MEDIA_ACCEPT, isHeroVideoFile } from "../lib/heroMedia";
 import { ROOM_IMAGE_ACCEPT } from "../lib/rooms";
 import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
+import { VideoAdjustDialog } from "./VideoAdjustDialog";
 
 const FULL_CROP = { x: 0, y: 0, w: 1, h: 1 };
 
@@ -11,6 +14,8 @@ type Props = {
   capture?: "user" | "environment";
   id?: string;
   className?: string;
+  /** Hero backgrounds can be an image or a short MP4. */
+  allowVideo?: boolean;
   onFiles: (files: File[]) => void;
 };
 
@@ -31,7 +36,16 @@ function jpegName(name: string) {
 }
 
 export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function AdjustableFileInput(
-  { accept = ROOM_IMAGE_ACCEPT, multiple = false, disabled = false, capture, id, className = "hidden", onFiles },
+  {
+    accept,
+    multiple = false,
+    disabled = false,
+    capture,
+    id,
+    className = "hidden",
+    allowVideo = false,
+    onFiles,
+  },
   ref,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,8 +56,11 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
   const onFilesRef = useRef(onFiles);
   onFilesRef.current = onFiles;
   const [source, setSource] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("photo.jpg");
   const [progress, setProgress] = useState<string | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const acceptValue = accept ?? (allowVideo ? HERO_MEDIA_ACCEPT : ROOM_IMAGE_ACCEPT);
 
   useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
@@ -55,6 +72,7 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
   function finish() {
     clearUrl();
     setSource(null);
+    setVideoFile(null);
     setProgress(null);
     const done = doneRef.current;
     doneRef.current = [];
@@ -70,6 +88,13 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
       return;
     }
     const index = totalRef.current - restRef.current.length;
+    if (allowVideo && isHeroVideoFile(next)) {
+      const url = URL.createObjectURL(next);
+      urlRef.current = url;
+      setVideoFile(next);
+      setSource(url);
+      return;
+    }
     if (!canPreview(next)) {
       doneRef.current.push(next);
       advance();
@@ -83,6 +108,7 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
   }
 
   function onPick(list: FileList | null) {
+    setPickError(null);
     const files = Array.from(list ?? []);
     if (inputRef.current) inputRef.current.value = "";
     if (!files.length) return;
@@ -103,14 +129,44 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
         ref={inputRef}
         type="file"
         id={id}
-        accept={accept}
+        accept={acceptValue}
         multiple={multiple}
         capture={capture}
         disabled={disabled}
         className={className}
         onChange={(event) => onPick(event.target.files)}
       />
-      {source ? (
+      {pickError
+        ? createPortal(
+            <div
+              className="fixed inset-x-4 bottom-4 z-[260] mx-auto max-w-md rounded-2xl border border-red-200 bg-white p-4 text-sm text-red-800 shadow-xl"
+              role="alert"
+            >
+              <p>{pickError}</p>
+              <button
+                type="button"
+                onClick={() => setPickError(null)}
+                className="btn-press mt-3 rounded-full border border-red-300 px-3 py-1.5 text-sm font-semibold"
+              >
+                OK
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+      {source && videoFile ? (
+        <VideoAdjustDialog
+          key={source}
+          source={source}
+          file={videoFile}
+          onCancel={cancel}
+          onApply={(next) => {
+            doneRef.current.push(next);
+            advance();
+          }}
+        />
+      ) : null}
+      {source && !videoFile ? (
         <PhotoAdjustDialog
           key={source}
           source={source}
@@ -118,8 +174,8 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
           initialCrop={FULL_CROP}
           progress={progress}
           onCancel={cancel}
-          onApply={(file) => {
-            doneRef.current.push(file);
+          onApply={(next) => {
+            doneRef.current.push(next);
             advance();
           }}
         />
