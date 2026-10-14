@@ -27,8 +27,9 @@ export function refreshLocalContent() {
   void prefetchPageHeroes();
 }
 
-/** Call after an admin save so other tabs update instantly. */
+/** Call after an admin save so this tab and other tabs update instantly. */
 export function broadcastContentChanged() {
+  window.dispatchEvent(new Event(CONTENT_CHANGED_EVENT));
   try {
     const channel = new BroadcastChannel(CONTENT_SYNC_CHANNEL);
     channel.postMessage({ type: "content-changed", at: Date.now() });

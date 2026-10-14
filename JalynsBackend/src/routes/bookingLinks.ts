@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireApprovedAdmin } from '../lib/requireAdmin.js'
+import { bumpContentRevision } from '../services/contentRevision.js'
 import { listBookingLinks, publicBookingLinks, saveBookingLinks } from '../services/bookingLinks.js'
 
 export const bookingLinksRouter = Router()
@@ -37,6 +38,11 @@ bookingLinksRouter.put('/', async (req, res) => {
   try {
     if (!(await requireApprovedAdmin(req, res, adminMsg))) return
     const links = await saveBookingLinks(req.body?.links)
+    try {
+      await bumpContentRevision()
+    } catch {
+      // Guest pages still update in this browser from the save itself.
+    }
     return res.json({ success: true, links, publicLinks: publicBookingLinks(links) })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not save booking links.'

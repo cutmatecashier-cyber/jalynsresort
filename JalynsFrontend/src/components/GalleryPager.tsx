@@ -28,7 +28,7 @@ export function GalleryPager({ count, active, onSelect, tone = "light" }: Galler
             aria-selected={selected}
             aria-label={`Show ${index + 1} of ${count}`}
             onClick={() => onSelect?.(index)}
-            className={`rounded-full transition ${
+            className={`rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               selected ? `h-2 w-7 ${activeDot}` : `h-2 w-2 ${idleDot}`
             }`}
           />

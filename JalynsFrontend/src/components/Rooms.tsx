@@ -43,7 +43,6 @@ import {
   type RoomFormInput,
   type RoomHighlight,
   type RoomsVoucher,
-  type RoomStatus,
   ROOM_IMAGE_ACCEPT,
 } from "../lib/rooms";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
@@ -53,9 +52,10 @@ import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
 import { BookingSettingsCard } from "./BookingSettingsCard";
 import { ExtraPersonSettings } from "./ExtraPersonSettings";
-import { broadcastContentChanged } from "./ContentSync";
+import { broadcastContentChanged, CONTENT_CHANGED_EVENT } from "./ContentSync";
 import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
+import { fetchBookingLinks, type BookingLink } from "../lib/bookingLinks";
 import { JeepneyShuttleGallery } from "./JeepneyShuttleGallery";
 import { GalleryStageSkeleton, LoadError, RoomCardsSkeleton } from "./Skeleton";
 import { Navbar } from "./Navbar";
@@ -213,151 +213,139 @@ function RoomImageCarousel({
   className?: string;
 }) {
   const total = images.length;
-  const loop = total > 1;
-  const [logical, setLogical] = useState(0);
-  const [track, setTrack] = useState(() => (images.length > 1 ? 1 : 0));
-  const [animate, setAnimate] = useState(true);
-  const safeIndex = Math.min(logical, Math.max(0, total - 1));
-  const slides = loop ? [images[total - 1], ...images, images[0]] : images;
+  const [index, setIndex] = useState(0);
+  const [motion, setMotion] = useState<{ from: number; to: number; dir: 1 | -1; run: boolean } | null>(
+    null,
+  );
+  const safeIndex = total ? Math.min(index, total - 1) : 0;
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
-    setLogical(0);
-    setTrack(images.length > 1 ? 1 : 0);
-    setAnimate(false);
+    setIndex(0);
+    setMotion(null);
   }, [images.join("|")]);
 
-  useEffect(() => {
-    if (animate) return;
-    let inner = 0;
-    const outer = window.requestAnimationFrame(() => {
-      inner = window.requestAnimationFrame(() => setAnimate(true));
+  function showPhoto(next: number) {
+    if (total < 2 || motion) return;
+    const target = ((next % total) + total) % total;
+    if (target === safeIndex) return;
+    if (reduceMotion) {
+      setIndex(target);
+      return;
+    }
+    const forward = (target - safeIndex + total) % total;
+    const backward = (safeIndex - target + total) % total;
+    const dir: 1 | -1 = forward <= backward ? 1 : -1;
+    setMotion({ from: safeIndex, to: target, dir, run: false });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setMotion((current) =>
+          current && current.to === target ? { ...current, run: true } : current,
+        );
+      });
     });
-    return () => {
-      window.cancelAnimationFrame(outer);
-      window.cancelAnimationFrame(inner);
-    };
-  }, [animate]);
+  }
 
   useEffect(() => {
-    if (total < 2) return;
+    if (total < 2 || motion) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setTimeout(() => {
-      const next = (safeIndex + 1) % total;
-      setAnimate(true);
-      setLogical(next);
-      setTrack(safeIndex === total - 1 ? total + 1 : next + 1);
-    }, 3000);
+    const timer = window.setTimeout(() => showPhoto(safeIndex + 1), 5600);
     return () => window.clearTimeout(timer);
-  }, [total, safeIndex]);
+  }, [total, safeIndex, motion]);
+
+  useEffect(() => {
+    if (!motion?.run) return;
+    const next = motion.to;
+    const timer = window.setTimeout(() => {
+      setIndex(next);
+      setMotion(null);
+    }, 980);
+    return () => window.clearTimeout(timer);
+  }, [motion]);
 
   const frameClass =
-    `relative aspect-[5/4] w-full overflow-hidden bg-[#07101c] lg:aspect-auto lg:h-full lg:min-h-[18rem] ${className}`.trim();
+    `relative isolate aspect-[5/4] w-full overflow-hidden lg:aspect-auto lg:h-full lg:min-h-[18rem] ${className}`.trim();
 
   if (!total) {
     return (
-      <div className={`${frameClass} flex items-center justify-center text-sm text-ink/50`}>
+      <div
+        className={`${frameClass} flex items-center justify-center text-sm text-white/70`}
+        style={{ backgroundColor: "#111111" }}
+      >
         No image
       </div>
     );
   }
 
-  function go(delta: 1 | -1) {
-    if (total < 2) return;
-    const next = (safeIndex + delta + total) % total;
-    setAnimate(true);
-    setLogical(next);
-    if (delta === 1 && safeIndex === total - 1) setTrack(total + 1);
-    else if (delta === -1 && safeIndex === 0) setTrack(0);
-    else setTrack(next + 1);
+  function finishSlide(event: TransitionEvent<HTMLImageElement>) {
+    if (!motion?.run || event.propertyName !== "opacity" || event.target !== event.currentTarget) return;
+    setIndex(motion.to);
+    setMotion(null);
   }
 
-  function showPhoto(next: number) {
-    if (total < 2 || next === safeIndex) return;
-    setAnimate(true);
-    setLogical(next);
-    setTrack(next + 1);
-  }
-
-  function onTrackEnd(event: TransitionEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
-    if (track === total + 1) {
-      setAnimate(false);
-      setTrack(1);
-    } else if (track === 0) {
-      setAnimate(false);
-      setTrack(total);
-    }
-  }
-
+  const morph = "opacity 900ms cubic-bezier(0.45, 0, 0.15, 1), transform 900ms cubic-bezier(0.45, 0, 0.15, 1)";
+  const photoClass = "absolute top-0 left-0 h-full w-full max-w-none object-cover object-center";
+  const shown = motion?.from ?? safeIndex;
   const navBtnClass =
-    "btn-press pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] shadow-md transition hover:bg-[#0b1d33] hover:text-white sm:h-12 sm:w-12";
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    "btn-press pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#0b1d33]/15 bg-white text-[#0b1d33] shadow-md hover:bg-[#0b1d33] hover:text-white sm:h-12 sm:w-12";
 
   return (
-    <div className={frameClass}>
-      <div className="absolute inset-0 overflow-hidden">
-        <div
-          className={`flex h-full will-change-transform ${
-            animate && !reduceMotion
-              ? "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-              : ""
-          }`}
+    <div className={frameClass} style={{ backgroundColor: "#111111" }}>
+      <div className="absolute inset-0 overflow-hidden" style={{ backgroundColor: "#111111" }}>
+        <img
+          key={`current-${images[shown]}`}
+          src={roomsMediaUrl(images[shown])}
+          alt={motion ? "" : `${name} — photo ${safeIndex + 1} of ${total}`}
+          className={photoClass}
           style={{
-            width: `${slides.length * 100}%`,
-            transform: `translate3d(-${(track * 100) / slides.length}%, 0, 0)`,
+            opacity: 1,
+            zIndex: 1,
+            transform: motion?.run ? "scale(1.045)" : "scale(1)",
+            transition: motion?.run ? morph : "none",
           }}
-          onTransitionEnd={onTrackEnd}
-        >
-          {slides.map((image, slideIndex) => {
-            const active = loop ? slideIndex === safeIndex + 1 : slideIndex === 0;
-            return (
-              <img
-                key={`${image}-${slideIndex}`}
-                src={roomsMediaUrl(image)}
-                alt={active ? `${name} — photo ${safeIndex + 1} of ${total}` : ""}
-                aria-hidden={active ? undefined : true}
-                className="h-full shrink-0 select-none object-cover object-center"
-                style={{ width: `${100 / slides.length}%` }}
-                loading={active ? "eager" : "lazy"}
-                decoding="async"
-                draggable={false}
-              />
-            );
-          })}
-        </div>
+          draggable={false}
+        />
+        {motion ? (
+          <img
+            key={`next-${images[motion.to]}`}
+            src={roomsMediaUrl(images[motion.to])}
+            alt={`${name} — photo ${motion.to + 1} of ${total}`}
+            className={photoClass}
+            style={{
+              opacity: motion.run ? 1 : 0,
+              zIndex: 2,
+              transform: motion.run ? "scale(1)" : "scale(1.07)",
+              transition: motion.run ? morph : "none",
+            }}
+            onTransitionEnd={finishSlide}
+            draggable={false}
+          />
+        ) : null}
       </div>
 
       {total > 1 ? (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-between px-2.5 sm:px-3.5">
-          <button
-            type="button"
-            onClick={() => go(-1)}
-            aria-label="Previous photo"
-            className={navBtnClass}
-          >
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-between px-3 sm:px-4">
+          <button type="button" onClick={() => showPhoto(safeIndex - 1)} aria-label="Previous photo" className={navBtnClass}>
             <ChevronLeftIcon className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => go(1)}
-            aria-label="Next photo"
-            className={navBtnClass}
-          >
+          <button type="button" onClick={() => showPhoto(safeIndex + 1)} aria-label="Next photo" className={navBtnClass}>
             <ChevronRightIcon className="h-5 w-5" />
           </button>
         </div>
       ) : null}
 
-      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-        <GalleryPager
-          count={total}
-          active={safeIndex}
-          tone="light"
-          onSelect={showPhoto}
-        />
-      </div>
+      {total > 1 ? (
+        <div className="pointer-events-auto absolute bottom-3.5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-[#0b1d33] px-3 py-2">
+          <GalleryPager
+            count={total}
+            active={motion?.to ?? safeIndex}
+            tone="light"
+            onSelect={showPhoto}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -365,6 +353,7 @@ function RoomImageCarousel({
 export function Rooms() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditRooms(role, approvalStatus);
+  const [bookingLinks, setBookingLinks] = useState<BookingLink[]>([]);
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsReady, setRoomsReady] = useState(false);
@@ -461,6 +450,26 @@ export function Rooms() {
     document.title = "Rooms & Apartments | Jalyn's Resort & Restaurant";
     return () => {
       document.title = "Jalyn's Resort & Restaurant | Puerto Galera";
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      void fetchBookingLinks()
+        .then((links) => {
+          if (!alive) return;
+          setBookingLinks(links);
+        })
+        .catch(() => {
+          if (!alive) return;
+        });
+    };
+    load();
+    window.addEventListener(CONTENT_CHANGED_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(CONTENT_CHANGED_EVENT, load);
     };
   }, []);
 
@@ -962,6 +971,29 @@ export function Rooms() {
             Peace and quiet with stunning views at extremely competitive prices — one of the best
             value stays in Puerto Galera.
           </p>
+          {bookingLinks.length ? (
+            <div className="pointer-events-auto mt-6">
+              <p className="animate-fade-up text-[1.65rem] font-medium tracking-tight text-[#8ecae6] sm:text-[1.9rem]">
+                Book your stay at
+              </p>
+              <div className="mt-3.5 flex flex-wrap gap-3">
+                {bookingLinks.map((link) => (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-press animate-fade-up inline-flex h-11 items-center gap-2.5 rounded-full bg-white px-5 text-sm font-semibold text-[#1c1c1c] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white/92"
+                  >
+                    {link.name}
+                    <span aria-hidden className="text-base leading-none">
+                      →
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {canEdit ? (
             <div className="pointer-events-auto mt-7 flex flex-wrap gap-2">
               <AdminEditButton onClick={() => setBgEditor("hero")}>
@@ -993,7 +1025,7 @@ export function Rooms() {
           <div className="absolute inset-0 bg-[#07101c]/72" />
         </div>
 
-        <div className="relative z-0 -mt-[100svh]">
+        <div className="relative z-10 -mt-[100svh]">
           {canEdit && (error || uploadProgress) && !manageOpen && !bgEditor ? (
             <div className="px-4 pt-5 sm:px-6 sm:pt-6 md:px-8 lg:px-10 xl:px-12">
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -1107,29 +1139,19 @@ export function Rooms() {
               {rooms.map((room, i) => (
                 <article
                   key={room.id}
-                  className={`${cardClass} overflow-hidden ${
-                    room.status === "unavailable" ? "opacity-90" : ""
-                  }`}
+                  style={{ backgroundColor: "#ffffff", opacity: 1 }}
+                  className="relative z-10 overflow-hidden rounded-2xl border border-white/40 bg-white text-ink shadow-[0_16px_40px_rgba(8,18,28,0.12)] sm:rounded-3xl"
                 >
-                  <Reveal delay={Math.min(i * 40, 160)} variant="up" className="h-full">
-                    <div className="grid h-full gap-0 lg:grid-cols-2 lg:items-stretch">
-                      <div className="min-h-0 lg:h-full">
-                        <RoomImageCarousel images={room.images} name={room.name} />
-                      </div>
+                  <div className="grid h-full gap-0 lg:grid-cols-2 lg:items-stretch">
+                    <div className="relative z-10 min-h-0 bg-[#111] lg:h-full" style={{ backgroundColor: "#111111" }}>
+                      <RoomImageCarousel images={room.images} name={room.name} />
+                    </div>
+                    <Reveal delay={Math.min(i * 40, 160)} variant="up" className="h-full">
                       <div className="flex min-h-0 flex-col p-5 sm:p-6 lg:min-h-[22rem] lg:p-7">
                         <div className="flex min-h-[3.25rem] flex-wrap items-start justify-between gap-2">
                           <h3 className="min-w-0 font-display text-2xl leading-tight text-ink sm:text-[1.75rem] line-clamp-2">
                             {room.name}
                           </h3>
-                          <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6rem] font-semibold tracking-wide uppercase ${
-                              room.status === "available"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-stone/20 text-ink/60"
-                            }`}
-                          >
-                            {room.status === "available" ? "Available" : "Unavailable"}
-                          </span>
                         </div>
 
                         <div className="mt-2.5 min-h-[5.5rem]">
@@ -1203,14 +1225,6 @@ export function Rooms() {
                               {room.quantity} {room.quantity === 1 ? "room" : "rooms"}
                             </dd>
                           </div>
-                          <div>
-                            <dt className="text-[0.62rem] font-semibold tracking-wide text-ink/45 uppercase">
-                              Status
-                            </dt>
-                            <dd className="mt-0.5 font-medium text-ink capitalize">
-                              {room.status || "available"}
-                            </dd>
-                          </div>
                         </dl>
 
                         <div className="mt-3 min-h-[3.25rem]">
@@ -1246,8 +1260,8 @@ export function Rooms() {
                           )}
                         </div>
 
-                        <div className="mt-auto flex shrink-0 flex-wrap gap-2 pt-5">
-                          {canEdit ? (
+                        {canEdit ? (
+                          <div className="mt-auto flex shrink-0 flex-wrap gap-2 pt-5">
                             <button
                               type="button"
                               onClick={() => {
@@ -1258,15 +1272,11 @@ export function Rooms() {
                             >
                               Edit room
                             </button>
-                          ) : room.status === "unavailable" ? (
-                            <span className="inline-flex min-h-10 items-center justify-center rounded-full border border-ink/10 bg-white/60 px-5 py-2 text-sm font-semibold text-ink/45">
-                              Unavailable
-                            </span>
-                          ) : null}
-                        </div>
+                          </div>
+                        ) : null}
                       </div>
-                    </div>
-                  </Reveal>
+                    </Reveal>
+                  </div>
                 </article>
               ))}
             </div>
@@ -1468,7 +1478,6 @@ export function Rooms() {
                                 room.max_capacity,
                                 `${room.quantity} ${room.quantity === 1 ? "room" : "rooms"}`,
                                 room.price_per_night,
-                                room.status,
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
@@ -1561,22 +1570,6 @@ export function Rooms() {
                         placeholder="e.g. ₱2,500 / night"
                         className={inputClass}
                       />
-                    </label>
-                    <label className="block">
-                      <span className="text-sm font-semibold text-ink">Status</span>
-                      <select
-                        value={form.status === "unavailable" ? "unavailable" : "available"}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            status: e.target.value as RoomStatus,
-                          }))
-                        }
-                        className={inputClass}
-                      >
-                        <option value="available">Available</option>
-                        <option value="unavailable">Unavailable</option>
-                      </select>
                     </label>
                     <div className="block">
                       <div className="mt-1.5 flex items-center justify-between rounded-xl border border-ink/12 bg-white px-3.5 py-2.5">
