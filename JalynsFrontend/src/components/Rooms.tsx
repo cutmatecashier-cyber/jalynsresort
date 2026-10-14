@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { AdjustableFileInput } from "./AdjustableFileInput";
+import { GalleryPager } from "./GalleryPager";
 import { HeroMedia } from "./HeroMedia";
 import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
 import { NumberStepper } from "./NumberStepper";
@@ -336,6 +337,16 @@ function RoomImageCarousel({
         </div>
       ) : null}
 
+      {total > 1 ? (
+        <div className="pointer-events-auto absolute bottom-3.5 left-1/2 z-20 -translate-x-1/2">
+          <GalleryPager
+            count={total}
+            active={motion?.to ?? safeIndex}
+            tone="light"
+            onSelect={showPhoto}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
