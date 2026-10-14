@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { preloadMediaList } from "../lib/preloadMedia";
 import {
   ArrowRightIcon,
   BedIcon,
@@ -7,6 +9,7 @@ import {
   UtensilsIcon,
 } from "./Icons";
 import { Reveal } from "./Reveal";
+import { ServicesSkeleton } from "./Skeleton";
 
 const services = [
   {
@@ -52,6 +55,24 @@ const services = [
 ] as const;
 
 export function Services() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    void preloadMediaList(services.map((service) => service.image)).then(() => setReady(true));
+  }, []);
+
+  if (!ready) {
+    return (
+      <section
+        id="services"
+        className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12"
+        aria-busy="true"
+      >
+        <ServicesSkeleton />
+      </section>
+    );
+  }
+
   return (
     <section
       id="services"

@@ -555,16 +555,26 @@
 
 .skeleton-block {
   display: block;
-  background-color: rgba(12, 18, 16, 0.08);
+  background-color: #e6e4e0;
   background-image: linear-gradient(
     110deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.55) 46%,
-    transparent 72%
+    #e6e4e0 20%,
+    #f7f6f4 46%,
+    #e6e4e0 72%
   );
   background-size: 220% 100%;
   background-repeat: no-repeat;
   animation: shimmer 1.6s linear infinite;
+}
+
+.skeleton-block-dark {
+  background-color: #3c474c;
+  background-image: linear-gradient(
+    110deg,
+    #3c474c 18%,
+    #546066 46%,
+    #3c474c 74%
+  );
 }
 
 .animate-live-gradient {

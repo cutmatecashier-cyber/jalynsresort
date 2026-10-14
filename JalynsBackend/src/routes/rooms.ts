@@ -44,13 +44,23 @@ export const roomsRouter = Router()
 
 const upload = createImageUpload()
 const heroUpload = createHeroMediaUpload()
+const highlightUpload = createHeroMediaUpload()
 
 function clientErrorStatus(message: string) {
-    return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid|phone|amount|rate/i.test(
+    return /must be|required|valid|not found|at least|Only JPG|File too large|image|Invalid|bucket is missing|up to|Keep |booked|unavailable|age|adult|kid|phone|amount|rate|shorter|MP4|video/i.test(
     message,
   )
     ? 400
     : 500
+}
+
+function highlightUploadMessage(err: unknown, fallback: string) {
+  const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : ''
+  if (code === 'LIMIT_FILE_SIZE') {
+    return 'This file is too large. Gallery videos must be 10 seconds or shorter and under 40 MB.'
+  }
+  if (err instanceof Error && err.message) return err.message
+  return fallback
 }
 
 function parseAmenities(raw: unknown): string[] | undefined {
@@ -271,19 +281,19 @@ roomsRouter.get('/highlights', async (_req, res) => {
 
 roomsRouter.post('/highlights', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit highlight photos.'))) {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit the Jeepney & pier gallery.'))) {
       return
     }
-    upload.array('images', 12)(req, res, (err: unknown) => {
+    highlightUpload.array('images', 12)(req, res, (err: unknown) => {
       void (async () => {
         if (err) {
-          const message = err instanceof Error ? err.message : 'Could not upload images.'
+          const message = highlightUploadMessage(err, 'Could not upload photos or videos.')
           res.status(400).json({ success: false, message })
           return
         }
         const files = Array.isArray(req.files) ? req.files : req.file ? [req.file] : []
         if (!files.length) {
-          res.status(400).json({ success: false, message: 'Please choose at least one image.' })
+          res.status(400).json({ success: false, message: 'Please choose at least one photo or video.' })
           return
         }
         try {
@@ -293,13 +303,14 @@ roomsRouter.post('/highlights', async (req, res) => {
               bucket: SITE_BUCKETS.rooms,
               folder: 'highlights',
               file,
+              videoPolicy: 'gallery',
             })
             highlights = await addRoomHighlight(url)
           }
           res.status(201).json({ success: true, highlights })
         } catch (inner) {
           const message =
-            inner instanceof Error ? inner.message : 'Could not save highlight photos.'
+            inner instanceof Error ? inner.message : 'Could not save highlight photos or videos.'
           res.status(clientErrorStatus(message)).json({ success: false, message })
         }
       })()
@@ -312,18 +323,18 @@ roomsRouter.post('/highlights', async (req, res) => {
 
 roomsRouter.put('/highlights/:id', async (req, res) => {
   try {
-    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit highlight photos.'))) {
+    if (!(await requireApprovedAdmin(req, res, 'Only approved admins can edit the Jeepney & pier gallery.'))) {
       return
     }
-    upload.single('image')(req, res, (err: unknown) => {
+    highlightUpload.single('image')(req, res, (err: unknown) => {
       void (async () => {
         if (err) {
-          const message = err instanceof Error ? err.message : 'Could not upload image.'
+          const message = highlightUploadMessage(err, 'Could not upload the photo or video.')
           res.status(400).json({ success: false, message })
           return
         }
         if (!req.file) {
-          res.status(400).json({ success: false, message: 'Please choose an image to upload.' })
+          res.status(400).json({ success: false, message: 'Please choose a photo or video to upload.' })
           return
         }
         try {
@@ -331,12 +342,13 @@ roomsRouter.put('/highlights/:id', async (req, res) => {
             bucket: SITE_BUCKETS.rooms,
             folder: 'highlights',
             file: req.file,
+            videoPolicy: 'gallery',
           })
           const highlights = await replaceRoomHighlight(req.params.id, url)
           res.json({ success: true, highlights })
         } catch (inner) {
           const message =
-            inner instanceof Error ? inner.message : 'Could not replace highlight photo.'
+            inner instanceof Error ? inner.message : 'Could not replace the highlight.'
           res.status(clientErrorStatus(message)).json({ success: false, message })
         }
       })()

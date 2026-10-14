@@ -1,4 +1,6 @@
 import { createPortal } from "react-dom";
+import { isHeroVideoUrl } from "../lib/heroMedia";
+import { GalleryClip } from "./GalleryClip";
 import { GalleryPager } from "./GalleryPager";
 
 type Slide = { url: string; alt: string };
@@ -40,12 +42,23 @@ export function GalleryLightbox({ images, index, onClose, onSelect }: GalleryLig
       >
         Close
       </button>
-      <img
-        src={image.url}
-        alt={image.alt}
-        className="max-h-[86vh] max-w-full rounded-xl object-contain"
-        onClick={(event) => event.stopPropagation()}
-      />
+      {isHeroVideoUrl(image.url) ? (
+        <div onClick={(event) => event.stopPropagation()}>
+          <GalleryClip
+            src={image.url}
+            alt={image.alt}
+            active
+            className="aspect-[16/10] w-[min(92vw,960px)] object-cover"
+          />
+        </div>
+      ) : (
+        <img
+          src={image.url}
+          alt={image.alt}
+          className="max-h-[86vh] max-w-full rounded-xl object-contain"
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
       {images.length > 1 ? (
         <div
           className="absolute bottom-5 left-1/2 -translate-x-1/2"

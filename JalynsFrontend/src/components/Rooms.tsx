@@ -45,6 +45,7 @@ import {
   type RoomsVoucher,
   ROOM_IMAGE_ACCEPT,
 } from "../lib/rooms";
+import { preloadHeroMedia, preloadMedia, preloadMediaList } from "../lib/preloadMedia";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
 import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
@@ -57,7 +58,7 @@ import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { fetchBookingLinks, type BookingLink } from "../lib/bookingLinks";
 import { JeepneyShuttleGallery } from "./JeepneyShuttleGallery";
-import { GalleryStageSkeleton, LoadError, RoomCardsSkeleton } from "./Skeleton";
+import { GalleryStageSkeleton, HeroSkeleton, LoadError, PageBodySkeleton, ReadyImage, RoomCardsSkeleton } from "./Skeleton";
 import { Navbar } from "./Navbar";
 import { Reveal } from "./Reveal";
 
@@ -372,6 +373,7 @@ export function Rooms() {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
 
   const [bgEditor, setBgEditor] = useState<BgKind | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -408,6 +410,12 @@ export function Rooms() {
   const loadRooms = useCallback(async () => {
     try {
       const catalog = await fetchRoomsCatalog();
+      await preloadMediaList([
+        ...catalog.rooms.slice(0, 6).map((room) => roomsMediaUrl(room.images[0] ?? "")),
+        ...catalog.highlights
+          .filter((item) => !isHeroVideoUrl(item.image))
+          .map((item) => roomsMediaUrl(item.image)),
+      ]);
       setRooms(catalog.rooms);
       setVoucher(catalog.voucher);
       setVoucherEnabled(catalog.voucher.enabled);
@@ -428,6 +436,8 @@ export function Rooms() {
       fetchRoomsHero(),
       fetchRoomsContentBackground(),
     ]);
+    await preloadHeroMedia(hero.url);
+    if (content.url) await preloadMedia(content.url);
     setHeroUrl(hero.url);
     setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
@@ -935,7 +945,8 @@ export function Rooms() {
             alt="Jalyn's Resort rooms and apartments"
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canEdit ? (
@@ -948,8 +959,9 @@ export function Rooms() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
@@ -1006,22 +1018,27 @@ export function Rooms() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
-      <div className="relative isolate">
+      {imagesReady ? null : <PageBodySkeleton />}
+      <div className={`relative isolate ${imagesReady ? "" : "hidden"}`}>
         <div
           aria-hidden
           className="pointer-events-none sticky top-0 -z-10 h-[100svh] w-full overflow-hidden bg-[#0b1d33]"
         >
           {displayContent ? (
-            <img
+            <ReadyImage
               src={displayContent}
               alt=""
+              dark
               className="h-full w-full object-cover object-center"
               loading="eager"
               decoding="async"
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="skeleton-block skeleton-block-dark absolute inset-0" />
+          )}
           <div className="absolute inset-0 bg-[#07101c]/72" />
         </div>
 

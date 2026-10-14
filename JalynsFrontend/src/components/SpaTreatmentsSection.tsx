@@ -18,7 +18,8 @@ import {
 import { broadcastContentChanged } from "./ContentSync";
 import { NumberStepper } from "./NumberStepper";
 import { Reveal } from "./Reveal";
-import { LoadError, SpaServicesSkeleton } from "./Skeleton";
+import { preloadMediaList } from "../lib/preloadMedia";
+import { LoadError, ReadyImage, Skeleton, SpaServicesSkeleton } from "./Skeleton";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-ink/12 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
@@ -50,7 +51,7 @@ function CategoryCover({ label, imageUrl }: { label: string; imageUrl: string | 
   }, [resolved, fallback]);
 
   return (
-    <img
+    <ReadyImage
       src={src}
       alt=""
       className="absolute inset-0 h-full w-full object-cover"
@@ -98,6 +99,11 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
     setError(null);
     try {
       const list = await fetchSpaCategories();
+      await preloadMediaList(
+        list.map((category) =>
+          category.image_url ? spaMediaUrl(category.image_url) : fallbackForCategory(category.label),
+        ),
+      );
       setCategories(list);
       setActiveId((prev) => {
         if (prev && list.some((c) => c.id === prev)) return prev;
@@ -257,7 +263,7 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
       <Reveal variant="up">
         <section className="overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
           <div className="border-b border-ink/8 px-4 pt-4 pb-3.5 sm:px-5 sm:pt-5 sm:pb-4 lg:px-6">
-            <div className="flex flex-wrap items-start justify-between gap-2.5">
+            <div className={`flex flex-wrap items-start justify-between gap-2.5 ${loading ? "hidden" : ""}`}>
               <div className="min-w-0">
                 <h2 className="font-display text-xl text-ink sm:text-2xl">
                   Treatments &amp; prices
@@ -280,7 +286,11 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             </div>
 
             {loading ? (
-              <SpaServicesSkeleton />
+              <div>
+                <Skeleton className="h-7 w-56 rounded-lg" />
+                <Skeleton className="mt-2 h-4 w-full max-w-lg rounded-md" />
+                <SpaServicesSkeleton />
+              </div>
             ) : error ? (
               <div className="mt-3.5">
                 <LoadError message={error} onRetry={() => void load()} />

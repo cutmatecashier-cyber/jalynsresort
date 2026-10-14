@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
+import { NewsContactCard } from "../components/NewsContactCard";
 import { GalleryPager } from "../components/GalleryPager";
 import { Navbar } from "../components/Navbar";
-import { LoadError, NewsDetailSkeleton } from "../components/Skeleton";
+import { LoadError, NewsDetailSkeleton, ReadyImage } from "../components/Skeleton";
+import { preloadMedia } from "../lib/preloadMedia";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
   fetchNewsPost,
@@ -151,10 +153,12 @@ export function NewsDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [embedReady, setEmbedReady] = useState(false);
   const recentScrollRef = useWheelScrollContain<HTMLUListElement>();
 
   useEffect(() => {
     setLightbox(null);
+    setEmbedReady(false);
   }, [id]);
 
   useEffect(() => {
@@ -172,6 +176,8 @@ export function NewsDetailPage() {
           setPost(null);
           return;
         }
+        if (found.image) await preloadMedia(newsMediaUrl(found.image));
+        if (!alive) return;
         setPost(found);
       } catch {
         if (alive) setError("Could not load this post.");
@@ -272,12 +278,14 @@ export function NewsDetailPage() {
       <div className="px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 lg:py-10">
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_17.5rem]">
           <div className="min-w-0">
-            <Link
-              to="/news"
-              className="inline-flex text-sm font-semibold text-ink/55 transition hover:text-sea"
-            >
-              ← Back to News
-            </Link>
+            {loading ? null : (
+              <Link
+                to="/news"
+                className="inline-flex text-sm font-semibold text-ink/55 transition hover:text-sea"
+              >
+                ← Back to News
+              </Link>
+            )}
 
             {loading ? (
               <NewsDetailSkeleton />
@@ -309,7 +317,7 @@ export function NewsDetailPage() {
                     aria-label="View photo larger"
                   >
                     <div className="relative aspect-[16/10] sm:aspect-[2/1]">
-                      <img
+                      <ReadyImage
                         src={newsMediaUrl(featured)}
                         alt=""
                         className="absolute inset-0 h-full w-full object-cover"
@@ -334,14 +342,20 @@ export function NewsDetailPage() {
                 {post.videoUrl ? (
                   <div className="relative mt-5 overflow-hidden rounded-2xl bg-ink shadow-[0_12px_32px_rgba(12,18,16,0.1)]">
                     <div className="relative aspect-[4/3] w-full sm:aspect-video">
+                      {embedReady ? null : (
+                        <span aria-hidden className="skeleton-block absolute inset-0" />
+                      )}
                       <iframe
                         title={post.title}
                         src={post.videoUrl}
-                        className="absolute inset-0 h-full w-full border-0"
+                        className={`absolute inset-0 h-full w-full border-0 transition-opacity ${
+                          embedReady ? "opacity-100" : "opacity-0"
+                        }`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
-                        loading="lazy"
+                        loading="eager"
                         referrerPolicy="strict-origin-when-cross-origin"
+                        onLoad={() => setEmbedReady(true)}
                       />
                     </div>
                   </div>
@@ -389,7 +403,7 @@ export function NewsDetailPage() {
                             }}
                             aria-label={`View ${pkg.title} photo larger`}
                           >
-                            <img
+                            <ReadyImage
                               src={newsMediaUrl(pkg.image || post.image)}
                               alt=""
                               className="absolute inset-0 h-full w-full object-cover"
@@ -452,7 +466,7 @@ export function NewsDetailPage() {
                               : "aspect-[4/3]"
                           }`}
                         >
-                          <img
+                          <ReadyImage
                             src={newsMediaUrl(src)}
                             alt=""
                             className="absolute inset-0 h-full w-full object-cover"
@@ -583,21 +597,7 @@ export function NewsDetailPage() {
                 </ul>
               </div>
 
-              <div className="rounded-xl bg-[#0c1412] p-4 text-white">
-                <h2 className="font-display text-lg">Contact Us</h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/70">
-                  Jalyn&apos;s Resort
-                  <br />
-                  Western Nautical Hwy, Puerto Galera
-                </p>
-                <p className="mt-2 text-sm text-white/80">Smart: +63 947 619 7535</p>
-                <Link
-                  to="/contact"
-                  className="btn-press mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white/92"
-                >
-                  Message us
-                </Link>
-              </div>
+              <NewsContactCard />
             </div>
           </aside>
         </div>

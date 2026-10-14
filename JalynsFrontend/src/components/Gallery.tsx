@@ -16,8 +16,9 @@ import { AdminEditButton } from "./AdminEditButton";
 import { AdjustableFileInput } from "./AdjustableFileInput";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
+import { preloadMediaList } from "../lib/preloadMedia";
 import { Reveal } from "./Reveal";
-import { GalleryGridSkeleton, LoadError } from "./Skeleton";
+import { GalleryGridSkeleton, LoadError, ReadyImage } from "./Skeleton";
 
 function photoLayoutClass(index: number, total: number) {
   if (index === 0 && total > 1) {
@@ -49,7 +50,9 @@ export function Gallery() {
     let cancelled = false;
     const load = () => {
       void fetchGallery()
-        .then((list) => {
+        .then(async (list) => {
+          if (cancelled) return;
+          await preloadMediaList(list.slice(0, 6).map((photo) => galleryMediaUrl(photo.image)));
           if (cancelled) return;
           setPhotos(list);
           setPhotosError(null);
@@ -238,7 +241,8 @@ export function Gallery() {
           <LoadError message={photosError} onRetry={() => {
             setPhotosReady(false);
             void fetchGallery()
-              .then((list) => {
+              .then(async (list) => {
+                await preloadMediaList(list.slice(0, 6).map((photo) => galleryMediaUrl(photo.image)));
                 setPhotos(list);
                 setPhotosError(null);
               })
@@ -261,7 +265,7 @@ export function Gallery() {
               className={photoLayoutClass(index, photos.length)}
             >
               <figure className="group h-full overflow-hidden rounded-xl">
-                <img
+                <ReadyImage
                   src={galleryMediaUrl(photo.image)}
                   alt={photo.alt}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"

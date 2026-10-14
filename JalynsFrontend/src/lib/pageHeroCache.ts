@@ -1,6 +1,5 @@
 import { fetchContactHero } from "./contact";
 import { isHeroVideoUrl } from "./heroMedia";
-import { primeHeroVideo } from "./primeHeroVideo";
 import { fetchHomeHeroSlides, homeHeroMediaUrl, peekHomeHeroSlides } from "./homeHero";
 import { fetchNewsHero } from "./news";
 import { fetchRestaurantHero } from "./restaurant";
@@ -32,10 +31,7 @@ function readStore(): Record<string, CachedPageHero> {
 function warmHeroUrl(url: string | null) {
   if (!url || url.startsWith("blob:") || warmedUrls.has(url)) return;
   warmedUrls.add(url);
-  if (isHeroVideoUrl(url)) {
-    void primeHeroVideo(url);
-    return;
-  }
+  if (isHeroVideoUrl(url)) return;
   const image = new Image();
   image.decoding = "async";
   image.src = url;
@@ -118,25 +114,9 @@ export function prefetchPageHeroes() {
         { key: "scuba", url: scuba.url },
         { key: "news", url: news.url },
       ];
-      const activeKey = PAGE_HERO_PATHS[window.location.pathname] ?? "";
       for (const hero of heroes) {
         rememberPageHero(hero.key, { url: hero.url, video: isHeroVideoUrl(hero.url) }, false);
       }
-      const homeVideo = (home ?? [])
-        .map((slide) => homeHeroMediaUrl(slide.image))
-        .find((url) => isHeroVideoUrl(url));
-      const activeVideo =
-        window.location.pathname === "/" || window.location.pathname === ""
-          ? homeVideo
-          : heroes.find((hero) => hero.key === activeKey && isHeroVideoUrl(hero.url))?.url;
-      if (activeVideo) warmHeroUrl(activeVideo);
-      const later = [
-        ...(home ?? []).map((slide) => homeHeroMediaUrl(slide.image)).filter((url) => isHeroVideoUrl(url)),
-        ...heroes.map((hero) => hero.url).filter((url): url is string => isHeroVideoUrl(url)),
-      ].filter((url) => url !== activeVideo);
-      window.setTimeout(() => {
-        for (const url of later) warmHeroUrl(url);
-      }, 4000);
     } catch {
       // Keep the last saved hero if a request fails.
     }

@@ -6,8 +6,10 @@ import { HeroMedia } from "../components/HeroMedia";
 import { AdminEditButton } from "../components/AdminEditButton";
 import { broadcastContentChanged } from "../components/ContentSync";
 import { Footer } from "../components/Footer";
+import { NewsContactCard } from "../components/NewsContactCard";
 import { Navbar } from "../components/Navbar";
-import { LoadError, NewsCardsSkeleton } from "../components/Skeleton";
+import { HeroSkeleton, LoadError, NewsCardsSkeleton, ReadyImage } from "../components/Skeleton";
+import { preloadHeroMedia, preloadMediaList } from "../lib/preloadMedia";
 import { useAuth } from "../context/AuthContext";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
@@ -102,6 +104,7 @@ export function NewsPage() {
   const [heroProgress, setHeroProgress] = useState<string | null>(null);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const [heroEditorOpen, setHeroEditorOpen] = useState(false);
   const [heroBusy, setHeroBusy] = useState(false);
   const [heroError, setHeroError] = useState<string | null>(null);
@@ -155,6 +158,7 @@ export function NewsPage() {
     setLoadError(null);
     try {
       const next = await fetchNewsPosts();
+      await preloadMediaList(next.slice(0, 6).map((post) => newsMediaUrl(post.image)));
       setPosts(next);
       notifyNewsUpdated(next);
     } catch (err) {
@@ -167,6 +171,7 @@ export function NewsPage() {
 
   async function loadHero() {
     const hero = await fetchNewsHero();
+    await preloadHeroMedia(hero.url);
     setHeroUrl(hero.url);
     setHeroVideo(isHeroVideoUrl(hero.url));
     setHasCustomHero(Boolean(hero.path));
@@ -496,7 +501,8 @@ export function NewsPage() {
             alt=""
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canEdit ? (
@@ -509,8 +515,9 @@ export function NewsPage() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
@@ -558,6 +565,7 @@ export function NewsPage() {
             ) : null}
           </div>
         </div>
+        </div>
       </section>
 
       <div
@@ -567,7 +575,7 @@ export function NewsPage() {
         <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_17rem]">
           <div className="min-w-0">
             <div
-              className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden"
+              className={`${loading ? "hidden" : "flex"} gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden`}
               role="tablist"
               aria-label="News categories"
             >
@@ -617,7 +625,7 @@ export function NewsPage() {
                         className="relative aspect-[16/10] block overflow-hidden bg-ink/8"
                         aria-label={post.title}
                       >
-                        <img
+                        <ReadyImage
                           src={newsMediaUrl(post.image)}
                           alt=""
                           className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
@@ -708,7 +716,7 @@ export function NewsPage() {
             ) : null}
           </div>
 
-          <aside className="hidden lg:block">
+          <aside className={loading ? "hidden" : "hidden lg:block"}>
             <div className="sticky top-24 space-y-4">
                 <div className="rounded-xl bg-white p-4 shadow-[0_8px_22px_rgba(12,18,16,0.05)]">
                   <h2 className="font-display text-lg text-ink">News Categories</h2>
@@ -782,21 +790,7 @@ export function NewsPage() {
                   </ul>
                 </div>
 
-                <div className="rounded-xl bg-[#0c1412] p-4 text-white">
-                  <h2 className="font-display text-lg">Contact Us</h2>
-                  <p className="mt-1.5 text-sm leading-relaxed text-white/70">
-                    Jalyn&apos;s Resort
-                    <br />
-                    Western Nautical Hwy, Puerto Galera
-                  </p>
-                  <p className="mt-2 text-sm text-white/80">Smart: +63 947 619 7535</p>
-                  <Link
-                    to="/contact"
-                    className="btn-press mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white/92"
-                  >
-                    Message us
-                  </Link>
-                </div>
+                <NewsContactCard />
             </div>
           </aside>
         </div>

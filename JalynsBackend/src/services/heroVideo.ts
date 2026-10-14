@@ -1,6 +1,8 @@
 import { isHeroVideoFile } from './prepareRoomImage.js'
 
-export const HERO_VIDEO_MAX_SECONDS = 5.3
+export const HERO_VIDEO_MAX_SECONDS = 3.3
+/** A few extra frames of encode slack over the 10 second gallery limit. */
+export const GALLERY_VIDEO_MAX_SECONDS = 10.3
 export const HERO_VIDEO_MAX_BYTES = 40 * 1024 * 1024
 
 type BoxRange = { body: number; end: number }
@@ -66,7 +68,7 @@ export function heroVideoKeepsSound(file: { originalname?: string }) {
   return /-sound\.mp4$/i.test(file.originalname || '')
 }
 
-export function assertHeroVideo(file: Express.Multer.File) {
+function assertMp4(file: Express.Multer.File, maxSeconds: number, tooLong: string, tooLarge: string) {
   if (!isHeroVideoFile(file)) {
     throw new Error('Please choose an MP4 video.')
   }
@@ -74,13 +76,29 @@ export function assertHeroVideo(file: Express.Multer.File) {
     throw new Error('This video file is empty.')
   }
   if (file.size > HERO_VIDEO_MAX_BYTES || file.buffer.length > HERO_VIDEO_MAX_BYTES) {
-    throw new Error('This video is too large. Keep hero videos under 40 MB.')
+    throw new Error(tooLarge)
   }
   const seconds = readMp4DurationSeconds(file.buffer)
   if (seconds == null) {
     throw new Error('Could not read this video. Use an MP4 file.')
   }
-  if (seconds > HERO_VIDEO_MAX_SECONDS) {
-    throw new Error('Hero videos must be 5 seconds or shorter. Trim the video, then upload it again.')
-  }
+  if (seconds > maxSeconds) throw new Error(tooLong)
+}
+
+export function assertHeroVideo(file: Express.Multer.File) {
+  assertMp4(
+    file,
+    HERO_VIDEO_MAX_SECONDS,
+    'Hero videos must be 3 seconds or shorter. Trim the video, then upload it again.',
+    'This video is too large. Keep hero videos under 40 MB.',
+  )
+}
+
+export function assertGalleryVideo(file: Express.Multer.File) {
+  assertMp4(
+    file,
+    GALLERY_VIDEO_MAX_SECONDS,
+    'Gallery videos must be 10 seconds or shorter. Trim the video, then upload it again.',
+    'This video is too large. Keep gallery videos under 40 MB.',
+  )
 }

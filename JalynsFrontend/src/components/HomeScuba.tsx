@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CONTENT_CHANGED_EVENT } from "./ContentSync";
 import { HomeFeaturePreview, type HomeFeatureSlide } from "./HomeFeaturePreview";
+import { preloadMediaList } from "../lib/preloadMedia";
 import {
   DEFAULT_SCUBA_GALLERY,
   fetchScubaGallery,
@@ -26,9 +27,11 @@ export function HomeScuba() {
     let cancelled = false;
     const load = () => {
       void fetchScubaGallery()
-        .then((images) => {
+        .then(async (images) => {
           if (cancelled) return;
-          setSlides(toSlides(images.length ? images : DEFAULT_SCUBA_GALLERY));
+          const next = toSlides(images.length ? images : DEFAULT_SCUBA_GALLERY);
+          await preloadMediaList(next.map((slide) => slide.src));
+          if (!cancelled) setSlides(next);
         })
         .finally(() => {
           if (!cancelled) setSlidesReady(true);

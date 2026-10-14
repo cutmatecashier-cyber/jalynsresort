@@ -1,5 +1,5 @@
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
-import { HERO_VIDEO_MAX_SECONDS } from "./heroMedia";
+import { HERO_VIDEO_MAX_SECONDS, videoTooLongMessage } from "./heroMedia";
 
 export type HeroCrop = { x: number; y: number; w: number; h: number };
 
@@ -143,6 +143,7 @@ function isIdentityEdit(
   end: number,
   rotation: number,
   crop: HeroCrop,
+  maxSeconds: number,
 ) {
   return (
     quarterTurns(rotation) === 0 &&
@@ -152,7 +153,7 @@ function isIdentityEdit(
     crop.h >= 0.999 &&
     start <= 0.05 &&
     Math.abs(end - duration) <= 0.08 &&
-    duration <= HERO_VIDEO_MAX_SECONDS + 0.05
+    duration <= maxSeconds + 0.05
   );
 }
 
@@ -253,7 +254,7 @@ function encodeTrimmedAudio(muxer: Muxer<ArrayBufferTarget>, audio: TrimmedAudio
 
 /**
  * Bake trim, crop, rotation, and the sound choice into a new MP4.
- * An unedited clip of 5 seconds or less is returned as-is when sound is kept.
+ * An unedited clip within the duration limit is returned as-is when sound is kept.
  * Mute always re-encodes so the saved file has no audio track.
  */
 export async function exportHeroVideo(options: {
@@ -263,6 +264,8 @@ export async function exportHeroVideo(options: {
   rotation: number;
   crop: HeroCrop;
   includeSound?: boolean;
+  /** Defaults to the hero limit. The gallery passes its own longer limit. */
+  maxSeconds?: number;
   onProgress?: (ratio: number) => void;
   signal?: AbortSignal;
 }): Promise<File> {
@@ -284,19 +287,20 @@ export async function exportHeroVideo(options: {
     if (!Number.isFinite(duration) || duration <= 0) {
       throw new Error("Could not read this video. Use an MP4 file.");
     }
+    const maxSeconds = options.maxSeconds ?? HERO_VIDEO_MAX_SECONDS;
     const start = Math.max(0, Math.min(options.start, duration));
     const end = Math.min(duration, Math.max(start + 0.2, options.end));
-    if (end - start > HERO_VIDEO_MAX_SECONDS + 0.05) {
-      throw new Error("Hero videos must be 5 seconds or shorter.");
+    if (end - start > maxSeconds + 0.05) {
+      throw new Error(videoTooLongMessage(maxSeconds));
     }
     const audio = includeSound ? await decodeTrimmedAudio(file, start, end) : null;
-    if (isIdentityEdit(duration, start, end, rotation, crop) && includeSound) {
+    if (isIdentityEdit(duration, start, end, rotation, crop, maxSeconds) && includeSound) {
       return namedVideoFile(file, file.name, Boolean(audio));
     }
 
     if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") {
       throw new Error(
-        "This browser cannot edit video. Use Chrome, Edge, or Safari, or upload an MP4 that is already 5 seconds or shorter.",
+        `This browser cannot edit video. Use Chrome, Edge, or Safari, or upload an MP4 that is already ${maxSeconds} seconds or shorter.`,
       );
     }
 

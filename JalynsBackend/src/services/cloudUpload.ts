@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
-import { assertHeroVideo, heroVideoKeepsSound } from './heroVideo.js'
+import { assertGalleryVideo, assertHeroVideo, heroVideoKeepsSound } from './heroVideo.js'
 import { isHeroVideoFile, prepareRoomImage } from './prepareRoomImage.js'
 
 const readyBuckets = new Set<string>()
@@ -77,6 +77,8 @@ export type CloudUploadInput = {
   /** Optional stable filename without extension (e.g. current) */
   stableName?: string
   upsert?: boolean
+  /** Hero uploads stay on the 3 second check. Gallery clips use the 10 second check. */
+  videoPolicy?: 'hero' | 'gallery'
 }
 
 /**
@@ -98,7 +100,10 @@ export async function uploadPublicImage(input: CloudUploadInput): Promise<string
   const { bucket, folder, stableName, upsert = false } = input
   const video = isHeroVideoFile(input.file)
   const file = video ? input.file : await prepareRoomImage(input.file)
-  if (video) assertHeroVideo(file)
+  if (video) {
+    if (input.videoPolicy === 'gallery') assertGalleryVideo(file)
+    else assertHeroVideo(file)
+  }
   if (!file?.buffer?.length) {
     throw new Error(video ? 'Please choose an MP4 video.' : 'Please choose an image to upload.')
   }

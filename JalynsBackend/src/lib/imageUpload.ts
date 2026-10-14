@@ -20,7 +20,7 @@ export function isUploadableHeroVideo(file: { mimetype?: string; originalname?: 
 export function formatUploadError(err: unknown, fallback: string) {
   const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : ''
   if (code === 'LIMIT_FILE_SIZE') {
-    return 'This file is too large. Photos are compressed before upload. Hero videos must be MP4, 5 seconds or shorter, and under 40 MB.'
+    return 'This file is too large. Photos are compressed before upload. Hero videos must be MP4, 3 seconds or shorter, and under 40 MB.'
   }
   if (err instanceof Error && err.message) return err.message
   return fallback

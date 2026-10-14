@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { CONTENT_CHANGED_EVENT } from "./ContentSync";
 import { HomeSectionBgEditButton } from "./HomeSectionBgEditButton";
 import { ArrowRightIcon } from "./Icons";
+import { preloadMedia } from "../lib/preloadMedia";
+import { FullBleedSkeleton, ReadyImage } from "./Skeleton";
 import {
   DEFAULT_HOME_SECTIONS,
   fetchHomeSectionBackground,
@@ -15,14 +17,20 @@ const SECTION: HomeSectionKey = "restaurant";
 
 export function HomeRestaurant() {
   const [photo, setPhoto] = useState(DEFAULT_HOME_SECTIONS.restaurant);
+  const [photoReady, setPhotoReady] = useState(false);
   const [parallaxY, setParallaxY] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      void fetchHomeSectionBackground(SECTION).then((url) => {
-        if (!cancelled && url) setPhoto(url);
+      void fetchHomeSectionBackground(SECTION).then(async (url) => {
+        const next = url || DEFAULT_HOME_SECTIONS.restaurant;
+        await preloadMedia(homeHeroMediaUrl(next));
+        if (!cancelled) {
+          setPhoto(next);
+          setPhotoReady(true);
+        }
       });
     };
     load();
@@ -30,7 +38,12 @@ export function HomeRestaurant() {
       const detail = (event as CustomEvent<{ section?: HomeSectionKey; url?: string }>).detail;
       if (detail?.section && detail.section !== SECTION) return;
       if (detail?.url) {
-        setPhoto(detail.url);
+        void preloadMedia(homeHeroMediaUrl(detail.url)).then(() => {
+          if (!cancelled) {
+            setPhoto(detail.url!);
+            setPhotoReady(true);
+          }
+        });
         return;
       }
       load();
@@ -72,6 +85,8 @@ export function HomeRestaurant() {
     };
   }, [reduceMotion]);
 
+  if (!photoReady) return <FullBleedSkeleton id="home-restaurant" />;
+
   return (
     <section id="home-restaurant" className="relative min-h-[100svh] overflow-hidden bg-ink">
       <div className="absolute inset-0 overflow-hidden">
@@ -83,9 +98,10 @@ export function HomeRestaurant() {
               : `translate3d(0, ${parallaxY}px, 0) scale(1.12)`,
           }}
         >
-          <img
+          <ReadyImage
             src={homeHeroMediaUrl(photo)}
             alt=""
+            dark
             className="absolute inset-0 h-full w-full scale-110 object-cover blur-sm"
           />
         </div>

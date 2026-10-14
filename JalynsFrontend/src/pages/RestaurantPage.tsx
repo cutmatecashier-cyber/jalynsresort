@@ -16,7 +16,7 @@ import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "../components/Icons
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { RestaurantMenuSection } from "../components/RestaurantMenuSection";
-import { LoadError, ReviewCardsSkeleton } from "../components/Skeleton";
+import { HeroSkeleton, LoadError, PageBodySkeleton, ReadyImage, ReviewCardsSkeleton } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import {
   createRestaurantReview,
@@ -36,6 +36,7 @@ import {
 } from "../lib/restaurant";
 import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
+import { preloadHeroMedia, preloadMedia } from "../lib/preloadMedia";
 
 type BgKind = "hero" | "content";
 
@@ -205,6 +206,7 @@ export function RestaurantPage() {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const [bgEditor, setBgEditor] = useState<BgKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
@@ -271,6 +273,8 @@ export function RestaurantPage() {
       fetchRestaurantHero(),
       fetchRestaurantContentBackground(),
     ]);
+    await preloadHeroMedia(hero.url);
+    if (content.url) await preloadMedia(content.url);
     setHeroUrl(hero.url);
     setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
@@ -502,7 +506,8 @@ export function RestaurantPage() {
             alt="Jalyn's Restaurant dining"
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canManage ? (
@@ -515,8 +520,9 @@ export function RestaurantPage() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canManage ? "pointer-events-none" : ""
@@ -558,22 +564,27 @@ export function RestaurantPage() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
-      <div className="relative isolate">
+      {imagesReady ? null : <PageBodySkeleton />}
+      <div className={`relative isolate ${imagesReady ? "" : "hidden"}`}>
         <div
           aria-hidden
           className="pointer-events-none sticky top-0 -z-10 h-[100svh] w-full overflow-hidden bg-[#0b1d33]"
         >
           {displayContent ? (
-            <img
+            <ReadyImage
               src={displayContent}
               alt=""
+              dark
               className="h-full w-full object-cover object-center"
               loading="eager"
               decoding="async"
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="skeleton-block skeleton-block-dark absolute inset-0" />
+          )}
           <div className="absolute inset-0 bg-[#07101c]/72" />
         </div>
 

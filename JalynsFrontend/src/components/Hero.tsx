@@ -27,8 +27,10 @@ import { AdminEditButton } from "./AdminEditButton";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
+import { preloadMedia } from "../lib/preloadMedia";
 import { MapPinIcon } from "./Icons";
 import { Navbar } from "./Navbar";
+import { HeroSkeleton } from "./Skeleton";
 
 const TICKER_TEXT = "Resort for Rent/Sale. Please contact us for details";
 const TICKER_REPEAT = 8;
@@ -100,6 +102,7 @@ export function Hero() {
   const canEditBg = can.canEditHomeBackground(role, approvalStatus);
 
   const [slides, setSlides] = useState<HomeHeroSlide[] | null>(() => peekHomeHeroSlides());
+  const [heroReady, setHeroReady] = useState(false);
   const [motionReady, setMotionReady] = useState(false);
   const [active, setActive] = useState(0);
   const [tick, setTick] = useState(0);
@@ -119,6 +122,16 @@ export function Hero() {
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
   const scrollRef = useWheelScrollContain<HTMLDivElement>(bgOpen);
+
+  useEffect(() => {
+    if (!slides?.length) return;
+    const currentUrl = homeHeroMediaUrl(slides[active].image);
+    if (!isHeroVideoUrl(currentUrl)) void preloadMedia(currentUrl);
+    if (!heroReady) return;
+    const nextUrl = homeHeroMediaUrl(slides[(active + 1) % slides.length].image);
+    if (!nextUrl || nextUrl === currentUrl) return;
+    void preloadMedia(nextUrl, isHeroVideoUrl(nextUrl));
+  }, [slides, active, heroReady]);
 
   useEffect(() => {
     let alive = true;
@@ -399,8 +412,11 @@ export function Hero() {
                   : undefined
               }
               onPlaying={video && activeSlide ? () => setPlaybackSlide(index) : undefined}
-              className={`hero-media ${motionReady ? "transition-opacity duration-700" : ""} ${
-                activeSlide ? `opacity-100 ${motionReady ? "animate-ken-burns" : ""}` : "opacity-0"
+              onReady={activeSlide ? () => setHeroReady(true) : undefined}
+              className={`hero-media ${motionReady ? "transition-opacity duration-500" : ""} ${
+                activeSlide && heroReady
+                  ? `opacity-100 ${motionReady ? "animate-ken-burns" : ""}`
+                  : "opacity-0"
               }`}
             />
           );
@@ -417,8 +433,9 @@ export function Hero() {
         ))}
       </div>
 
-      <Navbar />
+      {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+      <div className={heroReady ? "contents" : "hidden"}>
       <div
         className="relative z-10 flex min-h-[100svh] w-full flex-col justify-start px-5 pt-[4.75rem] pb-14 sm:px-6 sm:pt-28 sm:pb-14 md:px-8 lg:min-h-[100svh] lg:justify-end lg:px-10 lg:pb-14 xl:px-12"
       >
@@ -512,6 +529,7 @@ export function Hero() {
             </AdminEditButton>
           </div>
         ) : null}
+      </div>
       </div>
 
       {bgOpen

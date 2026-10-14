@@ -15,7 +15,30 @@ export const DEFAULT_CONTACT_SETTINGS: ResortContactSettings = {
   contact_email: "jalynsresort@gmail.com",
   phone: "+639476197535",
   facebook_url: "https://www.facebook.com/jalynsresortpuertogalera",
+  address: "Western Nautical Hwy, Puerto Galera",
+  maps_url: "https://maps.google.com/?q=Jalyn's+Resort+Puerto+Galera",
+  messenger_url: "https://m.me/jalynsresortpuertogalera",
+  twitter_url: "https://twitter.com/intent/tweet?url=",
+  pinterest_url: "https://pinterest.com/pin/create/button/?url=",
+  whatsapp_url: "https://wa.me/639476197535",
 };
+
+export function applyContactDefaults(
+  settings: Partial<ResortContactSettings> | null | undefined,
+): ResortContactSettings {
+  return {
+    contact_email: settings?.contact_email?.trim() || DEFAULT_CONTACT_SETTINGS.contact_email,
+    phone: settings?.phone?.trim() || DEFAULT_CONTACT_SETTINGS.phone,
+    facebook_url: settings?.facebook_url ?? DEFAULT_CONTACT_SETTINGS.facebook_url,
+    address: settings?.address?.trim() || DEFAULT_CONTACT_SETTINGS.address,
+    maps_url: settings?.maps_url ?? DEFAULT_CONTACT_SETTINGS.maps_url,
+    messenger_url: settings?.messenger_url ?? DEFAULT_CONTACT_SETTINGS.messenger_url,
+    twitter_url: settings?.twitter_url ?? DEFAULT_CONTACT_SETTINGS.twitter_url,
+    pinterest_url: settings?.pinterest_url ?? DEFAULT_CONTACT_SETTINGS.pinterest_url,
+    whatsapp_url: settings?.whatsapp_url ?? DEFAULT_CONTACT_SETTINGS.whatsapp_url,
+    updated_at: settings?.updated_at,
+  };
+}
 
 export type ContactBackground = {
   url: string | null;
@@ -39,7 +62,7 @@ export async function fetchContactSettings(): Promise<ResortContactSettings> {
     const res = await fetch(`${getApiUrl()}/api/contact/settings`, { cache: "no-store" });
     const body = await readJson<{ success?: boolean; settings?: ResortContactSettings }>(res);
     if (res.ok && body.settings?.contact_email && body.settings?.phone) {
-      return body.settings;
+      return applyContactDefaults(body.settings);
     }
   } catch {
     // keep defaults

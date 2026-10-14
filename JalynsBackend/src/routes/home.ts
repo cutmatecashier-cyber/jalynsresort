@@ -66,7 +66,7 @@ homeRouter.post('/hero/upload', async (req, res) => {
           res.json({ success: true, url, slides })
         } catch (inner) {
           const message = inner instanceof Error ? inner.message : 'Could not upload home background.'
-          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|5 seconds|too large/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|3 seconds|too large/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()
@@ -180,7 +180,7 @@ homeRouter.post('/sections/:key/upload', async (req, res) => {
         } catch (inner) {
           const message =
             inner instanceof Error ? inner.message : 'Could not upload section background.'
-          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|5 seconds|too large/i.test(message) ? 400 : 500
+          const status = /bucket|storage|Please choose|Only JPG|sync|video|MP4|3 seconds|too large/i.test(message) ? 400 : 500
           res.status(status).json({ success: false, message })
         }
       })()

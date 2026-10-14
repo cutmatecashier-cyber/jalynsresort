@@ -13,7 +13,9 @@ import {
   LocationIcon,
   UtensilsIcon,
 } from "./Icons";
+import { preloadMedia } from "../lib/preloadMedia";
 import { Reveal } from "./Reveal";
+import { FullBleedSkeleton, ReadyImage } from "./Skeleton";
 
 const reasons = [
   {
@@ -43,22 +45,30 @@ const SECTION: HomeSectionKey = "whystay";
 export function WhyStay() {
   const [parallaxY, setParallaxY] = useState(0);
   const [bgUrl, setBgUrl] = useState(DEFAULT_HOME_SECTIONS.whystay);
+  const [bgReady, setBgReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    const apply = async (url: string) => {
+      const next = url || DEFAULT_HOME_SECTIONS.whystay;
+      await preloadMedia(homeHeroMediaUrl(next));
+      if (!alive) return;
+      setBgUrl(next);
+      setBgReady(true);
+    };
     void fetchHomeSectionBackground(SECTION).then((url) => {
-      if (alive) setBgUrl(url);
+      if (alive) void apply(url);
     });
 
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ section?: HomeSectionKey; url?: string }>).detail;
       if (detail?.section !== SECTION) return;
       if (detail.url) {
-        setBgUrl(detail.url);
+        void apply(detail.url);
         return;
       }
       void fetchHomeSectionBackground(SECTION).then((url) => {
-        if (alive) setBgUrl(url);
+        if (alive) void apply(url);
       });
     };
 
@@ -92,14 +102,17 @@ export function WhyStay() {
     };
   }, []);
 
+  if (!bgReady) return <FullBleedSkeleton id="about" />;
+
   return (
     <section
       id="about"
       className="relative overflow-hidden px-5 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-10 xl:px-12"
     >
-      <img
+      <ReadyImage
         src={homeHeroMediaUrl(bgUrl)}
         alt="Ocean coastline"
+        dark
         className="absolute inset-0 h-full w-full scale-110 object-cover will-change-transform"
         style={{ transform: `translate3d(0, ${parallaxY}px, 0) scale(1.12)` }}
       />

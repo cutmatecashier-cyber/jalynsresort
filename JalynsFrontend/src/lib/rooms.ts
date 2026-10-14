@@ -1,9 +1,9 @@
 import { getApiUrl } from "./api";
+import { isHeroVideoFile, isHeroVideoUrl } from "./heroMedia";
 import { adminAuthHeaders } from "./adminAuth";
 import { normalizeExtraPersonRules, type ExtraPersonRule } from "./guestPricing";
 import { asQuantity } from "./roomAvailability";
 import { postFormData } from "./formUpload";
-import { isHeroVideoFile } from "./heroMedia";
 import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 
 export type RoomStatus = "available" | "unavailable";
@@ -580,16 +580,15 @@ export async function fetchRoomsVoucher(): Promise<RoomsVoucher> {
 }
 
 export async function uploadRoomHighlights(files: File[]): Promise<RoomHighlight[]> {
-  if (!files.length) throw new Error("Please choose at least one image.");
+  if (!files.length) throw new Error("Please choose at least one photo or video.");
   const body = new FormData();
   for (const file of files) {
-    const optimized = await optimizeImageFile(file, {
+    body.append("images", isHeroVideoFile(file) ? file : await optimizeImageFile(file, {
       maxWidth: 2200,
       maxHeight: 2200,
       quality: 0.92,
       maxBytes: 5_000_000,
-    });
-    body.append("images", optimized);
+    }));
   }
   const res = await fetch(`${getApiUrl()}/api/rooms/highlights`, {
     method: "POST",
@@ -601,21 +600,20 @@ export async function uploadRoomHighlights(files: File[]): Promise<RoomHighlight
     message?: string;
     highlights?: RoomHighlight[];
   };
-  if (!res.ok) throw new Error(apiMessage(data, "Could not upload highlight photos."));
+  if (!res.ok) throw new Error(apiMessage(data, "Could not upload highlight photos or videos."));
   const highlights = normalizeHighlights(data.highlights);
   notifyRoomsUpdated(undefined, undefined, highlights);
   return highlights;
 }
 
 export async function replaceRoomHighlight(id: string, file: File): Promise<RoomHighlight[]> {
-  const optimized = await optimizeImageFile(file, {
+  const body = new FormData();
+  body.append("image", isHeroVideoFile(file) ? file : await optimizeImageFile(file, {
     maxWidth: 2200,
     maxHeight: 2200,
     quality: 0.92,
     maxBytes: 5_000_000,
-  });
-  const body = new FormData();
-  body.append("image", optimized);
+  }));
   const res = await fetch(`${getApiUrl()}/api/rooms/highlights/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: await adminAuthHeaders(false),

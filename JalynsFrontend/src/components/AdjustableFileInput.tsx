@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { HERO_MEDIA_ACCEPT, isHeroVideoFile } from "../lib/heroMedia";
+import { HERO_MEDIA_ACCEPT, HERO_VIDEO_MAX_SECONDS, isHeroVideoFile } from "../lib/heroMedia";
 import { ROOM_IMAGE_ACCEPT } from "../lib/rooms";
 import { PhotoAdjustDialog } from "./PhotoAdjustDialog";
 import { VideoAdjustDialog } from "./VideoAdjustDialog";
@@ -16,6 +16,8 @@ type Props = {
   className?: string;
   /** Hero backgrounds can be an image or a short MP4. */
   allowVideo?: boolean;
+  /** Used when allowVideo is set. Hero callers keep the 3 second default. */
+  maxVideoSeconds?: number;
   onFiles: (files: File[]) => void;
 };
 
@@ -44,6 +46,7 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
     id,
     className = "hidden",
     allowVideo = false,
+    maxVideoSeconds = HERO_VIDEO_MAX_SECONDS,
     onFiles,
   },
   ref,
@@ -159,6 +162,7 @@ export const AdjustableFileInput = forwardRef<HTMLInputElement, Props>(function 
           key={source}
           source={source}
           file={videoFile}
+          maxSeconds={maxVideoSeconds}
           onCancel={cancel}
           onApply={(next) => {
             doneRef.current.push(next);

@@ -1,12 +1,73 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from "react";
+import { useMediaReady } from "../lib/useMediaReady";
 
 type BlockProps = {
   className?: string;
+  dark?: boolean;
 };
 
-/** Gray placeholder with a light shimmer. Stays still when reduced motion is on. */
-export function Skeleton({ className = "" }: BlockProps) {
-  return <span aria-hidden className={`skeleton-block ${className}`.trim()} />;
+/** Opaque placeholder with a light shimmer. Stays still when reduced motion is on. */
+export function Skeleton({ className = "", dark = false }: BlockProps) {
+  return (
+    <span
+      aria-hidden
+      className={`skeleton-block ${dark ? "skeleton-block-dark" : ""} ${className}`.trim()}
+    />
+  );
+}
+
+/** Photo slot that stays a skeleton until the file is decoded, then paints immediately. */
+export function ReadyImage({
+  src,
+  className = "",
+  alt = "",
+  style,
+  dark = false,
+  loading,
+  ...imgProps
+}: ImgHTMLAttributes<HTMLImageElement> & { src: string; dark?: boolean }) {
+  const lazy = loading === "lazy";
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const [inView, setInView] = useState(!lazy);
+  useEffect(() => {
+    if (!lazy) {
+      setInView(true);
+      return;
+    }
+    const node = rootRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "240px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [lazy, src]);
+  const ready = useMediaReady(src, false, inView);
+  const positioned = className.includes("absolute");
+  return (
+    <span
+      ref={rootRef}
+      className={`${positioned ? "" : "relative"} block overflow-hidden ${className}`}
+      style={style}
+    >
+      {ready ? (
+        <img src={src} alt={alt} loading={loading} className="h-full w-full object-cover" {...imgProps} />
+      ) : (
+        <Skeleton
+          className={`absolute inset-0 h-full w-full rounded-[inherit] ${dark ? "skeleton-block-dark" : ""}`}
+        />
+      )}
+    </span>
+  );
 }
 
 export function LoadError({
@@ -264,6 +325,108 @@ export function MemberRowsSkeleton() {
           <Skeleton className="h-8 w-20 rounded-full" />
         </div>
       ))}
+    </LoadingRegion>
+  );
+}
+
+/** Full-viewport stand-in for a page hero: nav, title, and media, with no real copy. */
+export function HeroSkeleton() {
+  return (
+    <div className="absolute inset-0 z-40 bg-[#243036]" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading page</span>
+      <div className="flex items-center justify-between gap-4 px-5 pt-4 sm:px-8 sm:pt-5">
+        <Skeleton dark className="h-11 w-28 rounded-full" />
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 md:flex">
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} dark className="h-3 w-16 rounded-full" />
+          ))}
+        </div>
+        <Skeleton dark className="h-10 w-28 rounded-full" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 px-5 pb-14 sm:px-8 sm:pb-16 lg:px-12">
+        <Skeleton dark className="h-3 w-56 max-w-full rounded-full" />
+        <Skeleton dark className="mt-4 h-12 w-full max-w-xl rounded-lg sm:h-14" />
+        <Skeleton dark className="mt-3 h-8 w-2/3 max-w-md rounded-lg" />
+        <Skeleton dark className="mt-4 h-4 w-full max-w-lg rounded-md" />
+        <Skeleton dark className="mt-2 h-4 w-4/5 max-w-md rounded-md" />
+        <Skeleton dark className="mt-6 h-10 w-36 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+/** Homepage rooms / scuba / feature card while its photos and copy are still preparing. */
+export function FeaturePanelSkeleton() {
+  return (
+    <LoadingRegion label="Loading section">
+      <div className="grid gap-8 rounded-[1.5rem] bg-[#243036] p-5 sm:gap-10 sm:p-7 md:grid-cols-2 md:items-center md:p-10 lg:p-12">
+        <div>
+          <Skeleton dark className="h-3 w-40 rounded-full" />
+          <Skeleton dark className="mt-4 h-10 w-4/5 rounded-lg" />
+          <Skeleton dark className="mt-4 h-4 w-full rounded-md" />
+          <Skeleton dark className="mt-2 h-4 w-11/12 rounded-md" />
+          <Skeleton dark className="mt-2 h-4 w-3/4 rounded-md" />
+          <Skeleton dark className="mt-6 h-10 w-36 rounded-full" />
+        </div>
+        <Skeleton dark className="aspect-[5/4] w-full rounded-2xl" />
+      </div>
+    </LoadingRegion>
+  );
+}
+
+export function ServicesSkeleton() {
+  return (
+    <LoadingRegion
+      label="Loading services"
+      className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6"
+    >
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className="overflow-hidden rounded-2xl border border-ink/6 bg-white">
+          <Skeleton className="aspect-[4/3] rounded-none" />
+          <div className="space-y-2 px-3 py-5 sm:px-4">
+            <Skeleton className="h-6 w-3/4 rounded-md" />
+            <Skeleton className="h-3 w-full rounded-md" />
+            <Skeleton className="h-3 w-2/3 rounded-md" />
+            <Skeleton className="mt-3 h-3 w-24 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </LoadingRegion>
+  );
+}
+
+/** Full-screen section such as spa, restaurant, or news on the home page. */
+export function FullBleedSkeleton({ id }: { id?: string }) {
+  return (
+    <section id={id} className="relative min-h-[100svh] overflow-hidden bg-[#243036]" aria-busy="true">
+      <span className="sr-only">Loading section</span>
+      <div className="flex min-h-[100svh] flex-col items-center justify-center px-6 text-center">
+        <Skeleton dark className="h-3 w-40 rounded-full" />
+        <Skeleton dark className="mt-4 h-12 w-full max-w-lg rounded-lg" />
+        <Skeleton dark className="mt-3 h-4 w-full max-w-md rounded-md" />
+        <Skeleton dark className="mt-2 h-4 w-2/3 max-w-sm rounded-md" />
+        <Skeleton dark className="mt-6 h-10 w-36 rounded-full" />
+      </div>
+    </section>
+  );
+}
+
+/** Cards under a page hero while that page's photos and copy are still preparing. */
+export function PageBodySkeleton() {
+  return (
+    <LoadingRegion label="Loading page" className="relative z-0 px-4 py-10 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+      <div className="rounded-3xl bg-white p-6 sm:p-10">
+        <Skeleton className="h-3 w-32 rounded-full" />
+        <Skeleton className="mt-4 h-10 w-2/3 max-w-md rounded-lg" />
+        <Skeleton className="mt-4 h-4 w-full rounded-md" />
+        <Skeleton className="mt-2 h-4 w-11/12 rounded-md" />
+        <Skeleton className="mt-2 h-4 w-4/5 rounded-md" />
+        <Skeleton className="mt-6 h-10 w-32 rounded-full" />
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-52 rounded-3xl" />
+        <Skeleton className="h-52 rounded-3xl" />
+      </div>
     </LoadingRegion>
   );
 }

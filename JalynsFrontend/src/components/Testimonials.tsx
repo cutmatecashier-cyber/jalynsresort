@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { createSiteReview, fetchSiteReviews, type SiteReview } from "../lib/siteReviews";
 import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "./Icons";
 import { Reveal } from "./Reveal";
-import { LoadError, ReviewCardsSkeleton } from "./Skeleton";
+import { LoadError, ReviewCardsSkeleton, Skeleton } from "./Skeleton";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-ink/12 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
@@ -162,6 +162,22 @@ export function Testimonials() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <section className="bg-white px-5 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-10 xl:px-12" aria-busy="true">
+        <span className="sr-only">Loading reviews</span>
+        <Skeleton className="h-10 w-72 max-w-full rounded-lg" />
+        <Skeleton className="mt-3 h-4 w-full max-w-xl rounded-md" />
+        <div className="mt-8 grid gap-6 lg:grid-cols-12">
+          <Skeleton className="h-80 rounded-2xl lg:col-span-4" />
+          <div className="space-y-4 lg:col-span-8">
+            <ReviewCardsSkeleton />
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (

@@ -1,30 +1,24 @@
-import { useEffect, useState } from "react";
-import { fetchContactSettings, subscribeContactBackgrounds } from "../lib/contact";
-import { formatPhMobileForDisplay } from "../lib/resortLocation";
+import { useEffect, useState, type ComponentType } from "react";
+import { DEFAULT_CONTACT_SETTINGS, fetchContactSettings, subscribeContactBackgrounds } from "../lib/contact";
+import {
+  formatPhMobileForDisplay,
+  isShareTemplate,
+  resolveShareHref,
+  telHref,
+  type ResortContactSettings,
+} from "../lib/resortLocation";
 import { Reveal } from "./Reveal";
 
-const shareLinks = [
-  {
-    label: "Facebook",
-    href: "https://www.facebook.com/sharer/sharer.php?u=",
-    icon: FacebookIcon,
-  },
-  {
-    label: "X (Twitter)",
-    href: "https://twitter.com/intent/tweet?url=",
-    icon: XIcon,
-  },
-  {
-    label: "Pinterest",
-    href: "https://pinterest.com/pin/create/button/?url=",
-    icon: PinterestIcon,
-  },
-  {
-    label: "WhatsApp",
-    href: "https://wa.me/?text=",
-    icon: WhatsAppIcon,
-  },
-] as const;
+function socialLinks(settings: ResortContactSettings) {
+  const items: { label: string; href: string; icon: ComponentType<{ className?: string }> }[] = [
+    { label: "Facebook", href: settings.facebook_url, icon: FacebookIcon },
+    { label: "Messenger", href: settings.messenger_url, icon: MessengerIcon },
+    { label: "X (Twitter)", href: settings.twitter_url, icon: XIcon },
+    { label: "Pinterest", href: settings.pinterest_url, icon: PinterestIcon },
+    { label: "WhatsApp", href: settings.whatsapp_url, icon: WhatsAppIcon },
+  ];
+  return items.filter((item) => item.href.trim());
+}
 
 const featureLinks = [
   {
@@ -88,6 +82,14 @@ function FacebookIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function MessengerIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.5 2 2 6.1 2 11.2 2 14.1 3.4 16.6 5.7 18.3V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2Zm1.2 12.4-2.6-2.7-4.9 2.7 5.4-5.8 2.6 2.7 4.8-2.7-5.3 5.8Z" />
+    </svg>
+  );
+}
+
 function XIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -147,33 +149,30 @@ function MailIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function shareUrl(base: string) {
-  if (typeof window === "undefined") return base;
-  const page = encodeURIComponent(window.location.href);
-  const title = encodeURIComponent("Jalyn's Resort & Restaurant");
-  if (base.includes("wa.me")) return `${base}${title}%20${page}`;
-  return `${base}${page}`;
-}
-
-function telHref(phone: string) {
-  return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
-
 export function Footer() {
-  const [phone, setPhone] = useState("+639476197535");
-  const [email, setEmail] = useState("jalynsresort@gmail.com");
+  const [settings, setSettings] = useState<ResortContactSettings>(DEFAULT_CONTACT_SETTINGS);
 
   useEffect(() => {
+    let active = true;
     async function load() {
-      const settings = await fetchContactSettings();
-      setPhone(settings.phone);
-      setEmail(settings.contact_email);
+      const next = await fetchContactSettings();
+      if (active) setSettings(next);
     }
     void load();
-    return subscribeContactBackgrounds(() => {
+    const unsubscribe = subscribeContactBackgrounds(() => {
       void load();
     });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
+
+  const links = socialLinks(settings);
+  const address = settings.address.trim();
+  const mapsHref = settings.maps_url.trim();
+  const phone = settings.phone.trim();
+  const email = settings.contact_email.trim();
 
   return (
     <footer id="contact" className="relative overflow-hidden bg-[#0a0c10] text-white">
@@ -181,39 +180,48 @@ export function Footer() {
 
       <div className="relative w-full px-5 py-8 sm:px-6 md:px-8 md:py-12 lg:px-10 xl:px-12">
         {/* Share */}
-        <Reveal className="text-center">
-          <div className="flex items-center gap-2.5">
-            <span className="h-px flex-1 bg-white/15" />
-            <p className="shrink-0 text-[0.65rem] font-semibold tracking-[0.2em] text-white/70 uppercase">
-              Share this page!
-            </p>
-            <span className="h-px flex-1 bg-white/15" />
-          </div>
+        {links.length > 0 ? (
+          <Reveal className="text-center">
+            <div className="flex items-center gap-2.5">
+              <span className="h-px flex-1 bg-white/15" />
+              <p className="shrink-0 text-[0.65rem] font-semibold tracking-[0.2em] text-white/70 uppercase">
+                Share this page!
+              </p>
+              <span className="h-px flex-1 bg-white/15" />
+            </div>
 
-          <div className="mt-3.5 flex items-start justify-center gap-5 sm:gap-7">
-            {shareLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    window.open(shareUrl(item.href), "_blank", "noopener,noreferrer");
-                  }}
-                  className="btn-press group flex flex-col items-center gap-1.5"
-                >
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="text-center text-[0.62rem] leading-tight text-white/65">
-                    {item.label}
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-        </Reveal>
+            <div className="mt-3.5 flex flex-wrap items-start justify-center gap-x-2 gap-y-3 sm:gap-x-6">
+              {links.map((item) => {
+                const Icon = item.icon;
+                const share = isShareTemplate(item.href);
+                return (
+                  <a
+                    key={item.label}
+                    href={share ? resolveShareHref(item.href) : item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={
+                      share
+                        ? (event) => {
+                            event.preventDefault();
+                            window.open(resolveShareHref(item.href), "_blank", "noopener,noreferrer");
+                          }
+                        : undefined
+                    }
+                    className="btn-press group flex w-16 flex-col items-center gap-1.5"
+                  >
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-center text-[0.62rem] leading-tight text-white/65">
+                      {item.label}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          </Reveal>
+        ) : null}
 
         {/* Contact */}
         <Reveal delay={80} className="mt-7 md:mt-8">
@@ -227,24 +235,27 @@ export function Footer() {
 
           <ul className="mt-4 grid grid-cols-3 sm:mx-auto sm:max-w-2xl">
             <li className="px-2 sm:px-4">
-              <a
-                href="https://maps.google.com/?q=Jalyn's+Resort+Puerto+Galera"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex flex-col items-center gap-1.5 text-center"
-              >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
-                  <PinIcon className="h-4 w-4" />
-                </span>
-                <span className="text-[0.62rem] font-semibold tracking-wide text-white uppercase">
-                  Location
-                </span>
-                <span className="max-w-[7.5rem] text-[0.7rem] leading-snug text-white/85 sm:max-w-[9rem] sm:text-[0.75rem]">
-                  Western Nautical Hwy, Puerto Galera
-                </span>
-              </a>
+              {address ? (
+                <a
+                  href={mapsHref || undefined}
+                  target={mapsHref ? "_blank" : undefined}
+                  rel={mapsHref ? "noopener noreferrer" : undefined}
+                  className="group flex flex-col items-center gap-1.5 text-center"
+                >
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#15181f] text-white/90 transition group-hover:border-white/20 group-hover:bg-[#1b1f28] group-hover:text-white">
+                    <PinIcon className="h-4 w-4" />
+                  </span>
+                  <span className="text-[0.62rem] font-semibold tracking-wide text-white uppercase">
+                    Location
+                  </span>
+                  <span className="max-w-[7.5rem] text-[0.7rem] leading-snug text-white/85 sm:max-w-[9rem] sm:text-[0.75rem]">
+                    {address}
+                  </span>
+                </a>
+              ) : null}
             </li>
             <li className="border-x border-white/15 px-2 sm:px-4">
+              {phone ? (
               <a
                 href={telHref(phone)}
                 className="group flex flex-col items-center gap-1.5 text-center"
@@ -259,8 +270,10 @@ export function Footer() {
                   {formatPhMobileForDisplay(phone)}
                 </span>
               </a>
+              ) : null}
             </li>
             <li className="px-2 sm:px-4">
+              {email ? (
               <a
                 href={`mailto:${email}`}
                 className="group flex flex-col items-center gap-1.5 text-center"
@@ -275,6 +288,7 @@ export function Footer() {
                   {email}
                 </span>
               </a>
+              ) : null}
             </li>
           </ul>
         </Reveal>
@@ -285,8 +299,17 @@ export function Footer() {
             <div className="grid grid-cols-2 md:grid-cols-4">
               {featureLinks.map((item, index) => (
                 <a
-                  key={item.href}
-                  href={item.href}
+                  key={item.title}
+                  href={
+                    item.title === "Facebook"
+                      ? settings.facebook_url.trim() || undefined
+                      : item.href
+                  }
+                  onClick={
+                    item.title === "Facebook" && !settings.facebook_url.trim()
+                      ? (event) => event.preventDefault()
+                      : undefined
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`btn-press group relative flex min-h-[6.75rem] flex-col items-center justify-center gap-2 p-3 text-center transition hover:bg-white/[0.03] md:min-h-[9.5rem] md:gap-3 md:p-5 ${

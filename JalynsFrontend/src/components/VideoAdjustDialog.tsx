@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { HERO_VIDEO_MAX_BYTES, HERO_VIDEO_MAX_SECONDS } from "../lib/heroMedia";
+import { HERO_VIDEO_MAX_BYTES, HERO_VIDEO_MAX_SECONDS, videoTooLongMessage } from "../lib/heroMedia";
 import {
   FULL_HERO_CROP,
   exportHeroVideo,
@@ -16,6 +16,8 @@ type Props = {
   source: string;
   file: File;
   busy?: boolean;
+  /** Hero stays at 3 seconds. The gallery passes 10. */
+  maxSeconds?: number;
   onCancel: () => void;
   onApply: (file: File) => void | Promise<void>;
 };
@@ -52,7 +54,14 @@ function nextCrop(mode: DragMode, start: HeroCrop, dx: number, dy: number): Hero
   return { x, y, w: start.w + (start.x - x), h: start.h + (start.y - y) };
 }
 
-export function VideoAdjustDialog({ source, file, busy = false, onCancel, onApply }: Props) {
+export function VideoAdjustDialog({
+  source,
+  file,
+  busy = false,
+  maxSeconds = HERO_VIDEO_MAX_SECONDS,
+  onCancel,
+  onApply,
+}: Props) {
   const titleId = useId();
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -115,7 +124,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
         setLoadError("Could not read this video. Use an MP4 file.");
         return;
       }
-      const end = Math.min(HERO_VIDEO_MAX_SECONDS, length);
+      const end = Math.min(maxSeconds, length);
       setDuration(length);
       setTrim({ start: 0, end });
       setPreviewTime(0);
@@ -139,7 +148,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
     };
     // The first frame is painted once metadata is ready. Later edits redraw explicitly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, file]);
+  }, [source, file, maxSeconds]);
 
   useEffect(() => {
     if (!ready || previewing) return;
@@ -187,7 +196,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
     setRotation(0);
     setCrop(FULL_HERO_CROP);
     setIncludeSound(false);
-    const end = Math.min(HERO_VIDEO_MAX_SECONDS, duration || 0);
+    const end = Math.min(maxSeconds, duration || 0);
     setTrim({ start: 0, end });
     setPreviewTime(0);
     setSaveError(null);
@@ -244,7 +253,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
     if (!drag || drag.width <= 0 || !duration) return;
     const delta = ((event.clientX - drag.originX) / drag.width) * duration;
     const minSpan = 0.2;
-    const maxSpan = Math.min(HERO_VIDEO_MAX_SECONDS, duration);
+    const maxSpan = Math.min(maxSeconds, duration);
     const origin = drag.trim;
     if (drag.mode === "start") {
       let start = clamp(origin.start + delta, 0, origin.end - minSpan);
@@ -316,8 +325,8 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
 
   async function apply() {
     if (busy || working || !ready) return;
-    if (trim.end - trim.start > HERO_VIDEO_MAX_SECONDS + 0.05) {
-      setSaveError("Hero videos must be 5 seconds or shorter.");
+    if (trim.end - trim.start > maxSeconds + 0.05) {
+      setSaveError(videoTooLongMessage(maxSeconds));
       return;
     }
     videoRef.current?.pause();
@@ -335,6 +344,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
         rotation,
         crop,
         includeSound,
+        maxSeconds,
         signal: controller.signal,
         onProgress: (ratio) => setProgress(`Preparing video… ${Math.round(ratio * 100)}%`),
       });
@@ -370,10 +380,10 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
         <div className="flex items-start justify-between gap-3 px-5 pt-5 sm:px-6">
           <div>
             <h3 id={titleId} className="font-display text-2xl">
-              Edit hero video
+              {maxSeconds === HERO_VIDEO_MAX_SECONDS ? "Edit hero video" : "Edit gallery video"}
             </h3>
             <p className="mt-1 text-sm text-ink/70">
-              Trim to 5 seconds or less, choose whether to keep the sound, then crop or rotate if needed.
+              Trim to {maxSeconds} seconds or less, choose whether to keep the sound, then crop or rotate if needed.
               Preview plays the edited clip.
             </p>
           </div>
@@ -437,15 +447,15 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
         </div>
 
         <div className="space-y-3 overflow-y-auto px-5 py-4 sm:px-6">
-          {duration > HERO_VIDEO_MAX_SECONDS ? (
+          {duration > maxSeconds ? (
             <p className="text-sm text-ink/75">
-              This video is {duration.toFixed(1)}s. Choose a section of {HERO_VIDEO_MAX_SECONDS} seconds or less.
+              This video is {duration.toFixed(1)}s. Choose a section of {maxSeconds} seconds or less.
             </p>
           ) : null}
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-3 text-sm font-medium text-ink">
               <span>Keep {trim.start.toFixed(1)}s – {trim.end.toFixed(1)}s</span>
-              <span>{clipLength.toFixed(1)}s / {HERO_VIDEO_MAX_SECONDS}s max</span>
+              <span>{clipLength.toFixed(1)}s / {maxSeconds}s max</span>
             </div>
             <div
               ref={trimTrackRef}
@@ -540,7 +550,7 @@ export function VideoAdjustDialog({ source, file, busy = false, onCancel, onAppl
               {saveError ? (
                 <p className="text-sm font-medium text-red-700" role="alert">{saveError}</p>
               ) : null}
-              <button type="button" disabled={locked || !ready || clipLength > HERO_VIDEO_MAX_SECONDS + 0.05} onClick={() => void apply()} className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60">
+              <button type="button" disabled={locked || !ready || clipLength > maxSeconds + 0.05} onClick={() => void apply()} className="btn-press rounded-full bg-sky px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-bright disabled:opacity-60">
                 {locked ? "Saving…" : "Save video"}
               </button>
             </div>

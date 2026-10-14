@@ -10,7 +10,8 @@ import {
 import { NEWS_UPDATED_EVENT, fetchNewsPosts, newsMediaUrl, type NewsPost } from "../lib/news";
 import { HomeSectionBgEditButton } from "./HomeSectionBgEditButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
-import { HomeOfferSkeleton } from "./Skeleton";
+import { preloadMedia, preloadMediaList } from "../lib/preloadMedia";
+import { FullBleedSkeleton, HomeOfferSkeleton, ReadyImage } from "./Skeleton";
 
 const SECTION: HomeSectionKey = "news";
 const PAGE_SIZE = 3;
@@ -45,6 +46,7 @@ export function News() {
   const [parallaxY, setParallaxY] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [bgUrl, setBgUrl] = useState(DEFAULT_HOME_SECTIONS.news);
+  const [bgReady, setBgReady] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
   const pageCount = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
@@ -52,21 +54,26 @@ export function News() {
 
   useEffect(() => {
     let alive = true;
+    const showPosts = async (next: NewsPost[]) => {
+      const first = next.slice(0, PAGE_SIZE);
+      await preloadMediaList(first.map((post) => newsMediaUrl(post.image)));
+      if (!alive) return;
+      setPosts(next);
+      void preloadMediaList(next.slice(PAGE_SIZE).map((post) => newsMediaUrl(post.image)));
+    };
     void fetchNewsPosts()
-      .then((next) => {
-        if (alive) setPosts(next);
-      })
+      .then((next) => showPosts(next))
       .finally(() => {
         if (alive) setPostsReady(true);
       });
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ posts?: NewsPost[] }>).detail;
       if (detail?.posts?.length) {
-        setPosts(detail.posts);
+        void showPosts(detail.posts);
         return;
       }
       void fetchNewsPosts().then((next) => {
-        if (alive) setPosts(next);
+        if (alive) void showPosts(next);
       });
     };
     window.addEventListener(NEWS_UPDATED_EVENT, onUpdated);
@@ -86,19 +93,26 @@ export function News() {
 
   useEffect(() => {
     let alive = true;
+    const applyBg = async (url: string) => {
+      const next = url || DEFAULT_HOME_SECTIONS.news;
+      await preloadMedia(homeHeroMediaUrl(next));
+      if (!alive) return;
+      setBgUrl(next);
+      setBgReady(true);
+    };
     void fetchHomeSectionBackground(SECTION).then((url) => {
-      if (alive) setBgUrl(url);
+      if (alive) void applyBg(url);
     });
 
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ section?: HomeSectionKey; url?: string }>).detail;
       if (detail?.section !== SECTION) return;
       if (detail.url) {
-        setBgUrl(detail.url);
+        void applyBg(detail.url);
         return;
       }
       void fetchHomeSectionBackground(SECTION).then((url) => {
-        if (alive) setBgUrl(url);
+        if (alive) void applyBg(url);
       });
     };
 
@@ -158,6 +172,8 @@ export function News() {
     else prev();
   }
 
+  if (!bgReady || !postsReady) return <FullBleedSkeleton id="news" />;
+
   return (
     <section id="news" className="relative bg-white">
       <div className="relative">
@@ -171,9 +187,10 @@ export function News() {
                 : `translate3d(0, ${parallaxY}px, 0) scale(1.06)`,
             }}
           >
-            <img
+            <ReadyImage
               src={homeHeroMediaUrl(bgUrl)}
               alt=""
+              dark
               className={`news-cinematic-slide news-pan-left absolute inset-0 h-full w-full object-cover ${
                 reduceMotion ? "" : "is-active burn-loop"
               }`}
@@ -256,7 +273,7 @@ export function News() {
                   style={{ animationDelay: `${220 + index * 140}ms` }}
                 >
                   <div className="overflow-hidden">
-                    <img
+                    <ReadyImage
                       src={newsMediaUrl(post.image)}
                       alt=""
                       className={`w-full object-cover transition duration-700 group-hover:scale-[1.04] ${

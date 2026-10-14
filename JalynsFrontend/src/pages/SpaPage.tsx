@@ -8,7 +8,7 @@ import { GalleryLightbox } from "../components/GalleryLightbox";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
-import { GalleryStageSkeleton } from "../components/Skeleton";
+import { GalleryStageSkeleton, HeroSkeleton, PageBodySkeleton, ReadyImage } from "../components/Skeleton";
 import { SpaTreatmentsSection } from "../components/SpaTreatmentsSection";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -29,6 +29,7 @@ import {
   type SpaGalleryImage,
 } from "../lib/spa";
 import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
+import { preloadMedia, preloadMediaList } from "../lib/preloadMedia";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
 
 type BgKind = "hero" | "content";
@@ -51,6 +52,7 @@ export function SpaPage() {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const [bgEditor, setBgEditor] = useState<BgKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
@@ -83,6 +85,10 @@ export function SpaPage() {
     setHasCustomHero(Boolean(hero.path));
     setHasCustomContent(Boolean(content.path));
     setGallery(galleryImages);
+    const heroSrc = hero.url;
+    if (heroSrc && !isHeroVideoUrl(heroSrc)) await preloadMedia(heroSrc);
+    if (content.url) await preloadMedia(content.url);
+    await preloadMediaList(galleryImages.slice(0, 3).map((image) => image.url));
     setImagesReady(true);
   }, []);
 
@@ -268,7 +274,8 @@ export function SpaPage() {
             alt="Spa wellness at Jalyn's Resort"
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canEdit ? (
@@ -281,8 +288,9 @@ export function SpaPage() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
@@ -315,22 +323,27 @@ export function SpaPage() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
-      <div className="relative isolate">
+      {imagesReady ? null : <PageBodySkeleton />}
+      <div className={`relative isolate ${imagesReady ? "" : "hidden"}`}>
         <div
           aria-hidden
           className="pointer-events-none sticky top-0 -z-10 h-[100svh] w-full overflow-hidden bg-[#0b1d33]"
         >
           {displayContent ? (
-            <img
+            <ReadyImage
               src={displayContent}
               alt=""
+              dark
               className="h-full w-full object-cover object-center"
               loading="eager"
               decoding="async"
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="skeleton-block skeleton-block-dark absolute inset-0" />
+          )}
           <div className="absolute inset-0 bg-[#07101c]/62" />
         </div>
 

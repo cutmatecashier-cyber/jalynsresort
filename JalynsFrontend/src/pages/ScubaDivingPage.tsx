@@ -12,7 +12,7 @@ import { GalleryLightbox } from "../components/GalleryLightbox";
 import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { HeroMedia } from "../components/HeroMedia";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
-import { GalleryStageSkeleton, LoadError, PriceRowsSkeleton } from "../components/Skeleton";
+import { GalleryStageSkeleton, HeroSkeleton, LoadError, PageBodySkeleton, PriceRowsSkeleton, ReadyImage } from "../components/Skeleton";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
   ArrowRightIcon,
@@ -35,10 +35,10 @@ import {
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { useAuth } from "../context/AuthContext";
-import { getApiUrl } from "../lib/api";
+import { DEFAULT_CONTACT_SETTINGS, fetchContactSettings } from "../lib/contact";
 import {
   formatPhMobileForDisplay,
-  type ResortContactSettings,
+  telHref,
 } from "../lib/resortLocation";
 import {
   createDivingRate,
@@ -73,18 +73,10 @@ import {
   type ScubaImage,
 } from "../lib/scuba";
 import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
+import { preloadMedia, preloadMediaList } from "../lib/preloadMedia";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
 import type { DivingRate, PadiScubaCourse } from "../types/database";
 
-const DEFAULT_CONTACT: ResortContactSettings = {
-  contact_email: "jalynsresort@gmail.com",
-  phone: "+639476197535",
-  facebook_url: "https://www.facebook.com/jalynsresortpuertogalera",
-};
-
-function telHref(phone: string) {
-  return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
 
 /** In-app news detail paths — match live WP “Course details” blue links */
 const SCUBA_NEWS = {
@@ -164,6 +156,7 @@ export function ScubaDivingPage() {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const [gallery, setGallery] = useState<ScubaImage[]>([]);
   const [rates, setRates] = useState<DivingRate[]>([]);
   const [courses, setCourses] = useState<PadiScubaCourse[]>([]);
@@ -186,7 +179,7 @@ export function ScubaDivingPage() {
   const [validityMonth, setValidityMonth] = useState(() =>
     pricesValidUntilToMonthInput(DEFAULT_PRICES_VALID_UNTIL),
   );
-  const [contact, setContact] = useState<ResortContactSettings>(DEFAULT_CONTACT);
+  const [contact, setContact] = useState(DEFAULT_CONTACT_SETTINGS);
 
   const heroInput = useRef<HTMLInputElement>(null);
   const contentInput = useRef<HTMLInputElement>(null);
@@ -228,20 +221,15 @@ export function ScubaDivingPage() {
     setGallery(storedGallery);
     setPricesValidUntil(settings.pricesValidUntil);
     setValidityMonth(pricesValidUntilToMonthInput(settings.pricesValidUntil));
+    const heroSrc = hero.url;
+    if (heroSrc && !isHeroVideoUrl(heroSrc)) await preloadMedia(heroSrc);
+    if (content.url) await preloadMedia(content.url);
+    await preloadMediaList(storedGallery.slice(0, 3).map((image) => image.url));
     setImagesReady(true);
   }, []);
 
   const loadContact = useCallback(async () => {
-    try {
-      const res = await fetch(`${getApiUrl()}/api/contact/settings`);
-      const body = (await res.json()) as {
-        success?: boolean;
-        settings?: ResortContactSettings;
-      };
-      if (body.settings) setContact(body.settings);
-    } catch {
-      // keep defaults shared with Contact Us
-    }
+    setContact(await fetchContactSettings());
   }, []);
 
   useEffect(() => {
@@ -527,7 +515,8 @@ export function ScubaDivingPage() {
             alt="Scuba diving in Puerto Galera"
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canManage ? (
@@ -540,8 +529,9 @@ export function ScubaDivingPage() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canManage ? "pointer-events-none" : ""
@@ -582,9 +572,12 @@ export function ScubaDivingPage() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
-      <div className="relative isolate">
+      {imagesReady ? null : <PageBodySkeleton />}
+
+      <div className={`relative isolate ${imagesReady ? "" : "hidden"}`}>
         {/*
           Viewport-sized sticky backdrop: stays put while content scrolls over it.
           Not stretched to full content height (keeps image quality).
@@ -595,14 +588,17 @@ export function ScubaDivingPage() {
           className="pointer-events-none sticky top-0 -z-10 h-[100svh] w-full overflow-hidden bg-[#0b1d33]"
         >
           {displayContent ? (
-            <img
+            <ReadyImage
               src={displayContent}
               alt=""
+              dark
               className="h-full w-full object-cover object-center"
               loading="eager"
               decoding="async"
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="skeleton-block skeleton-block-dark absolute inset-0" />
+          )}
           <div className="absolute inset-0 bg-[#07101c]/62" />
         </div>
 

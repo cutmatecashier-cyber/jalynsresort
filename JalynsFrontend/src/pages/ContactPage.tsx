@@ -19,8 +19,11 @@ import { getApiUrl } from "../lib/api";
 import {
   DEFAULT_CONTACT_CONTENT,
   DEFAULT_CONTACT_HERO,
+  applyContactDefaults,
+  DEFAULT_CONTACT_SETTINGS,
   fetchContactContentBackground,
   fetchContactHero,
+  fetchContactSettings,
   removeContactContentBackground,
   removeContactHero,
   notifyContactUpdated,
@@ -30,31 +33,23 @@ import {
 } from "../lib/contact";
 import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 import { HERO_UPLOAD_HINT, isHeroVideoFile, isHeroVideoUrl } from "../lib/heroMedia";
+import { preloadHeroMedia, preloadMedia } from "../lib/preloadMedia";
+import { HeroSkeleton, PageBodySkeleton, ReadyImage } from "../components/Skeleton";
 import {
+  contactMapEmbedSrc,
   formatPhMobileForDisplay,
   formatPhMobileForStorage,
   haversineKm,
   isValidPhMobileLocal,
-  mapsEmbedUrl,
-  mapsOpenUrl,
   RESORT_LOCATION,
   sanitizeLocalPhMobileInput,
+  telHref,
   toLocalPhMobileDigits,
   type ResortContactSettings,
 } from "../lib/resortLocation";
 import { supabase } from "../lib/supabase";
 
-const DEFAULT_SETTINGS: ResortContactSettings = {
-  contact_email: "jalynsresort@gmail.com",
-  phone: "+639476197535",
-  facebook_url: "https://www.facebook.com/jalynsresortpuertogalera",
-};
-
 type BgKind = "hero" | "content";
-
-function telHref(phone: string) {
-  return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
 
 function MailIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -80,6 +75,27 @@ function PhoneIcon({ className = "h-5 w-5" }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function PinIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function MessengerIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2C6.5 2 2 6.1 2 11.2 2 14.1 3.4 16.6 5.7 18.3V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2Zm1.2 12.4-2.6-2.7-4.9 2.7 5.4-5.8 2.6 2.7 4.8-2.7-5.3 5.8Z" />
     </svg>
   );
 }
@@ -139,7 +155,7 @@ export function ContactPage() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditContactInfo(role, approvalStatus);
 
-  const [settings, setSettings] = useState<ResortContactSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ResortContactSettings>(DEFAULT_CONTACT_SETTINGS);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
   const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("contact")?.url ?? null);
@@ -152,6 +168,7 @@ export function ContactPage() {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomContent, setHasCustomContent] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const [bgEditor, setBgEditor] = useState<BgKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -169,9 +186,16 @@ export function ContactPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editMapsUrl, setEditMapsUrl] = useState("");
   const [editFacebook, setEditFacebook] = useState("");
+  const [editMessenger, setEditMessenger] = useState("");
+  const [editTwitter, setEditTwitter] = useState("");
+  const [editPinterest, setEditPinterest] = useState("");
+  const [editWhatsapp, setEditWhatsapp] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   /** Only set when geolocation succeeds — never a hard-coded value. */
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
@@ -184,6 +208,8 @@ export function ContactPage() {
       fetchContactHero(),
       fetchContactContentBackground(),
     ]);
+    await preloadHeroMedia(hero.url);
+    if (content.url) await preloadMedia(content.url);
     setHeroUrl(hero.url);
     setHeroVideo(isHeroVideoUrl(hero.url));
     setContentUrl(content.url);
@@ -216,23 +242,22 @@ export function ContactPage() {
 
   useEffect(() => {
     let active = true;
-    void (async () => {
-      setLoadingSettings(true);
+    async function load(initial: boolean) {
+      if (initial) setLoadingSettings(true);
       try {
-        const res = await fetch(`${getApiUrl()}/api/contact/settings`);
-        const body = (await res.json()) as {
-          success?: boolean;
-          settings?: ResortContactSettings;
-        };
-        if (active && body.settings) setSettings(body.settings);
-      } catch {
-        // keep defaults
+        const next = await fetchContactSettings();
+        if (active) setSettings(next);
       } finally {
-        if (active) setLoadingSettings(false);
+        if (active && initial) setLoadingSettings(false);
       }
-    })();
+    }
+    void load(true);
+    const unsubscribe = subscribeContactBackgrounds(() => {
+      void load(false);
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -398,8 +423,15 @@ export function ContactPage() {
   function openEdit() {
     setEditEmail(settings.contact_email);
     setEditPhone(toLocalPhMobileDigits(settings.phone));
+    setEditAddress(settings.address);
+    setEditMapsUrl(settings.maps_url);
     setEditFacebook(settings.facebook_url);
+    setEditMessenger(settings.messenger_url);
+    setEditTwitter(settings.twitter_url);
+    setEditPinterest(settings.pinterest_url);
+    setEditWhatsapp(settings.whatsapp_url);
     setEditError(null);
+    setSaveNotice(null);
     setEditOpen(true);
   }
 
@@ -407,6 +439,14 @@ export function ContactPage() {
     e.preventDefault();
     setEditError(null);
     const localPhone = sanitizeLocalPhMobileInput(editPhone);
+    if (!editAddress.trim()) {
+      setEditError("Location is required.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) {
+      setEditError("Enter a valid contact email.");
+      return;
+    }
     if (!isValidPhMobileLocal(localPhone)) {
       setEditError("Enter a valid 10-digit phone number after +63.");
       return;
@@ -428,7 +468,13 @@ export function ContactPage() {
         body: JSON.stringify({
           contact_email: editEmail.trim(),
           phone: formatPhMobileForStorage(localPhone),
+          address: editAddress.trim(),
+          maps_url: editMapsUrl.trim(),
           facebook_url: editFacebook.trim(),
+          messenger_url: editMessenger.trim(),
+          twitter_url: editTwitter.trim(),
+          pinterest_url: editPinterest.trim(),
+          whatsapp_url: editWhatsapp.trim(),
         }),
       });
       const body = (await res.json()) as {
@@ -439,8 +485,9 @@ export function ContactPage() {
         setEditError(body.message ?? "Could not save contact settings.");
         return;
       }
-      if (body.settings) setSettings(body.settings);
+      if (body.settings) setSettings(applyContactDefaults(body.settings));
       notifyContactUpdated();
+      setSaveNotice(body.message ?? "Contact details saved.");
       setEditOpen(false);
     } catch {
       setEditError("Cannot reach the server. Make sure the backend is running.");
@@ -465,7 +512,8 @@ export function ContactPage() {
             alt="Jalyn's Resort in Puerto Galera"
             video={heroVideo || isHeroVideoUrl(displayHero)}
             soundControl
-            className="hero-media animate-ken-burns"
+            onReady={() => setHeroReady(true)}
+            className={`hero-media transition-opacity duration-500 ${heroReady ? "animate-ken-burns opacity-100" : "opacity-0"}`}
           />
           <div className="hero-scrim" />
           {canEdit ? (
@@ -478,8 +526,9 @@ export function ContactPage() {
           ) : null}
         </div>
 
-        <Navbar />
+        {heroReady ? <Navbar /> : <HeroSkeleton />}
 
+        <div className={heroReady ? "contents" : "hidden"}>
         <div
           className={`hero-copy relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-12 pt-[7rem] sm:px-6 sm:pb-20 sm:pt-36 md:px-8 lg:px-10 xl:px-12 ${
             canEdit ? "pointer-events-none" : ""
@@ -520,9 +569,11 @@ export function ContactPage() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
-      <div className="relative isolate">
+      {imagesReady ? null : <PageBodySkeleton />}
+      <div className={`relative isolate ${imagesReady ? "" : "hidden"}`}>
         {/*
           Viewport-sized sticky backdrop: stays put while content scrolls over it.
           Not stretched to full content height (keeps image quality).
@@ -533,14 +584,17 @@ export function ContactPage() {
           className="pointer-events-none sticky top-0 -z-10 h-[100svh] w-full overflow-hidden bg-[#0b1d33]"
         >
           {displayContent ? (
-            <img
+            <ReadyImage
               src={displayContent}
               alt=""
+              dark
               className="h-full w-full object-cover object-center"
               loading="eager"
               decoding="async"
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="skeleton-block skeleton-block-dark absolute inset-0" />
+          )}
           <div className="absolute inset-0 bg-[#07101c]/62" />
         </div>
 
@@ -661,37 +715,85 @@ export function ContactPage() {
                     ) : null}
                   </div>
 
-                  <ul className="mt-5 space-y-2.5">
-                    <ContactRow icon={<MailIcon className="h-[1.15rem] w-[1.15rem]" />} label="Email">
-                      <a
-                        href={`mailto:${settings.contact_email}`}
-                        className="text-[#0b1d33] transition hover:text-sky-deep"
-                      >
-                        {settings.contact_email}
-                      </a>
-                    </ContactRow>
-                    <ContactRow icon={<PhoneIcon className="h-[1.15rem] w-[1.15rem]" />} label="Phone">
-                      <a
-                        href={telHref(settings.phone)}
-                        className="text-[#0b1d33] transition hover:text-sky-deep"
-                      >
-                        {formatPhMobileForDisplay(settings.phone)}
-                      </a>
-                    </ContactRow>
-                    <ContactRow
-                      icon={<FacebookIcon className="h-[1.15rem] w-[1.15rem]" />}
-                      label="Facebook"
+                  {saveNotice ? (
+                    <p
+                      className="mt-4 rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3.5 py-2.5 text-sm text-emerald-900"
+                      role="status"
                     >
-                      <a
-                        href={settings.facebook_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[#0b1d33] transition hover:text-sky-deep"
+                      {saveNotice}
+                    </p>
+                  ) : null}
+
+                  <ul className="mt-5 space-y-2.5">
+                    {settings.address.trim() ? (
+                      <ContactRow icon={<PinIcon className="h-[1.15rem] w-[1.15rem]" />} label="Location">
+                        {settings.maps_url.trim() ? (
+                          <a
+                            href={settings.maps_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[#0b1d33] transition hover:text-sky-deep"
+                          >
+                            {settings.address}
+                            <ExternalIcon />
+                          </a>
+                        ) : (
+                          settings.address
+                        )}
+                      </ContactRow>
+                    ) : null}
+                    {settings.contact_email.trim() ? (
+                      <ContactRow icon={<MailIcon className="h-[1.15rem] w-[1.15rem]" />} label="Email">
+                        <a
+                          href={`mailto:${settings.contact_email}`}
+                          className="text-[#0b1d33] transition hover:text-sky-deep"
+                        >
+                          {settings.contact_email}
+                        </a>
+                      </ContactRow>
+                    ) : null}
+                    {settings.phone.trim() ? (
+                      <ContactRow icon={<PhoneIcon className="h-[1.15rem] w-[1.15rem]" />} label="Phone">
+                        <a
+                          href={telHref(settings.phone)}
+                          className="text-[#0b1d33] transition hover:text-sky-deep"
+                        >
+                          {formatPhMobileForDisplay(settings.phone)}
+                        </a>
+                      </ContactRow>
+                    ) : null}
+                    {settings.facebook_url.trim() ? (
+                      <ContactRow
+                        icon={<FacebookIcon className="h-[1.15rem] w-[1.15rem]" />}
+                        label="Facebook"
                       >
-                        Visit our page
-                        <ExternalIcon />
-                      </a>
-                    </ContactRow>
+                        <a
+                          href={settings.facebook_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[#0b1d33] transition hover:text-sky-deep"
+                        >
+                          Visit our page
+                          <ExternalIcon />
+                        </a>
+                      </ContactRow>
+                    ) : null}
+                    {settings.messenger_url.trim() ? (
+                      <ContactRow
+                        icon={<MessengerIcon className="h-[1.15rem] w-[1.15rem]" />}
+                        label="Messenger"
+                      >
+                        <a
+                          href={settings.messenger_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[#0b1d33] transition hover:text-sky-deep"
+                        >
+                          Message us
+                          <ExternalIcon />
+                        </a>
+                      </ContactRow>
+                    ) : null}
                   </ul>
                 </Reveal>
               </section>
@@ -771,7 +873,7 @@ export function ContactPage() {
                     ) : null}
                   </div>
                   <a
-                    href={mapsOpenUrl(RESORT_LOCATION.fullAddress)}
+                    href={settings.maps_url || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-press inline-flex items-center gap-2 rounded-full bg-sky-deep px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(3,105,161,0.28)] transition hover:bg-sky"
@@ -785,7 +887,7 @@ export function ContactPage() {
                   <div className="relative h-56 w-full overflow-hidden sm:h-72 lg:h-80">
                     <iframe
                       title="Jalyn's Resort & Restaurant on Google Maps"
-                      src={mapsEmbedUrl(RESORT_LOCATION.lat, RESORT_LOCATION.lng)}
+                      src={contactMapEmbedSrc(settings.address, DEFAULT_CONTACT_SETTINGS.address)}
                       className="absolute inset-0 h-full w-full border-0"
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
@@ -796,7 +898,7 @@ export function ContactPage() {
                         Address
                       </p>
                       <p className="mt-1 text-sm leading-snug text-white sm:text-[0.95rem]">
-                        {RESORT_LOCATION.addressLine}
+                        {settings.address}
                       </p>
                     </div>
                   </div>
@@ -811,33 +913,63 @@ export function ContactPage() {
 
       {editOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center"
           onClick={() => !editSaving && setEditOpen(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Edit contact details"
-            className="w-full max-w-md rounded-2xl border border-white/60 bg-white p-5 text-ink shadow-xl sm:p-6"
+            className="my-auto w-full max-w-lg rounded-2xl border border-white/60 bg-white p-5 text-ink shadow-xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-2xl">Edit contact details</h2>
             <p className="mt-1.5 text-sm text-stone">
-              Admin only — updates appear on this page for everyone.
+              Admin only. Saved details appear everywhere this contact information is shown.
             </p>
             <form onSubmit={saveEdit} className="mt-5 space-y-4">
               <label className="block">
-                <span className="text-sm font-semibold text-ink">Contact email</span>
+                <span className="text-sm font-semibold text-ink">Location / address</span>
+                <input
+                  type="text"
+                  required
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className={fieldClass}
+                  placeholder="Western Nautical Hwy, Puerto Galera"
+                  autoComplete="street-address"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">Google Maps link</span>
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={editMapsUrl}
+                  onChange={(e) => setEditMapsUrl(e.target.value)}
+                  className={fieldClass}
+                  placeholder="https://maps.google.com/?q=..."
+                />
+                <p className="mt-1.5 text-xs text-stone">
+                  Leave blank to build a Maps link from the address.
+                </p>
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">Email address</span>
                 <input
                   type="email"
                   required
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   className={fieldClass}
+                  autoComplete="email"
                 />
+                <p className="mt-1.5 text-xs text-stone">
+                  Contact form messages are sent to this address.
+                </p>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-ink">Phone</span>
+                <span className="text-sm font-semibold text-ink">Phone number</span>
                 <div className="mt-1.5 flex overflow-hidden rounded-xl border border-ink/10 bg-white focus-within:border-sky-deep/40 focus-within:ring-2 focus-within:ring-sky-deep/15">
                   <span
                     className="inline-flex shrink-0 items-center border-r border-ink/10 bg-mist/80 px-3 text-sm font-semibold text-ink/80"
@@ -890,15 +1022,65 @@ export function ContactPage() {
                 </p>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-ink">Facebook link</span>
+                <span className="text-sm font-semibold text-ink">Facebook</span>
                 <input
-                  type="url"
-                  required
+                  type="text"
+                  inputMode="url"
                   value={editFacebook}
                   onChange={(e) => setEditFacebook(e.target.value)}
                   className={fieldClass}
-                  placeholder="https://www.facebook.com/..."
+                  placeholder="https://www.facebook.com/your-page"
                 />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">Messenger</span>
+                <input
+                  type="text"
+                  value={editMessenger}
+                  onChange={(e) => setEditMessenger(e.target.value)}
+                  className={fieldClass}
+                  placeholder="https://m.me/your-page"
+                  inputMode="url"
+                />
+                <p className="mt-1.5 text-xs text-stone">
+                  Page username or https://m.me/your-page. Opens the Messenger app on mobile.
+                </p>
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">X (Twitter)</span>
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={editTwitter}
+                  onChange={(e) => setEditTwitter(e.target.value)}
+                  className={fieldClass}
+                  placeholder="https://x.com/your-profile"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">Pinterest</span>
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={editPinterest}
+                  onChange={(e) => setEditPinterest(e.target.value)}
+                  className={fieldClass}
+                  placeholder="https://www.pinterest.com/your-profile"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-ink">WhatsApp</span>
+                <input
+                  type="text"
+                  value={editWhatsapp}
+                  onChange={(e) => setEditWhatsapp(e.target.value)}
+                  className={fieldClass}
+                  placeholder="https://wa.me/639476197535 or 9476197535"
+                  inputMode="url"
+                />
+                <p className="mt-1.5 text-xs text-stone">
+                  A WhatsApp link or phone number. Leave a social field blank to hide that icon.
+                </p>
               </label>
               {editError ? (
                 <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">

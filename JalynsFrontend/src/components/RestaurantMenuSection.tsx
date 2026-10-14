@@ -6,7 +6,9 @@ import { supabase } from "../lib/supabase";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { AdjustableFileInput } from "./AdjustableFileInput";
 import { Reveal } from "./Reveal";
+import { preloadMediaList } from "../lib/preloadMedia";
 import { LoadError, MenuSkeleton } from "./Skeleton";
+import { useMediaReady } from "../lib/useMediaReady";
 
 const DESKTOP_DISH_COLS = 4;
 const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
@@ -44,18 +46,25 @@ function DishThumb({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const ready = useMediaReady(failed ? null : src);
   if (failed) {
     return <div className={`bg-mist ${className ?? ""}`} aria-hidden />;
   }
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      loading="eager"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <span className={`relative block overflow-hidden ${className ?? ""}`}>
+      {ready ? (
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading="eager"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden className="skeleton-block absolute inset-0" />
+      )}
+    </span>
   );
 }
 
@@ -321,6 +330,11 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
         .sort((a, b) =>
           a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
         );
+      const firstPhotos = list
+        .flatMap((category) => category.items)
+        .slice(0, 8)
+        .map((item) => mediaUrl(item.image_url));
+      await preloadMediaList(firstPhotos);
       setCategories(list);
       setActiveId((prev) => {
         if (prev && list.some((c) => c.id === prev)) return prev;
@@ -631,7 +645,7 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
     <>
       <section className={`mt-8 sm:mt-10 ${cardClass}`}>
       <Reveal delay={40} variant="up">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ink/8 pb-5 sm:pb-6">
+        <div className={`flex flex-wrap items-end justify-between gap-4 border-b border-ink/8 pb-5 sm:pb-6 ${loading ? "hidden" : ""}`}>
           <div>
             <p className="text-[0.65rem] font-semibold tracking-[0.26em] text-sky-deep uppercase">
               From the kitchen

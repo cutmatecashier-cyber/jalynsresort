@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
-import { Skeleton } from "./Skeleton";
+import { FeaturePanelSkeleton, ReadyImage, Skeleton } from "./Skeleton";
 
 export type HomeFeatureSlide = {
   id: string;
@@ -76,10 +76,18 @@ export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, 
     setActive((c) => (c + 1) % count);
   }
 
+  if (mediaLoading) {
+    return (
+      <section id={id} className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12">
+        <FeaturePanelSkeleton />
+      </section>
+    );
+  }
+
   return (
     <section id={id} className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12">
       <div className="relative overflow-hidden rounded-[1.5rem]">
-        {cover ? (
+        {cover && !mediaLoading ? (
           <img
             src={cover}
             alt=""
@@ -124,7 +132,7 @@ export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, 
                   ) : (
                   slides.map((slide, index) =>
                     slide.src ? (
-                      <img
+                      <ReadyImage
                         key={slide.id}
                         src={slide.src}
                         alt={slide.alt}

@@ -6,6 +6,7 @@ import {
   uploadRoomHighlights,
   type RoomHighlight,
 } from "../lib/rooms";
+import { GALLERY_VIDEO_MAX_SECONDS } from "../lib/heroMedia";
 import { AdjustableFileInput } from "./AdjustableFileInput";
 import { AdminEditButton } from "./AdminEditButton";
 import { GalleryLightbox } from "./GalleryLightbox";
@@ -75,13 +76,13 @@ export function JeepneyShuttleGallery({
     if (!files?.length) return;
     setBusy(true);
     onError(null);
-    onProgress("Uploading jeepney photos…");
+    onProgress("Uploading jeepney photos and videos…");
     try {
       const next = await uploadRoomHighlights(files);
       onChange(next);
       broadcastContentChanged();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not upload jeepney photos.");
+      onError(err instanceof Error ? err.message : "Could not upload jeepney photos or videos.");
     } finally {
       setBusy(false);
       onProgress(null);
@@ -132,19 +133,21 @@ export function JeepneyShuttleGallery({
           Shuttle
         </p>
         <h2 className="mt-2 font-display text-[1.85rem] leading-tight text-white sm:text-4xl lg:text-5xl">
-          Jeepney &amp; pier gallery
+          Gallery
         </h2>
         {canEdit ? (
           <div className="mt-4">
             <AdjustableFileInput
               ref={galleryInput}
               multiple
+              allowVideo
+              maxVideoSeconds={GALLERY_VIDEO_MAX_SECONDS}
               onFiles={(picked) => void onUpload(picked)}
             />
             <AdminEditButton disabled={busy} onClick={() => galleryInput.current?.click()}>
               {uploadProgress?.startsWith("Uploading")
                 ? uploadProgress
-                : "Upload jeepney / shuttle photos"}
+                : "Upload jeepney / shuttle photos or video"}
             </AdminEditButton>
           </div>
         ) : null}
@@ -152,7 +155,7 @@ export function JeepneyShuttleGallery({
 
       {!highlights.length && canEdit ? (
         <p className="mt-4 text-sm text-white/70">
-          Upload jeepney or shuttle photos to show with this section.
+          Upload jeepney, pier, or shuttle photos and videos for this section. Videos can be up to 10 seconds.
         </p>
       ) : null}
 
@@ -170,12 +173,15 @@ export function JeepneyShuttleGallery({
               replaceInput.current?.click();
             }}
             onDelete={(id) => void onDelete(id)}
+            suspendPlayback={lightbox != null}
           />
         </div>
       ) : null}
 
       <AdjustableFileInput
         ref={replaceInput}
+        allowVideo
+        maxVideoSeconds={GALLERY_VIDEO_MAX_SECONDS}
         onFiles={(picked) => void onReplace(picked)}
       />
 

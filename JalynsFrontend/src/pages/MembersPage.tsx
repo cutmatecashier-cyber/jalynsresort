@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { getApiUrl } from "../lib/api";
 import { roleLabel, statusLabel } from "../lib/permissions";
 import { supabase } from "../lib/supabase";
-import { LoadError, MemberRowsSkeleton } from "../components/Skeleton";
+import { LoadError, MemberRowsSkeleton, Skeleton } from "../components/Skeleton";
 import type { ApprovalStatus, MemberRow, UserRole } from "../types/database";
 
 type StatusFilter = "all" | ApprovalStatus;
@@ -172,7 +172,7 @@ export function MembersPage() {
       </div>
 
       <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 pt-8 pb-16 sm:px-6 sm:pt-10 sm:pb-20 md:px-8 md:pb-24 lg:px-10 xl:px-12">
-        <header className="max-w-2xl">
+        <header className={`max-w-2xl ${loading ? "hidden" : ""}`}>
           <p className="text-[0.62rem] font-semibold tracking-[0.22em] text-sky uppercase">
             Admin only
           </p>
@@ -184,7 +184,7 @@ export function MembersPage() {
           </p>
         </header>
 
-        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Filter members">
+        <div className={`mt-6 flex flex-wrap gap-2 ${loading ? "hidden" : ""}`} role="tablist" aria-label="Filter members">
           {filters.map((f) => (
             <button
               key={f.id}
@@ -210,7 +210,17 @@ export function MembersPage() {
         ) : null}
 
         {loading ? (
-          <MemberRowsSkeleton />
+          <div aria-busy="true">
+            <Skeleton className="h-3 w-24 rounded-full" />
+            <Skeleton className="mt-3 h-10 w-72 max-w-full rounded-lg" />
+            <Skeleton className="mt-3 h-4 w-full max-w-lg rounded-md" />
+            <div className="mt-6 flex gap-2">
+              <Skeleton className="h-9 w-20 rounded-full" />
+              <Skeleton className="h-9 w-24 rounded-full" />
+              <Skeleton className="h-9 w-28 rounded-full" />
+            </div>
+            <MemberRowsSkeleton />
+          </div>
         ) : error ? null : filtered.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-ink/8 bg-white p-6 text-sm text-stone">
             No verified members in this filter yet.

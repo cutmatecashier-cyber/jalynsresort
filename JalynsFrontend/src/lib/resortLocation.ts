@@ -13,8 +13,39 @@ export type ResortContactSettings = {
   contact_email: string;
   phone: string;
   facebook_url: string;
+  address: string;
+  maps_url: string;
+  messenger_url: string;
+  twitter_url: string;
+  pinterest_url: string;
+  whatsapp_url: string;
   updated_at?: string;
 };
+
+export function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
+/** Share-intent URLs append the current page. Profile and chat links open as saved. */
+export function isShareTemplate(href: string) {
+  return /sharer\.php\?u=|intent\/tweet\?url=|pin\/create\/button\/\?url=|wa\.me\/\?text=/i.test(href);
+}
+
+export function resolveShareHref(href: string) {
+  if (!isShareTemplate(href) || typeof window === "undefined") return href;
+  const page = encodeURIComponent(window.location.href);
+  const title = encodeURIComponent("Jalyn's Resort & Restaurant");
+  if (href.includes("wa.me")) return `${href}${title}%20${page}`;
+  return `${href}${page}`;
+}
+
+/** Keep the precise resort pin until the saved address changes. */
+export function contactMapEmbedSrc(address: string, fallbackAddress: string) {
+  if (!address.trim() || address.trim() === fallbackAddress.trim()) {
+    return mapsEmbedUrl(RESORT_LOCATION.lat, RESORT_LOCATION.lng);
+  }
+  return `https://maps.google.com/maps?q=${encodeURIComponent(address.trim())}&z=16&hl=en&output=embed`;
+}
 
 /** Extract up to 10 local PH mobile digits from any stored phone format. */
 export function toLocalPhMobileDigits(phone: string): string {

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { GalleryPager } from "./GalleryPager";
+import { GalleryClip } from "./GalleryClip";
+import { ReadyImage } from "./Skeleton";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
+import { isHeroVideoUrl } from "../lib/heroMedia";
 
 export type ScubaGallerySlide = {
   url: string;
@@ -18,10 +21,38 @@ type ScubaGalleryStageProps = {
   contained?: boolean;
   onReplace?: (path: string) => void;
   onDelete?: (path: string) => void;
+  /** Pause stage videos while a lightbox is playing the same clip. */
+  suspendPlayback?: boolean;
 };
 
 const motion =
   "transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
+
+function SlideVisual({
+  image,
+  active,
+  eager,
+  className,
+}: {
+  image: ScubaGallerySlide;
+  active: boolean;
+  eager: boolean;
+  className: string;
+}) {
+  if (isHeroVideoUrl(image.url)) {
+    return <GalleryClip src={image.url} alt={image.alt} active={active} className={className} />;
+  }
+  return (
+    <ReadyImage
+      src={image.url}
+      alt={image.alt}
+      draggable={false}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      className={className}
+    />
+  );
+}
 
 function circularOffset(index: number, active: number, total: number) {
   let offset = index - active;
@@ -42,6 +73,7 @@ export function ScubaGalleryStage({
   contained = false,
   onReplace,
   onDelete,
+  suspendPlayback = false,
 }: ScubaGalleryStageProps) {
   const count = images.length;
   const safe = count ? Math.min(Math.max(active, 0), count - 1) : 0;
@@ -147,25 +179,39 @@ export function ScubaGalleryStage({
                   pointerEvents: visible ? "auto" : "none",
                 }}
               >
-                <button
-                  type="button"
-                  aria-label={center ? `Open ${image.alt || "photo"}` : `Show ${image.alt || "photo"}`}
-                  tabIndex={visible ? 0 : -1}
-                  onClick={() => {
-                    if (center) onOpen(index);
-                    else onActive(index);
-                  }}
-                  className="block w-full"
-                >
-                  <img
-                    src={image.url}
-                    alt={image.alt}
-                    draggable={false}
-                    loading={visible ? "eager" : "lazy"}
-                    decoding="async"
-                    className="aspect-[16/10] w-full object-cover"
-                  />
-                </button>
+                {isHeroVideoUrl(image.url) ? (
+                  <div
+                    role="button"
+                    tabIndex={visible ? 0 : -1}
+                    aria-label={center ? `Open ${image.alt || "video"}` : `Show ${image.alt || "video"}`}
+                    onClick={() => {
+                      if (center) onOpen(index);
+                      else onActive(index);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      if (center) onOpen(index);
+                      else onActive(index);
+                    }}
+                    className="block w-full"
+                  >
+                    <SlideVisual image={image} active={center && !suspendPlayback} eager={visible} className="aspect-[16/10] w-full object-cover" />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={center ? `Open ${image.alt || "photo"}` : `Show ${image.alt || "photo"}`}
+                    tabIndex={visible ? 0 : -1}
+                    onClick={() => {
+                      if (center) onOpen(index);
+                      else onActive(index);
+                    }}
+                    className="block w-full"
+                  >
+                    <SlideVisual image={image} active={center && !suspendPlayback} eager={visible} className="aspect-[16/10] w-full object-cover" />
+                  </button>
+                )}
                 {center ? null : (
                   <span className="pointer-events-none absolute inset-0 bg-[#071525]/20" />
                 )}
@@ -220,10 +266,10 @@ export function ScubaGalleryStage({
                       onClick={() => onActive(index)}
                       className="block w-full"
                     >
-                      <img
-                        src={image.url}
-                        alt=""
-                        draggable={false}
+                      <SlideVisual
+                        image={{ ...image, alt: "" }}
+                        active={false}
+                        eager
                         className="aspect-[16/10] w-full object-cover"
                       />
                     </button>

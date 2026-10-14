@@ -9,7 +9,8 @@ import {
 import { GalleryPager } from "./GalleryPager";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
-import { Skeleton } from "./Skeleton";
+import { preloadMediaList } from "../lib/preloadMedia";
+import { FeaturePanelSkeleton, ReadyImage, Skeleton } from "./Skeleton";
 
 function roomCover(room: Room) {
   return roomsMediaUrl(room.images[0] ?? "");
@@ -25,20 +26,28 @@ export function HomeRooms() {
   useEffect(() => {
     let cancelled = false;
     void fetchRoomsCatalog()
-      .then((data) => {
-        if (!cancelled && data.rooms.length) setRooms(data.rooms);
+      .then(async (data) => {
+        if (cancelled) return;
+        if (data.rooms.length) {
+          await preloadMediaList(data.rooms.map((room) => roomCover(room)));
+          if (!cancelled) setRooms(data.rooms);
+        }
       })
       .finally(() => {
         if (!cancelled) setRoomsReady(true);
       });
+    const showRooms = async (next: Room[]) => {
+      await preloadMediaList(next.map((room) => roomCover(room)));
+      if (!cancelled) setRooms(next);
+    };
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ rooms?: Room[] }>).detail;
       if (detail?.rooms?.length) {
-        setRooms(detail.rooms);
+        void showRooms(detail.rooms);
         return;
       }
       void fetchRoomsCatalog().then((data) => {
-        if (!cancelled && data.rooms.length) setRooms(data.rooms);
+        if (!cancelled && data.rooms.length) void showRooms(data.rooms);
       });
     };
     window.addEventListener(ROOMS_UPDATED_EVENT, onUpdated);
@@ -95,6 +104,14 @@ export function HomeRooms() {
   function next() {
     if (rooms.length < 2) return;
     setActive((c) => (c + 1) % rooms.length);
+  }
+
+  if (!roomsReady) {
+    return (
+      <section id="rooms" className="bg-white px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10 lg:py-16 xl:px-12">
+        <FeaturePanelSkeleton />
+      </section>
+    );
   }
 
   return (
@@ -158,7 +175,7 @@ export function HomeRooms() {
                     const src = roomCover(room);
                     if (!src) return null;
                     return (
-                      <img
+                      <ReadyImage
                         key={room.id}
                         src={src}
                         alt={room.name}
