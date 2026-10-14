@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } f
 import { createPortal } from "react-dom";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { broadcastContentChanged } from "./ContentSync";
+import { Skeleton } from "./Skeleton";
 import {
   fetchManagedBookingLinks,
   saveBookingLinks,
@@ -117,7 +118,11 @@ export function BookNowButton({ links, loading, canManage, onManage, className }
               </p>
               <div className="max-h-72 overflow-y-auto overscroll-contain">
                 {loading ? (
-                  <p className="px-3 py-3 text-sm text-ink/55">Loading booking links…</p>
+                  <div className="space-y-2 px-2 py-2" aria-busy="true">
+                    <span className="sr-only">Loading booking links</span>
+                    <Skeleton className="h-10 rounded-xl" />
+                    <Skeleton className="h-10 rounded-xl" />
+                  </div>
                 ) : links.length === 0 ? (
                   <p className="px-3 py-3 text-sm leading-relaxed text-ink/60">
                     Booking links will appear here once they are added.
@@ -319,7 +324,11 @@ export function BookingLinksEditor({
               <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
             ) : null}
             {loading ? (
-              <p className="text-sm text-ink/55">Loading…</p>
+              <div className="space-y-3" aria-busy="true">
+                <span className="sr-only">Loading booking links</span>
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+              </div>
             ) : (
               <ul className="space-y-3">
                 {rows.map((row, index) => (

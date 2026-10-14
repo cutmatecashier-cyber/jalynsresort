@@ -18,6 +18,7 @@ import {
 import { broadcastContentChanged } from "./ContentSync";
 import { NumberStepper } from "./NumberStepper";
 import { Reveal } from "./Reveal";
+import { LoadError, SpaServicesSkeleton } from "./Skeleton";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-ink/12 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
@@ -279,11 +280,11 @@ export function SpaTreatmentsSection({ canEdit }: Props) {
             </div>
 
             {loading ? (
-              <p className="mt-3.5 text-sm text-stone">Loading treatments…</p>
+              <SpaServicesSkeleton />
             ) : error ? (
-              <p className="mt-3.5 text-sm font-medium text-red-700" role="alert">
-                {error}
-              </p>
+              <div className="mt-3.5">
+                <LoadError message={error} onRetry={() => void load()} />
+              </div>
             ) : categories.length === 0 ? (
               <p className="mt-3.5 text-sm text-stone">
                 No spa categories yet

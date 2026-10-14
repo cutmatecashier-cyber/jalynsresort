@@ -19,15 +19,20 @@ function toSlides(images: ScubaImage[]): HomeFeatureSlide[] {
 }
 
 export function HomeScuba() {
-  const [slides, setSlides] = useState<HomeFeatureSlide[]>(() => toSlides(DEFAULT_SCUBA_GALLERY));
+  const [slides, setSlides] = useState<HomeFeatureSlide[]>([]);
+  const [slidesReady, setSlidesReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      void fetchScubaGallery().then((images) => {
-        if (cancelled) return;
-        setSlides(toSlides(images.length ? images : DEFAULT_SCUBA_GALLERY));
-      });
+      void fetchScubaGallery()
+        .then((images) => {
+          if (cancelled) return;
+          setSlides(toSlides(images.length ? images : DEFAULT_SCUBA_GALLERY));
+        })
+        .finally(() => {
+          if (!cancelled) setSlidesReady(true);
+        });
     };
     load();
     window.addEventListener(SCUBA_UPDATED_EVENT, load);
@@ -46,6 +51,7 @@ export function HomeScuba() {
       title="Responsible Scuba Diving"
       cta={{ to: "/scuba-diving", label: "Dive centre" }}
       slides={slides}
+      mediaLoading={!slidesReady}
     >
       <p>
         Jalyn&apos;s Resort has pledged our ongoing support of Blue Alliance Philippines, an NGO

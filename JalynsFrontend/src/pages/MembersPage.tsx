@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { getApiUrl } from "../lib/api";
 import { roleLabel, statusLabel } from "../lib/permissions";
 import { supabase } from "../lib/supabase";
+import { LoadError, MemberRowsSkeleton } from "../components/Skeleton";
 import type { ApprovalStatus, MemberRow, UserRole } from "../types/database";
 
 type StatusFilter = "all" | ApprovalStatus;
@@ -203,14 +204,14 @@ export function MembersPage() {
         </div>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
-            {error}
-          </p>
+          <div className="mt-4">
+            <LoadError message={error} onRetry={() => void loadMembers()} />
+          </div>
         ) : null}
 
         {loading ? (
-          <p className="mt-8 text-sm text-stone">Loading members…</p>
-        ) : filtered.length === 0 ? (
+          <MemberRowsSkeleton />
+        ) : error ? null : filtered.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-ink/8 bg-white p-6 text-sm text-stone">
             No verified members in this filter yet.
           </p>

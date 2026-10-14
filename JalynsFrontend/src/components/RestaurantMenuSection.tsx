@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { AdjustableFileInput } from "./AdjustableFileInput";
 import { Reveal } from "./Reveal";
+import { LoadError, MenuSkeleton } from "./Skeleton";
 
 const DESKTOP_DISH_COLS = 4;
 const DESKTOP_DISH_PER_PAGE = 8; // 2 rows × 4 columns
@@ -655,11 +656,11 @@ export function RestaurantMenuSection({ canEdit, cardClass }: Props) {
         </div>
 
         {loading ? (
-          <p className="mt-6 text-sm text-ink/70">Loading menu…</p>
+          <MenuSkeleton />
         ) : error ? (
-          <p className="mt-6 text-sm font-medium text-red-700" role="alert">
-            {error}
-          </p>
+          <div className="mt-6">
+            <LoadError message={error} onRetry={() => void loadMenu()} />
+          </div>
         ) : categories.length === 0 ? (
           <p className="mt-6 text-sm text-ink/70">
             No menu categories yet

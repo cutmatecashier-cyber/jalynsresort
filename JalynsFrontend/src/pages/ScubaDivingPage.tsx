@@ -12,6 +12,7 @@ import { GalleryLightbox } from "../components/GalleryLightbox";
 import { AdjustableFileInput } from "../components/AdjustableFileInput";
 import { HeroMedia } from "../components/HeroMedia";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
+import { GalleryStageSkeleton, LoadError, PriceRowsSkeleton } from "../components/Skeleton";
 import { AdminEditButton } from "../components/AdminEditButton";
 import {
   ArrowRightIcon,
@@ -168,6 +169,7 @@ export function ScubaDivingPage() {
   const [courses, setCourses] = useState<PadiScubaCourse[]>([]);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const [coursesError, setCoursesError] = useState<string | null>(null);
+  const [pricingReady, setPricingReady] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -199,11 +201,15 @@ export function ScubaDivingPage() {
   const safeGalleryIndex = Math.min(galleryIndex, Math.max(0, displayGallery.length - 1));
 
   const loadPricing = useCallback(async () => {
-    const [rateResult, courseResult] = await Promise.all([fetchDivingRates(), fetchPadiCourses()]);
-    setRates(rateResult.rows);
-    setCourses(courseResult.rows);
-    setRatesError(rateResult.error);
-    setCoursesError(courseResult.error);
+    try {
+      const [rateResult, courseResult] = await Promise.all([fetchDivingRates(), fetchPadiCourses()]);
+      setRates(rateResult.rows);
+      setCourses(courseResult.rows);
+      setRatesError(rateResult.error);
+      setCoursesError(courseResult.error);
+    } finally {
+      setPricingReady(true);
+    }
   }, []);
 
   const loadImages = useCallback(async () => {
@@ -917,7 +923,7 @@ export function ScubaDivingPage() {
                 </AdminEditButton>
               </div>
             ) : null}
-            {canManage && isFallbackGallery(displayGallery) ? (
+            {canManage && imagesReady && isFallbackGallery(displayGallery) ? (
               <p className="mt-3 text-sm text-white/70">
                 Showing default photos until you upload gallery images.
               </p>
@@ -925,6 +931,9 @@ export function ScubaDivingPage() {
           </div>
 
           <div className="mt-6 sm:mt-8">
+            {!imagesReady ? (
+              <GalleryStageSkeleton />
+            ) : (
             <ScubaGalleryStage
               images={displayGallery}
               active={safeGalleryIndex}
@@ -938,6 +947,7 @@ export function ScubaDivingPage() {
               }}
               onDelete={(path) => void onDeleteGallery(path)}
             />
+            )}
 
             <AdjustableFileInput
               ref={replaceInput}
@@ -969,13 +979,11 @@ export function ScubaDivingPage() {
             </Reveal>
 
             {ratesError && !canManage ? (
-              <p className="rounded-2xl border border-[#0b1d33]/8 bg-white/80 p-5 text-sm text-stone">
-                Pricing is being updated. Please contact us for current rates.
-              </p>
+              <LoadError message="Pricing is being updated. Please contact us for current rates." onRetry={() => void loadPricing()} />
             ) : ratesError && canManage ? (
-              <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                {ratesError}
-              </p>
+              <LoadError message={ratesError} onRetry={() => void loadPricing()} />
+            ) : !pricingReady ? (
+              <PriceRowsSkeleton />
             ) : rates.length === 0 ? (
               <p className="rounded-2xl border border-[#0b1d33]/8 bg-white/80 p-5 text-sm text-stone">
                 {canManage
@@ -1083,13 +1091,11 @@ export function ScubaDivingPage() {
             </Reveal>
 
             {coursesError && !canManage ? (
-              <p className="rounded-2xl border border-[#0b1d33]/8 bg-white/80 p-5 text-sm text-stone">
-                Course details are being updated. Please contact us for current information.
-              </p>
+              <LoadError message="Course details are being updated. Please contact us for current information." onRetry={() => void loadPricing()} />
             ) : coursesError && canManage ? (
-              <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                {coursesError}
-              </p>
+              <LoadError message={coursesError} onRetry={() => void loadPricing()} />
+            ) : !pricingReady ? (
+              <PriceRowsSkeleton rows={3} />
             ) : courses.length === 0 ? (
               <p className="rounded-2xl border border-[#0b1d33]/8 bg-white/80 p-5 text-sm text-stone">
                 {canManage

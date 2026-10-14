@@ -18,7 +18,6 @@ import { NumberStepper } from "./NumberStepper";
 import { useAuth } from "../context/AuthContext";
 import {
   createRoomWithImage,
-  DEFAULT_ROOMS,
   DEFAULT_ROOMS_CONTENT,
   DEFAULT_ROOMS_HERO,
   DEFAULT_ROOMS_VOUCHER,
@@ -58,6 +57,7 @@ import { broadcastContentChanged } from "./ContentSync";
 import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { JeepneyShuttleGallery } from "./JeepneyShuttleGallery";
+import { GalleryStageSkeleton, LoadError, RoomCardsSkeleton } from "./Skeleton";
 import { Navbar } from "./Navbar";
 import { Reveal } from "./Reveal";
 
@@ -366,9 +366,9 @@ export function Rooms() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditRooms(role, approvalStatus);
 
-  const [rooms, setRooms] = useState<Room[]>(() =>
-    DEFAULT_ROOMS.map((r) => ({ ...r, amenities: [...r.amenities], images: [...r.images] })),
-  );
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomsReady, setRoomsReady] = useState(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
   const [voucher, setVoucher] = useState<RoomsVoucher>({ ...DEFAULT_ROOMS_VOUCHER });
   const [voucherEnabled, setVoucherEnabled] = useState(false);
   const [voucherPercentText, setVoucherPercentText] = useState("");
@@ -417,14 +417,21 @@ export function Rooms() {
   );
 
   const loadRooms = useCallback(async () => {
-    const catalog = await fetchRoomsCatalog();
-    setRooms(catalog.rooms);
-    setVoucher(catalog.voucher);
-    setVoucherEnabled(catalog.voucher.enabled);
-    setVoucherPercentText(
-      catalog.voucher.percent > 0 ? String(catalog.voucher.percent) : "",
-    );
-    setHighlights(catalog.highlights);
+    try {
+      const catalog = await fetchRoomsCatalog();
+      setRooms(catalog.rooms);
+      setVoucher(catalog.voucher);
+      setVoucherEnabled(catalog.voucher.enabled);
+      setVoucherPercentText(
+        catalog.voucher.percent > 0 ? String(catalog.voucher.percent) : "",
+      );
+      setHighlights(catalog.highlights);
+      setRoomsError(null);
+    } catch (err) {
+      setRoomsError(err instanceof Error ? err.message : "Could not load rooms.");
+    } finally {
+      setRoomsReady(true);
+    }
   }, []);
 
   const loadBackgrounds = useCallback(async () => {
@@ -478,6 +485,8 @@ export function Rooms() {
       }
       if (detail && Array.isArray(detail.rooms)) {
         setRooms(detail.rooms);
+        setRoomsError(null);
+        setRoomsReady(true);
       } else if (!detail?.voucher && !Array.isArray(detail?.highlights)) {
         void loadRooms();
       }
@@ -1054,16 +1063,22 @@ export function Rooms() {
               </Reveal>
             </section>
 
-            <JeepneyShuttleGallery
-              highlights={highlights}
-              canEdit={canEdit}
-              onChange={setHighlights}
-              onError={setError}
-              onProgress={setUploadProgress}
-              busy={busy}
-              setBusy={setBusy}
-              uploadProgress={uploadProgress}
-            />
+            {roomsReady ? (
+              <JeepneyShuttleGallery
+                highlights={highlights}
+                canEdit={canEdit}
+                onChange={setHighlights}
+                onError={setError}
+                onProgress={setUploadProgress}
+                busy={busy}
+                setBusy={setBusy}
+                uploadProgress={uploadProgress}
+              />
+            ) : (
+              <div className="mt-8">
+                <GalleryStageSkeleton />
+              </div>
+            )}
 
             {canEdit && voucher.enabled && voucher.percent > 0 ? (
               <div className="mt-6 mb-2 rounded-2xl border border-amber-300/60 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 sm:px-5">
@@ -1077,6 +1092,17 @@ export function Rooms() {
               </div>
             ) : null}
 
+            {!roomsReady ? (
+              <RoomCardsSkeleton />
+            ) : roomsError ? (
+              <div className="mt-8">
+                <LoadError message={roomsError} onRetry={() => void loadRooms()} />
+              </div>
+            ) : rooms.length === 0 ? (
+              <p className="mt-8 rounded-2xl border border-ink/8 bg-white px-5 py-8 text-center text-sm text-stone">
+                No rooms yet.
+              </p>
+            ) : (
             <div className="mt-8 space-y-8 sm:mt-10 sm:space-y-10">
               {rooms.map((room, i) => (
                 <article
@@ -1244,6 +1270,7 @@ export function Rooms() {
                 </article>
               ))}
             </div>
+            )}
 
           </div>
 

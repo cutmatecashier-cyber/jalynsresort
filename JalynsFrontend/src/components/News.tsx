@@ -7,9 +7,10 @@ import {
   homeHeroMediaUrl,
   type HomeSectionKey,
 } from "../lib/homeHero";
-import { NEWS_POSTS, NEWS_UPDATED_EVENT, fetchNewsPosts, newsMediaUrl, type NewsPost } from "../lib/news";
+import { NEWS_UPDATED_EVENT, fetchNewsPosts, newsMediaUrl, type NewsPost } from "../lib/news";
 import { HomeSectionBgEditButton } from "./HomeSectionBgEditButton";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
+import { HomeOfferSkeleton } from "./Skeleton";
 
 const SECTION: HomeSectionKey = "news";
 const PAGE_SIZE = 3;
@@ -38,7 +39,8 @@ function CtaLink({
 }
 
 export function News() {
-  const [posts, setPosts] = useState<NewsPost[]>(NEWS_POSTS);
+  const [posts, setPosts] = useState<NewsPost[]>([]);
+  const [postsReady, setPostsReady] = useState(false);
   const [page, setPage] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -50,9 +52,13 @@ export function News() {
 
   useEffect(() => {
     let alive = true;
-    void fetchNewsPosts().then((next) => {
-      if (alive) setPosts(next);
-    });
+    void fetchNewsPosts()
+      .then((next) => {
+        if (alive) setPosts(next);
+      })
+      .finally(() => {
+        if (alive) setPostsReady(true);
+      });
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ posts?: NewsPost[] }>).detail;
       if (detail?.posts?.length) {
@@ -227,6 +233,9 @@ export function News() {
             </button>
           </div>
 
+          {!postsReady ? (
+            <HomeOfferSkeleton />
+          ) : (
           <div
             id="offers"
             key={page}
@@ -287,6 +296,7 @@ export function News() {
               );
             })}
           </div>
+          )}
         </div>
       </div>
     </section>

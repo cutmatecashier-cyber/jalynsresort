@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { createSiteReview, fetchSiteReviews, type SiteReview } from "../lib/siteReviews";
 import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "./Icons";
 import { Reveal } from "./Reveal";
+import { LoadError, ReviewCardsSkeleton } from "./Skeleton";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-ink/12 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-sky-deep/40 focus:ring-2 focus:ring-sky-deep/15";
@@ -78,6 +79,7 @@ export function Testimonials() {
   const { profile } = useAuth();
   const [reviews, setReviews] = useState<SiteReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
   const [name, setName] = useState("");
@@ -99,9 +101,15 @@ export function Testimonials() {
       setLoading(true);
       try {
         const next = await fetchSiteReviews();
-        if (alive) setReviews(next);
+        if (alive) {
+          setReviews(next);
+          setReviewsError(null);
+        }
       } catch {
-        if (alive) setReviews([]);
+        if (alive) {
+          setReviews([]);
+          setReviewsError("Could not load reviews.");
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -256,7 +264,24 @@ export function Testimonials() {
           <Reveal delay={100} className="lg:col-span-8">
             <h3 className="font-display text-xl text-ink sm:text-2xl">Guest reviews</h3>
             {loading ? (
-              <p className="mt-4 text-sm text-ink/55">Loading reviews…</p>
+              <ReviewCardsSkeleton />
+            ) : reviewsError ? (
+              <div className="mt-4">
+                <LoadError
+                  message={reviewsError}
+                  onRetry={() => {
+                    setLoading(true);
+                    setReviewsError(null);
+                    void fetchSiteReviews()
+                      .then((next) => {
+                        setReviews(next);
+                        setReviewsError(null);
+                      })
+                      .catch(() => setReviewsError("Could not load reviews."))
+                      .finally(() => setLoading(false));
+                  }}
+                />
+              </div>
             ) : reviews.length === 0 ? (
               <p className="mt-4 text-sm text-ink/55">
                 No reviews yet. Be the first to share your experience.

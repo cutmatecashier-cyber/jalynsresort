@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  DEFAULT_ROOMS,
   fetchRoomsCatalog,
   roomsMediaUrl,
   ROOMS_UPDATED_EVENT,
@@ -10,6 +9,7 @@ import {
 import { GalleryPager } from "./GalleryPager";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
+import { Skeleton } from "./Skeleton";
 
 function roomCover(room: Room) {
   return roomsMediaUrl(room.images[0] ?? "");
@@ -17,17 +17,20 @@ function roomCover(room: Room) {
 
 /** Homepage rooms strip — shows room photos only; full details live on /rooms. */
 export function HomeRooms() {
-  const [rooms, setRooms] = useState<Room[]>(() =>
-    DEFAULT_ROOMS.map((r) => ({ ...r, amenities: [...r.amenities], images: [...r.images] })),
-  );
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomsReady, setRoomsReady] = useState(false);
   const [active, setActive] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchRoomsCatalog().then((data) => {
-      if (!cancelled && data.rooms.length) setRooms(data.rooms);
-    });
+    void fetchRoomsCatalog()
+      .then((data) => {
+        if (!cancelled && data.rooms.length) setRooms(data.rooms);
+      })
+      .finally(() => {
+        if (!cancelled) setRoomsReady(true);
+      });
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ rooms?: Room[] }>).detail;
       if (detail?.rooms?.length) {
@@ -148,7 +151,10 @@ export function HomeRooms() {
             <div className="relative">
               <div className="overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] ring-1 ring-white/15">
                 <div className="relative aspect-[5/4] bg-ink/40">
-                  {rooms.map((room, index) => {
+                  {!roomsReady ? (
+                    <Skeleton className="absolute inset-0 rounded-none" />
+                  ) : (
+                  rooms.map((room, index) => {
                     const src = roomCover(room);
                     if (!src) return null;
                     return (
@@ -161,7 +167,8 @@ export function HomeRooms() {
                         }`}
                       />
                     );
-                  })}
+                  })
+                  )}
                 </div>
               </div>
 

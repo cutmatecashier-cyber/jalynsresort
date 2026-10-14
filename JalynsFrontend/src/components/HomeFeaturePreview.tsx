@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { GalleryPager } from "./GalleryPager";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./Icons";
 import { Reveal } from "./Reveal";
+import { Skeleton } from "./Skeleton";
 
 export type HomeFeatureSlide = {
   id: string;
@@ -17,11 +18,12 @@ type Props = {
   children: ReactNode;
   cta: { to: string; label: string };
   slides: HomeFeatureSlide[];
+  mediaLoading?: boolean;
   edit?: ReactNode;
 };
 
 /** Homepage preview card — same layout as Our Rooms and Apartments. */
-export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, edit }: Props) {
+export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, mediaLoading = false, edit }: Props) {
   const [active, setActive] = useState(0);
   const [parallaxY, setParallaxY] = useState(0);
   const count = slides.length;
@@ -117,7 +119,10 @@ export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, 
             <div className="relative">
               <div className="overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] ring-1 ring-white/15">
                 <div className="relative aspect-[5/4] bg-ink/40">
-                  {slides.map((slide, index) =>
+                  {mediaLoading ? (
+                    <Skeleton className="absolute inset-0 rounded-none" />
+                  ) : (
+                  slides.map((slide, index) =>
                     slide.src ? (
                       <img
                         key={slide.id}
@@ -128,11 +133,12 @@ export function HomeFeaturePreview({ id, eyebrow, title, children, cta, slides, 
                         }`}
                       />
                     ) : null,
+                  )
                   )}
                 </div>
               </div>
 
-              {count > 1 ? (
+              {count > 1 && !mediaLoading ? (
                 <div className="mt-3.5 flex items-center justify-between gap-3">
                   <div className="flex gap-2">
                     <button

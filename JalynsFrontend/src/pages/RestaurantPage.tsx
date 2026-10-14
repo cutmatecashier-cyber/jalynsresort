@@ -16,6 +16,7 @@ import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from "../components/Icons
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { RestaurantMenuSection } from "../components/RestaurantMenuSection";
+import { LoadError, ReviewCardsSkeleton } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import {
   createRestaurantReview,
@@ -214,6 +215,7 @@ export function RestaurantPage() {
 
   const [guestReviews, setGuestReviews] = useState<RestaurantReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [reviewsPage, setReviewsPage] = useState(0);
 
   const [name, setName] = useState("");
@@ -279,11 +281,13 @@ export function RestaurantPage() {
 
   const loadReviews = useCallback(async () => {
     setReviewsLoading(true);
+    setReviewsError(null);
     try {
       const reviews = await fetchRestaurantReviews();
       setGuestReviews(reviews);
     } catch {
       setGuestReviews([]);
+      setReviewsError("Could not load reviews.");
     } finally {
       setReviewsLoading(false);
     }
@@ -697,7 +701,11 @@ export function RestaurantPage() {
                     <div>
                       <h3 className="font-display text-xl text-ink sm:text-2xl">Guest reviews</h3>
                       {reviewsLoading ? (
-                        <p className={`mt-4 text-sm ${mutedText}`}>Loading reviews…</p>
+                        <ReviewCardsSkeleton />
+                      ) : reviewsError ? (
+                        <div className="mt-4">
+                          <LoadError message={reviewsError} onRetry={() => void loadReviews()} />
+                        </div>
                       ) : guestReviews.length === 0 ? (
                         <p className={`mt-4 text-sm ${mutedText}`}>
                           No reviews yet. Be the first to share your experience.

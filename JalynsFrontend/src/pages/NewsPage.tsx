@@ -7,6 +7,7 @@ import { AdminEditButton } from "../components/AdminEditButton";
 import { broadcastContentChanged } from "../components/ContentSync";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
+import { LoadError, NewsCardsSkeleton } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
@@ -67,6 +68,7 @@ export function NewsPage() {
 
   const [posts, setPosts] = useState<NewsPost[]>(DEFAULT_NEWS_POSTS);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(0);
 
@@ -149,10 +151,15 @@ export function NewsPage() {
   }
 
   async function load() {
+    setLoading(true);
+    setLoadError(null);
     try {
       const next = await fetchNewsPosts();
       setPosts(next);
       notifyNewsUpdated(next);
+    } catch (err) {
+      setPosts([]);
+      setLoadError(err instanceof Error ? err.message : "Could not load news.");
     } finally {
       setLoading(false);
     }
@@ -585,7 +592,13 @@ export function NewsPage() {
               })}
             </div>
 
-            {visible.length === 0 && !loading ? (
+            {loading ? (
+              <NewsCardsSkeleton />
+            ) : loadError ? (
+              <div className="mt-4">
+                <LoadError message={loadError} onRetry={() => void load()} />
+              </div>
+            ) : visible.length === 0 ? (
               <p className="mt-4 rounded-2xl bg-white px-5 py-8 text-center text-sm text-stone">
                 No posts in this category yet
                 {canEdit ? " — click Add news." : "."}

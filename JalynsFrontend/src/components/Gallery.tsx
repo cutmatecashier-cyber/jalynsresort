@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  DEFAULT_GALLERY,
   deleteGalleryPhoto,
   fetchGallery,
   galleryMediaUrl,
@@ -18,6 +17,7 @@ import { AdjustableFileInput } from "./AdjustableFileInput";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { broadcastContentChanged } from "./ContentSync";
 import { Reveal } from "./Reveal";
+import { GalleryGridSkeleton, LoadError } from "./Skeleton";
 
 function photoLayoutClass(index: number, total: number) {
   if (index === 0 && total > 1) {
@@ -30,9 +30,9 @@ export function Gallery() {
   const { role, approvalStatus, can } = useAuth();
   const canEdit = can.canEditGallery(role, approvalStatus);
 
-  const [photos, setPhotos] = useState<GalleryPhoto[]>(() =>
-    DEFAULT_GALLERY.map((p) => ({ ...p })),
-  );
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [photosReady, setPhotosReady] = useState(false);
+  const [photosError, setPhotosError] = useState<string | null>(null);
 
   const [open, setOpen] = useState(false);
   const [editorPhotos, setEditorPhotos] = useState<GalleryPhoto[]>([]);
@@ -47,19 +47,32 @@ export function Gallery() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchGallery().then((list) => {
-      if (!cancelled) setPhotos(list);
-    });
+    const load = () => {
+      void fetchGallery()
+        .then((list) => {
+          if (cancelled) return;
+          setPhotos(list);
+          setPhotosError(null);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setPhotos([]);
+          setPhotosError(err instanceof Error ? err.message : "Could not load gallery.");
+        })
+        .finally(() => {
+          if (!cancelled) setPhotosReady(true);
+        });
+    };
+    load();
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ photos?: GalleryPhoto[] }>).detail;
-      // Prefer explicit list from a successful save/delete (including shorter lists).
       if (detail && Array.isArray(detail.photos)) {
         setPhotos(detail.photos);
+        setPhotosError(null);
+        setPhotosReady(true);
         return;
       }
-      void fetchGallery().then((list) => {
-        if (!cancelled) setPhotos(list);
-      });
+      load();
     };
     window.addEventListener(GALLERY_UPDATED_EVENT, onUpdated);
     return () => {
@@ -219,6 +232,26 @@ export function Gallery() {
           </div>
         </Reveal>
 
+        {!photosReady ? (
+          <GalleryGridSkeleton />
+        ) : photosError ? (
+          <LoadError message={photosError} onRetry={() => {
+            setPhotosReady(false);
+            void fetchGallery()
+              .then((list) => {
+                setPhotos(list);
+                setPhotosError(null);
+              })
+              .catch((err: unknown) => {
+                setPhotosError(err instanceof Error ? err.message : "Could not load gallery.");
+              })
+              .finally(() => setPhotosReady(true));
+          }} />
+        ) : photos.length === 0 ? (
+          <p className="rounded-2xl border border-ink/8 bg-white px-5 py-8 text-center text-sm text-stone">
+            No photos yet.
+          </p>
+        ) : (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:grid-rows-2 md:gap-3">
           {photos.map((photo, index) => (
             <Reveal
@@ -239,6 +272,7 @@ export function Gallery() {
             </Reveal>
           ))}
         </div>
+        )}
       </div>
 
       {open

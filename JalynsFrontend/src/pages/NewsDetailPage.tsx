@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { GalleryPager } from "../components/GalleryPager";
 import { Navbar } from "../components/Navbar";
+import { LoadError, NewsDetailSkeleton } from "../components/Skeleton";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import {
   fetchNewsPost,
@@ -148,6 +149,7 @@ export function NewsDetailPage() {
   const [allPosts, setAllPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const recentScrollRef = useWheelScrollContain<HTMLUListElement>();
 
@@ -181,7 +183,7 @@ export function NewsDetailPage() {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, retry]);
 
   const dateLabel = useMemo(() => {
     if (!post?.date) return "";
@@ -278,16 +280,13 @@ export function NewsDetailPage() {
             </Link>
 
             {loading ? (
-              <p className="mt-6 text-sm text-stone">Loading…</p>
+              <NewsDetailSkeleton />
             ) : error || !post ? (
-              <div className="mt-6 rounded-2xl bg-white p-6 text-center shadow-sm">
-                <p className="text-sm font-medium text-red-700">{error ?? "Post not found."}</p>
-                <Link
-                  to="/news"
-                  className="btn-press mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white"
-                >
-                  Back to News
-                </Link>
+              <div className="mt-6">
+                <LoadError
+                  message={error ?? "Post not found."}
+                  onRetry={() => setRetry((value) => value + 1)}
+                />
               </div>
             ) : (
               <article className="mt-4">

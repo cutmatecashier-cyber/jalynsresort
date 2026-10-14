@@ -8,6 +8,7 @@ import { GalleryLightbox } from "../components/GalleryLightbox";
 import { Navbar } from "../components/Navbar";
 import { Reveal } from "../components/Reveal";
 import { ScubaGalleryStage } from "../components/ScubaGalleryStage";
+import { GalleryStageSkeleton } from "../components/Skeleton";
 import { SpaTreatmentsSection } from "../components/SpaTreatmentsSection";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -368,7 +369,7 @@ export function SpaPage() {
                     </AdminEditButton>
                   </div>
                 ) : null}
-                {canEdit && isFallbackGallery(displayGallery) ? (
+                {canEdit && imagesReady && isFallbackGallery(displayGallery) ? (
                   <p className="mt-3 text-sm text-white/70">
                     Showing default photos until you upload gallery images.
                   </p>
@@ -376,6 +377,9 @@ export function SpaPage() {
               </div>
 
               <div className="mt-6 sm:mt-8">
+                {!imagesReady ? (
+                  <GalleryStageSkeleton />
+                ) : (
                 <ScubaGalleryStage
                   images={displayGallery}
                   active={safeGalleryIndex}
@@ -389,6 +393,7 @@ export function SpaPage() {
                   }}
                   onDelete={(path) => void onDeleteGallery(path)}
                 />
+                )}
               </div>
 
               <AdjustableFileInput
