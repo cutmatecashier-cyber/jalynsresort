@@ -11,8 +11,13 @@ import {
   uploadContactHeroBackground,
 } from '../services/contactBackgrounds.js'
 import {
+  ContactSettingsValidationError,
   loadContactSettings,
   normalizeFacebookUrl,
+  normalizeMapsUrl,
+  normalizeMessengerUrl,
+  normalizeOptionalUrl,
+  normalizeWhatsAppUrl,
   saveContactSettings,
 } from '../services/contactSettings.js'
 
@@ -137,10 +142,16 @@ contactRouter.put('/settings', async (req, res) => {
 
     const contact_email = String(req.body.contact_email ?? '').trim()
     const rawPhone = String(req.body.phone ?? '').trim()
-    const facebook_url = normalizeFacebookUrl(String(req.body.facebook_url ?? ''))
+    const address = String(req.body.address ?? '').trim()
 
-    if (!contact_email || !rawPhone || !facebook_url) {
-      return res.status(400).json({ success: false, message: 'Email, phone, and Facebook URL are required.' })
+    if (!address) {
+      return res.status(400).json({ success: false, message: 'Location is required.' })
+    }
+    if (address.length > 300) {
+      return res.status(400).json({ success: false, message: 'Location must be 300 characters or fewer.' })
+    }
+    if (!contact_email || !rawPhone) {
+      return res.status(400).json({ success: false, message: 'Email and phone are required.' })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email)) {
       return res.status(400).json({ success: false, message: 'Enter a valid contact email.' })
@@ -162,18 +173,29 @@ contactRouter.put('/settings', async (req, res) => {
       })
     }
 
-    try {
-      new URL(facebook_url)
-    } catch {
-      return res.status(400).json({ success: false, message: 'Enter a valid Facebook URL.' })
-    }
+    const facebook_url = normalizeFacebookUrl(String(req.body.facebook_url ?? ''))
+    const maps_url = normalizeMapsUrl(String(req.body.maps_url ?? ''), address)
+    const messenger_url = normalizeMessengerUrl(String(req.body.messenger_url ?? ''))
+    const twitter_url = normalizeOptionalUrl(String(req.body.twitter_url ?? ''), 'X (Twitter) URL')
+    const pinterest_url = normalizeOptionalUrl(String(req.body.pinterest_url ?? ''), 'Pinterest URL')
+    const whatsapp_url = normalizeWhatsAppUrl(String(req.body.whatsapp_url ?? ''))
 
     const settings = await saveContactSettings(
-      { contact_email, phone: normalizedPhone, facebook_url },
+      {
+        contact_email,
+        phone: normalizedPhone,
+        facebook_url,
+        address,
+        maps_url,
+        messenger_url,
+        twitter_url,
+        pinterest_url,
+        whatsapp_url,
+      },
       authData.user.id,
     )
 
-    return res.json({ success: true, settings })
+    return res.json({ success: true, message: 'Contact details saved.', settings })
   } catch (err) {
     const message =
       err instanceof Error
@@ -181,7 +203,8 @@ contactRouter.put('/settings', async (req, res) => {
         : typeof err === 'object' && err && 'message' in err
           ? String((err as { message: unknown }).message)
           : 'Could not update contact settings.'
-    return res.status(500).json({ success: false, message })
+    const status = err instanceof ContactSettingsValidationError ? 400 : 500
+    return res.status(status).json({ success: false, message })
   }
 })
 
