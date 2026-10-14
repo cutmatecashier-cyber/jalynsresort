@@ -196,7 +196,12 @@ export function ScubaGalleryStage({
                     }}
                     className="block w-full"
                   >
-                    <SlideVisual image={image} active={center && !suspendPlayback} eager={visible} className="aspect-[16/10] w-full object-cover" />
+                    <SlideVisual
+                      image={image}
+                      active={visible && !suspendPlayback}
+                      eager={visible}
+                      className="aspect-[16/10] w-full object-cover"
+                    />
                   </div>
                 ) : (
                   <button
@@ -268,7 +273,7 @@ export function ScubaGalleryStage({
                     >
                       <SlideVisual
                         image={{ ...image, alt: "" }}
-                        active={false}
+                        active={isHeroVideoUrl(image.url) && !suspendPlayback}
                         eager
                         className="aspect-[16/10] w-full object-cover"
                       />
