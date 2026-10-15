@@ -27,7 +27,6 @@ import {
   fetchRoomsCatalog,
   fetchRoomsContentBackground,
   fetchRoomsHero,
-  formatRoomPrice,
   removeRoomsContentBackground,
   removeRoomsHero,
   replaceRoomImageAt,
@@ -106,10 +105,6 @@ function textToAmenities(text: string) {
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function formatPeso(value: string) {
-  return formatRoomPrice(value);
 }
 
 /** Line-clamped text with Read more / Read less when content overflows. */

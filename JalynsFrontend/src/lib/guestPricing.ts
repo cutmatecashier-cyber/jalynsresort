@@ -69,7 +69,7 @@ export function quoteExtraGuests(
   slots: ExtraSlot[],
   ages: Array<number | null>,
   rules: ExtraPersonRule[],
-): Array<ExtraGuestQuote & { charge: number | null }> {
+): Array<Omit<ExtraGuestQuote, "charge"> & { charge: number | null }> {
   return slots.map((slot, index) => {
     if (slot.kind === "adult") {
       return {

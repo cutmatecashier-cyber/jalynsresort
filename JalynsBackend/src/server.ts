@@ -30,6 +30,10 @@ app.use(
         callback(null, true)
         return
       }
+      const fromEnv = (process.env.FRONTEND_ORIGIN || '')
+        .split(',')
+        .map((value) => value.trim().replace(/\/$/, ''))
+        .filter(Boolean)
       const allowed = [
         'http://localhost:5173',
         'http://127.0.0.1:5173',
@@ -39,11 +43,12 @@ app.use(
         'http://192.168.1.12:5173',
         'http://192.168.242.1:5174',
         'http://192.168.242.1:5173',
-        process.env.FRONTEND_ORIGIN || '',
-      ].filter(Boolean)
+        ...fromEnv,
+      ]
+      const normalized = origin.replace(/\/$/, '')
       if (
-        allowed.includes(origin) ||
-        /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$/.test(origin)
+        allowed.includes(normalized) ||
+        /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$/.test(normalized)
       ) {
         callback(null, true)
         return

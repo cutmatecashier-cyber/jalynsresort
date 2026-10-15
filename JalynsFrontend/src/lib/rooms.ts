@@ -1,5 +1,5 @@
 import { getApiUrl } from "./api";
-import { isHeroVideoFile, isHeroVideoUrl } from "./heroMedia";
+import { isHeroVideoFile } from "./heroMedia";
 import { adminAuthHeaders } from "./adminAuth";
 import { normalizeExtraPersonRules, type ExtraPersonRule } from "./guestPricing";
 import { asQuantity } from "./roomAvailability";

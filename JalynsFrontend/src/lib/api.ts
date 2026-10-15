@@ -1,19 +1,17 @@
 function resolveApiUrl() {
-  if (typeof window !== "undefined") {
-    // Dev (Vite): proxy /api + /uploads on the same origin so phones only need :5173.
-    // Avoids Windows firewall blocking :3000 while the page itself loads.
-    if (import.meta.env.DEV) {
-      return "";
-    }
+  // Dev (Vite): proxy /api + /uploads on the same origin so phones only need :5173.
+  if (import.meta.env.DEV) return "";
 
+  // Production (Dokploy): public API origin, baked in at build time.
+  const fromEnv = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+
+  if (typeof window !== "undefined") {
     const { hostname, protocol } = window.location;
     if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
       return `${protocol}//${hostname}:3000`;
     }
   }
-
-  const fromEnv = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
 
   return "http://localhost:3000";
 }

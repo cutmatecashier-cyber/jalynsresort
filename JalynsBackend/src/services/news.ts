@@ -231,9 +231,14 @@ function normalizePackages(raw: unknown): NewsPackage[] | undefined {
       const price =
         typeof item.price === 'string' && item.price.trim() ? item.price.trim() : undefined
       const body = typeof item.body === 'string' && item.body.trim() ? item.body.trim() : undefined
-      return { title, price, image, amenities, body } satisfies NewsPackage
+      const pkg: NewsPackage = { title }
+      if (price) pkg.price = price
+      if (image) pkg.image = image
+      if (amenities?.length) pkg.amenities = amenities
+      if (body) pkg.body = body
+      return pkg
     })
-    .filter((p): p is NewsPackage => Boolean(p))
+    .filter((p): p is NewsPackage => p !== null)
   return packages.length ? packages : undefined
 }
 
