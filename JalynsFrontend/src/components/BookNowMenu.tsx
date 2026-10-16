@@ -36,17 +36,39 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
+const MOBILE_QUERY = "(max-width: 1023px)";
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_QUERY);
+    const sync = () => setMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  return mobile;
+}
+
 export function BookNowButton({ links, loading, canManage, onManage, className }: ButtonProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const mobile = useIsMobile();
   const [box, setBox] = useState<{ left: number; width: number; top?: number; bottom?: number } | null>(
     null,
   );
 
+  useEffect(() => {
+    if (!open || !mobile) return;
+    return stopPageScroll();
+  }, [open, mobile]);
+
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open || mobile) return;
     const place = () => {
       const node = buttonRef.current;
       if (!node) return;
@@ -69,7 +91,7 @@ export function BookNowButton({ links, loading, canManage, onManage, className }
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open]);
+  }, [open, mobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,64 +125,78 @@ export function BookNowButton({ links, loading, canManage, onManage, className }
         Book Now
         <Chevron open={open} />
       </button>
-      {open && box
+      {open && (mobile || box)
         ? createPortal(
             <div
-              ref={panelRef}
-              id={menuId}
-              role="menu"
-              aria-label="Booking platforms"
-              className="fixed z-[80] overflow-hidden rounded-2xl border border-white/70 bg-white p-2 text-ink shadow-[0_18px_50px_rgba(0,0,0,0.28)]"
-              style={{ left: box.left, width: box.width, top: box.top, bottom: box.bottom }}
+              className={
+                mobile
+                  ? "fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-5 backdrop-blur-md"
+                  : "contents"
+              }
             >
-              <p className="px-3 pt-1.5 pb-1 text-[0.62rem] font-semibold tracking-[0.18em] text-ink/45 uppercase">
-                Book your stay
-              </p>
-              <div className="max-h-72 overflow-y-auto overscroll-contain">
-                {loading ? (
-                  <div className="space-y-2 px-2 py-2" aria-busy="true">
-                    <span className="sr-only">Loading booking links</span>
-                    <Skeleton className="h-10 rounded-xl" />
-                    <Skeleton className="h-10 rounded-xl" />
-                  </div>
-                ) : links.length === 0 ? (
-                  <p className="px-3 py-3 text-sm leading-relaxed text-ink/60">
-                    Booking links will appear here once they are added.
-                  </p>
-                ) : (
-                  links.map((link) => (
-                    <a
-                      key={link.id}
-                      role="menuitem"
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setOpen(false)}
-                      className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-sky/10"
-                    >
-                      <span className="min-w-0 truncate">{link.name}</span>
-                      <span className="shrink-0 text-[0.65rem] font-medium tracking-wide text-sky uppercase">
-                        Open
-                      </span>
-                    </a>
-                  ))
-                )}
-              </div>
-              {canManage ? (
-                <div className="mt-1 border-t border-ink/10 pt-1">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-sky-deep transition hover:bg-sky/10"
-                    onClick={() => {
-                      setOpen(false);
-                      onManage();
-                    }}
-                  >
-                    Manage booking links
-                  </button>
+              <div
+                ref={panelRef}
+                id={menuId}
+                role="menu"
+                aria-label="Booking platforms"
+                className={`overflow-hidden rounded-2xl border border-white/70 bg-white p-2 text-ink shadow-[0_18px_50px_rgba(0,0,0,0.28)] ${
+                  mobile ? "w-full max-w-xs" : "fixed z-[80]"
+                }`}
+                style={
+                  mobile || !box
+                    ? undefined
+                    : { left: box.left, width: box.width, top: box.top, bottom: box.bottom }
+                }
+              >
+                <p className="px-3 pt-1.5 pb-1 text-[0.62rem] font-semibold tracking-[0.18em] text-ink/45 uppercase">
+                  Book your stay
+                </p>
+                <div className="max-h-72 overflow-y-auto overscroll-contain">
+                  {loading ? (
+                    <div className="space-y-2 px-2 py-2" aria-busy="true">
+                      <span className="sr-only">Loading booking links</span>
+                      <Skeleton className="h-10 rounded-xl" />
+                      <Skeleton className="h-10 rounded-xl" />
+                    </div>
+                  ) : links.length === 0 ? (
+                    <p className="px-3 py-3 text-sm leading-relaxed text-ink/60">
+                      Booking links will appear here once they are added.
+                    </p>
+                  ) : (
+                    links.map((link) => (
+                      <a
+                        key={link.id}
+                        role="menuitem"
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-sky/10"
+                      >
+                        <span className="min-w-0 truncate">{link.name}</span>
+                        <span className="shrink-0 text-[0.65rem] font-medium tracking-wide text-sky uppercase">
+                          Open
+                        </span>
+                      </a>
+                    ))
+                  )}
                 </div>
-              ) : null}
+                {canManage ? (
+                  <div className="mt-1 border-t border-ink/10 pt-1">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-sky-deep transition hover:bg-sky/10"
+                      onClick={() => {
+                        setOpen(false);
+                        onManage();
+                      }}
+                    >
+                      Manage booking links
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>,
             document.body,
           )
@@ -171,14 +207,17 @@ export function BookNowButton({ links, loading, canManage, onManage, className }
 
 function stopPageScroll() {
   const html = document.documentElement;
+  const prevBody = document.body.style.overflow;
+  const prevHtml = html.style.overflow;
+  const alreadyLocked = prevBody === "hidden";
   document.body.style.overflow = "hidden";
   html.style.overflow = "hidden";
   const lenis = (window as Window & { __lenis?: { stop: () => void; start: () => void } }).__lenis;
   lenis?.stop();
   return () => {
-    document.body.style.removeProperty("overflow");
-    html.style.removeProperty("overflow");
-    lenis?.start();
+    document.body.style.overflow = prevBody;
+    html.style.overflow = prevHtml;
+    if (!alreadyLocked) lenis?.start();
   };
 }
 

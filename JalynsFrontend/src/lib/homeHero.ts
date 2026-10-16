@@ -1,6 +1,6 @@
 import { getApiUrl } from "./api";
 import { adminAuthHeaders } from "./adminAuth";
-import { postFormData } from "./formUpload";
+import { canUploadDirect, postFormData, readVideoDuration, uploadToSignedUrl } from "./formUpload";
 import { isHeroVideoFile } from "./heroMedia";
 import { DISPLAY_IMAGE_OPTIMIZE, optimizeImageFile } from "./scuba";
 
@@ -112,6 +112,62 @@ export async function fetchHomeHeroSlides(): Promise<HomeHeroSlide[] | null> {
   return null;
 }
 
+type HeroUploadResult = {
+  success?: boolean;
+  message?: string;
+  slides?: HomeHeroSlide[];
+  url?: string;
+};
+
+/**
+ * Browser → Supabase Storage in one hop, then a small save call.
+ * Returns null when the API predates direct uploads so the caller can fall back.
+ */
+async function uploadHomeHeroDirect(
+  index: number,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<HeroUploadResult | null> {
+  const durationSeconds = file.type === "video/mp4" ? await readVideoDuration(file) : undefined;
+  const headers = { ...(await adminAuthHeaders(true)) };
+  const ticket = await fetch(`${getApiUrl()}/api/home/hero/upload-url`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      index,
+      contentType: file.type,
+      fileName: file.name,
+      size: file.size,
+      durationSeconds,
+    }),
+    signal,
+  });
+  if (ticket.status === 404) return null;
+  const plan = (await ticket.json().catch(() => ({}))) as {
+    message?: string;
+    signedUrl?: string;
+    path?: string;
+    cacheControl?: string;
+  };
+  if (!ticket.ok || !plan.signedUrl || !plan.path) {
+    throw new Error(plan.message ?? "Could not prepare the upload.");
+  }
+
+  await uploadToSignedUrl(plan.signedUrl, file, plan.cacheControl ?? "31536000", onProgress, signal);
+
+  const res = await fetch(`${getApiUrl()}/api/home/hero/commit`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ index, path: plan.path }),
+    signal,
+  });
+  const data = (await res.json().catch(() => ({}))) as HeroUploadResult;
+  if (!res.ok) throw new Error(data.message ?? "Could not save background.");
+  if (data.slides?.length) rememberHomeHeroSlides(data.slides);
+  return data;
+}
+
 export async function uploadHomeHeroSlide(
   index: number,
   file: File,
@@ -119,6 +175,10 @@ export async function uploadHomeHeroSlide(
   signal?: AbortSignal,
 ) {
   const payload = isHeroVideoFile(file) ? file : await optimizeImageFile(file, DISPLAY_IMAGE_OPTIMIZE);
+  if (canUploadDirect(payload)) {
+    const direct = await uploadHomeHeroDirect(index, payload, onProgress, signal);
+    if (direct) return direct;
+  }
   const body = new FormData();
   body.append("image", payload);
   body.append("index", String(index));

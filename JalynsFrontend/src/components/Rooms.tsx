@@ -30,11 +30,9 @@ import {
   removeRoomsContentBackground,
   removeRoomsHero,
   replaceRoomImageAt,
-  resetRoomsCatalog,
   roomsMediaUrl,
   ROOMS_UPDATED_EVENT,
   updateRoomDetails,
-  updateRoomsVoucher,
   uploadRoomImages,
   uploadRoomsContentBackgroundWithResult,
   uploadRoomsHeroWithResult,
@@ -50,8 +48,6 @@ import { peekPageHero, rememberPageHero } from "../lib/pageHeroCache";
 import { formatMaxGuests, parseMaxGuests } from "../lib/guestPricing";
 import { useWheelScrollContain } from "../lib/useWheelScrollContain";
 import { AdminEditButton } from "./AdminEditButton";
-import { BookingSettingsCard } from "./BookingSettingsCard";
-import { ExtraPersonSettings } from "./ExtraPersonSettings";
 import { broadcastContentChanged, CONTENT_CHANGED_EVENT } from "./ContentSync";
 import { Footer } from "./Footer";
 import { ChevronLeftIcon, ChevronRightIcon } from "./Icons";
@@ -355,8 +351,6 @@ export function Rooms() {
   const [roomsReady, setRoomsReady] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [voucher, setVoucher] = useState<RoomsVoucher>({ ...DEFAULT_ROOMS_VOUCHER });
-  const [voucherEnabled, setVoucherEnabled] = useState(false);
-  const [voucherPercentText, setVoucherPercentText] = useState("");
   const [highlights, setHighlights] = useState<RoomHighlight[]>([]);
   const [heroUrl, setHeroUrl] = useState<string | null>(() => peekPageHero("rooms")?.url ?? null);
   const [heroVideo, setHeroVideo] = useState(() => peekPageHero("rooms")?.video ?? false);
@@ -383,7 +377,6 @@ export function Rooms() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [confirmImageDelete, setConfirmImageDelete] = useState<number | null>(null);
   const [adjust, setAdjust] = useState<PhotoAdjust | null>(null);
 
@@ -413,10 +406,6 @@ export function Rooms() {
       ]);
       setRooms(catalog.rooms);
       setVoucher(catalog.voucher);
-      setVoucherEnabled(catalog.voucher.enabled);
-      setVoucherPercentText(
-        catalog.voucher.percent > 0 ? String(catalog.voucher.percent) : "",
-      );
       setHighlights(catalog.highlights);
       setRoomsError(null);
     } catch (err) {
@@ -489,10 +478,6 @@ export function Rooms() {
       ).detail;
       if (detail?.voucher) {
         setVoucher(detail.voucher);
-        setVoucherEnabled(detail.voucher.enabled);
-        setVoucherPercentText(
-          detail.voucher.percent > 0 ? String(detail.voucher.percent) : "",
-        );
       }
       if (detail && Array.isArray(detail.highlights)) {
         setHighlights(detail.highlights);
@@ -761,24 +746,6 @@ export function Rooms() {
     }
   }
 
-  async function onConfirmReset() {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await resetRoomsCatalog();
-      setRooms(next);
-      setConfirmReset(false);
-      closeAdjust();
-      setEditorMode("list");
-      setSelectedId(null);
-      broadcastContentChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reset rooms.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function closeAdjust() {
     setAdjust((current) => {
       if (current?.ownedUrl) URL.revokeObjectURL(current.ownedUrl);
@@ -902,29 +869,6 @@ export function Rooms() {
       broadcastContentChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete image.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSaveVoucher() {
-    setBusy(true);
-    setError(null);
-    try {
-      const percent = Math.min(
-        100,
-        Math.max(0, Number.parseInt(voucherPercentText || "0", 10) || 0),
-      );
-      const next = await updateRoomsVoucher({
-        enabled: voucherEnabled && percent > 0,
-        percent,
-      });
-      setVoucher(next);
-      setVoucherEnabled(next.enabled);
-      setVoucherPercentText(next.percent > 0 ? String(next.percent) : "");
-      broadcastContentChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save voucher.");
     } finally {
       setBusy(false);
     }
@@ -1400,59 +1344,6 @@ export function Rooms() {
 
               {editorMode === "list" ? (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-ink/10 bg-white p-4">
-                    <p className="text-sm font-semibold text-ink">Rooms voucher (%)</p>
-                    <p className="mt-1 text-xs text-ink/55">
-                      Automatically applied when enabled. Guests see the percent-off offer on the
-                      home page and on room rates — no code needed.
-                    </p>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-xs font-semibold text-ink/70">Percent off</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="0"
-                          value={voucherPercentText}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, "").slice(0, 3);
-                            const n = Number(digits);
-                            if (digits === "") {
-                              setVoucherPercentText("");
-                              return;
-                            }
-                            if (Number.isFinite(n)) {
-                              setVoucherPercentText(String(Math.min(100, n)));
-                            }
-                          }}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          className={`${inputClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
-                        />
-                      </label>
-                      <label className="mt-6 flex items-center gap-2 text-sm font-semibold text-ink">
-                        <input
-                          type="checkbox"
-                          checked={voucherEnabled}
-                          onChange={(e) => setVoucherEnabled(e.target.checked)}
-                          className="h-4 w-4 rounded border-ink/20"
-                        />
-                        Enable voucher (auto-apply)
-                      </label>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void onSaveVoucher()}
-                      className="btn-press mt-3 rounded-full bg-sky-deep px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {busy ? "Saving…" : "Save voucher"}
-                    </button>
-                  </div>
-
-                  <BookingSettingsCard />
-                  <ExtraPersonSettings />
-
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1460,14 +1351,6 @@ export function Rooms() {
                       className="btn-press rounded-full bg-sky-deep px-4 py-2.5 text-sm font-semibold text-white"
                     >
                       Add room
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => setConfirmReset(true)}
-                      className="btn-press rounded-full border border-ink/15 px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
-                    >
-                      Reset to resort defaults
                     </button>
                   </div>
                   <ul className="divide-y divide-ink/10 overflow-hidden rounded-2xl border border-ink/10 bg-white">
@@ -1801,16 +1684,6 @@ export function Rooms() {
                   busy={busy}
                   onCancel={() => setConfirmDelete(false)}
                   onConfirm={() => void onConfirmDeleteRoom()}
-                />
-              ) : null}
-              {confirmReset ? (
-                <ConfirmOverlay
-                  title="Reset rooms to resort defaults?"
-                  message="This replaces the current catalog with the standard Jalyn's room list."
-                  confirmLabel="Reset rooms"
-                  busy={busy}
-                  onCancel={() => setConfirmReset(false)}
-                  onConfirm={() => void onConfirmReset()}
                 />
               ) : null}
               {confirmImageDelete != null ? (

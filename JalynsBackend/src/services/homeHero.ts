@@ -220,6 +220,18 @@ export async function updateHomeHeroSlide(
   if (!Number.isInteger(index) || index < 0 || index >= DEFAULT_HOME_SLIDES.length) {
     throw new Error('Invalid slide index.')
   }
+  const row: { image?: string; alt?: string } = {}
+  if (typeof patch.image === 'string' && patch.image.trim()) row.image = patch.image.trim()
+  if (typeof patch.alt === 'string' && patch.alt.trim()) row.alt = patch.alt.trim()
+  if (Object.keys(row).length && (await heroDbReady()) && (await alreadyImported('home-hero'))) {
+    const { data, error } = await supabaseAdmin
+      .from('home_hero_slides')
+      .update(row)
+      .eq('id', DEFAULT_HOME_SLIDES[index].id)
+      .select('id')
+    if (error) throw new Error(error.message)
+    if (data?.length) return (await readHero()).slides
+  }
   const current = await store.load()
   const slides = current.slides.map((s) => ({ ...s }))
   if (typeof patch.image === 'string' && patch.image.trim()) {

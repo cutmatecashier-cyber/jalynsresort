@@ -12,7 +12,12 @@ import {
   updateHomeHeroSlide,
   updateHomeSection,
 } from '../services/homeHero.js'
-import { SITE_BUCKETS, uploadPublicImage } from '../services/cloudUpload.js'
+import {
+  createDirectUpload,
+  finishDirectUpload,
+  SITE_BUCKETS,
+  uploadPublicImage,
+} from '../services/cloudUpload.js'
 
 export const homeRouter = Router()
 
@@ -74,6 +79,55 @@ homeRouter.post('/hero/upload', async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Could not upload home background.'
     return res.status(500).json({ success: false, message })
+  }
+})
+
+function heroSlideIndex(value: unknown) {
+  const index = Number(value)
+  return Number.isInteger(index) && index >= 0 && index <= 3 ? index : null
+}
+
+homeRouter.post('/hero/upload-url', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
+    const index = heroSlideIndex(req.body?.index)
+    if (index == null) {
+      return res.status(400).json({ success: false, message: 'Slide index must be 0–3.' })
+    }
+    const upload = await createDirectUpload({
+      bucket: SITE_BUCKETS.home,
+      folder: `hero/${index}`,
+      contentType: String(req.body?.contentType || ''),
+      fileName: String(req.body?.fileName || ''),
+      size: Number(req.body?.size),
+      durationSeconds: Number(req.body?.durationSeconds),
+    })
+    return res.json({ success: true, ...upload })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not prepare the upload.'
+    const status = /Only JPG|too large|seconds|MP4|choose/i.test(message) ? 400 : 500
+    return res.status(status).json({ success: false, message })
+  }
+})
+
+homeRouter.post('/hero/commit', async (req, res) => {
+  try {
+    if (!(await requireApprovedAdmin(req, res, adminMsg))) return
+    const index = heroSlideIndex(req.body?.index)
+    if (index == null) {
+      return res.status(400).json({ success: false, message: 'Slide index must be 0–3.' })
+    }
+    const url = await finishDirectUpload({
+      bucket: SITE_BUCKETS.home,
+      folder: `hero/${index}`,
+      path: String(req.body?.path || ''),
+    })
+    const slides = await updateHomeHeroSlide(index, { image: url })
+    return res.json({ success: true, url, slides })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not save home background.'
+    const status = /Invalid upload|did not finish/i.test(message) ? 400 : 500
+    return res.status(status).json({ success: false, message })
   }
 })
 

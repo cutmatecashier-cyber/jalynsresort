@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../config/supabase.js'
-import { assertGalleryVideo, assertHeroVideo, heroVideoKeepsSound } from './heroVideo.js'
+import {
+  assertGalleryVideo,
+  assertHeroVideo,
+  GALLERY_VIDEO_MAX_SECONDS,
+  HERO_VIDEO_MAX_BYTES,
+  HERO_VIDEO_MAX_SECONDS,
+  heroVideoKeepsSound,
+} from './heroVideo.js'
 import { isHeroVideoFile, prepareRoomImage } from './prepareRoomImage.js'
 
 const readyBuckets = new Set<string>()
@@ -128,6 +135,89 @@ export async function uploadPublicImage(input: CloudUploadInput): Promise<string
   }
   if (stableName) await removeSiblingObjects(bucket, folderPath, objectPath)
   return publicUrl(bucket, objectPath, String(Date.now()))
+}
+
+const DIRECT_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4'])
+
+export type DirectUploadRequest = {
+  bucket: string
+  folder: string
+  contentType: string
+  fileName: string
+  size: number
+  /** Required for MP4. Checked against the hero or gallery limit. */
+  durationSeconds?: number
+  videoPolicy?: 'hero' | 'gallery'
+}
+
+/**
+ * Sign a one-time URL so the browser uploads straight to Supabase Storage
+ * instead of streaming the file through this server first.
+ */
+export async function createDirectUpload(input: DirectUploadRequest) {
+  const contentType = input.contentType.toLowerCase()
+  if (!DIRECT_MIME_TYPES.has(contentType)) {
+    throw new Error('Only JPG, PNG, WEBP, GIF, or MP4 files can be uploaded directly.')
+  }
+  if (!Number.isFinite(input.size) || input.size <= 0) {
+    throw new Error('Please choose a file to upload.')
+  }
+  if (input.size > HERO_VIDEO_MAX_BYTES) {
+    throw new Error('This file is too large. Keep uploads under 40 MB.')
+  }
+  const video = contentType === 'video/mp4'
+  if (video) {
+    const maxSeconds = input.videoPolicy === 'gallery' ? GALLERY_VIDEO_MAX_SECONDS : HERO_VIDEO_MAX_SECONDS
+    const seconds = Number(input.durationSeconds)
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      throw new Error('Could not read this video. Use an MP4 file.')
+    }
+    if (seconds > maxSeconds) {
+      throw new Error(
+        input.videoPolicy === 'gallery'
+          ? 'Gallery videos must be 10 seconds or shorter. Trim the video, then upload it again.'
+          : 'Hero videos must be 3 seconds or shorter. Trim the video, then upload it again.',
+      )
+    }
+  }
+
+  await ensurePublicMediaBucket(input.bucket)
+  const folderPath = input.folder.replace(/\/$/, '')
+  const base = `${Date.now()}-${randomUUID().slice(0, 8)}`
+  const objectBase = video && heroVideoKeepsSound({ originalname: input.fileName }) ? `${base}-sound` : base
+  const objectPath = `${folderPath}/${objectBase}.${extFromMime(contentType)}`
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(input.bucket)
+    .createSignedUploadUrl(objectPath, { upsert: true })
+  if (error || !data) {
+    throw new Error(error?.message || 'Could not prepare the upload.')
+  }
+  return { signedUrl: data.signedUrl, path: objectPath, cacheControl: MEDIA_CACHE_CONTROL }
+}
+
+/**
+ * Confirm a browser upload landed inside `folder`, then return its public URL.
+ * Older files in the folder are removed in the background.
+ */
+export async function finishDirectUpload(input: { bucket: string; folder: string; path: string }) {
+  const folderPath = input.folder.replace(/\/$/, '')
+  const objectPath = input.path.trim()
+  const name = objectPath.slice(folderPath.length + 1)
+  if (!objectPath.startsWith(`${folderPath}/`) || !name || name.includes('/') || name.includes('..')) {
+    throw new Error('Invalid upload path.')
+  }
+  const { data, error } = await supabaseAdmin.storage
+    .from(input.bucket)
+    .list(folderPath, { limit: 100, search: name })
+  if (error) throw new Error(error.message || 'Could not confirm the upload.')
+  if (!data?.some((item) => item.name === name)) {
+    throw new Error('The upload did not finish. Please try again.')
+  }
+  void removeSiblingObjects(input.bucket, folderPath, objectPath).catch((err: unknown) => {
+    console.warn(`Could not clean up old files in ${input.bucket}/${folderPath}:`, err)
+  })
+  return publicUrl(input.bucket, objectPath, String(Date.now()))
 }
 
 export const SITE_BUCKETS = {
